@@ -23,6 +23,7 @@ class _MapScreenState extends State<MapScreen> {
   final List<Map<String, dynamic>> _places = [];
   static const double _minDataZoom = 14.5;
   LatLng _center = const LatLng(-6.9147, 107.6098);
+  LatLng? _userLocation;
   bool _loading = true;
   bool _hasLocation = false;
   bool _tooFar = false;
@@ -85,6 +86,7 @@ class _MapScreenState extends State<MapScreen> {
       if (mounted) {
         setState(() {
           _center = position;
+          _userLocation = position;
           _hasLocation = true;
           _zoom = 16.5;
           _radius = 1000;
@@ -139,6 +141,21 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  int _distanceTo(Map<String, dynamic> place) {
+    final from = _userLocation ?? _center;
+    final point = LatLng(
+      (place['lat'] as num).toDouble(),
+      (place['lng'] as num).toDouble(),
+    );
+    return const Distance().as(LengthUnit.Meter, from, point).round();
+  }
+
+  String _distanceLabel(int meters) {
+    return meters >= 1000
+        ? '${(meters / 1000).toStringAsFixed(1)} km'
+        : '$meters m';
+  }
+
   Future<void> _openPlace(Map<String, dynamic> place) async {
     final result = await showModalBottomSheet<String>(
       context: context,
@@ -169,7 +186,7 @@ class _MapScreenState extends State<MapScreen> {
                           children: [
                             Flexible(
                               child: Text(
-                                '${place['type_label'] ?? ''} • ${place['distance_m'] ?? 0} m',
+                                '${place['type_label'] ?? ''} • ${_distanceLabel(_distanceTo(place))}',
                                 style:
                                     Theme.of(sheetContext).textTheme.bodySmall,
                               ),
@@ -311,62 +328,119 @@ class _MapScreenState extends State<MapScreen> {
             ),
             MarkerLayer(
               markers: [
-                Marker(
-                  point: _center,
-                  width: 34,
-                  height: 34,
-                  child:
-                      const Icon(Icons.my_location, color: Color(0xFF1D4ED8)),
-                ),
+                if (consent && _userLocation != null)
+                  Marker(
+                    point: _userLocation!,
+                    width: 116,
+                    height: 34,
+                    alignment: Alignment.center,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1D4ED8),
+                        borderRadius: BorderRadius.circular(17),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black26, blurRadius: 6),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.my_location,
+                              size: 13, color: Colors.white),
+                          SizedBox(width: 4),
+                          Text(
+                            'Kamu di sini',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 for (final place in _places)
                   Marker(
                     point: LatLng(
                       (place['lat'] as num).toDouble(),
                       (place['lng'] as num).toDouble(),
                     ),
-                    width: 52,
-                    height: 52,
+                    width: 80,
+                    height: 70,
+                    alignment: Alignment.topCenter,
                     child: GestureDetector(
                       onTap: () => _openPlace(place),
-                      child: Stack(
-                        clipBehavior: Clip.none,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
                             decoration: BoxDecoration(
-                              color: place['is_active'] == false
-                                  ? Colors.blueGrey
-                                  : typeColor(place['type_code'] as String?),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: place['is_own'] == true
-                                    ? const Color(0xFFF59E0B)
-                                    : Colors.white,
-                                width: place['is_own'] == true ? 3 : 2,
-                              ),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
                               boxShadow: const [
-                                BoxShadow(color: Colors.black26, blurRadius: 6),
+                                BoxShadow(color: Colors.black26, blurRadius: 4),
                               ],
                             ),
-                            child: Icon(
-                              typeIcon(place['type_code'] as String?),
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                          ),
-                          if (place['is_own'] == true)
-                            Positioned(
-                              right: -4,
-                              top: -4,
-                              child: Container(
-                                padding: const EdgeInsets.all(2),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFF59E0B),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.star,
-                                    size: 13, color: Colors.white),
+                            child: Text(
+                              _distanceLabel(_distanceTo(place)),
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F172A),
                               ),
                             ),
+                          ),
+                          const SizedBox(height: 2),
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: place['is_active'] == false
+                                      ? Colors.blueGrey
+                                      : typeColor(
+                                          place['type_code'] as String?),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: place['is_own'] == true
+                                        ? const Color(0xFFF59E0B)
+                                        : Colors.white,
+                                    width: place['is_own'] == true ? 3 : 2,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                        color: Colors.black26, blurRadius: 6),
+                                  ],
+                                ),
+                                child: Icon(
+                                  typeIcon(place['type_code'] as String?),
+                                  color: Colors.white,
+                                  size: 21,
+                                ),
+                              ),
+                              if (place['is_own'] == true)
+                                Positioned(
+                                  right: -3,
+                                  top: -3,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFF59E0B),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.star,
+                                        size: 12, color: Colors.white),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
