@@ -96,19 +96,19 @@ class _FeedScreenState extends State<FeedScreen> {
     if (_loading) return const Center(child: CircularProgressIndicator());
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: _createPost,
-        icon: const Icon(Icons.add_a_photo_outlined),
-        label: const Text('Post'),
+        tooltip: 'Buat post',
+        child: const Icon(Icons.add_a_photo_outlined),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _posts.isEmpty
             ? ListView(
                 children: const [
-                  SizedBox(height: 140),
-                  Icon(Icons.photo_library_outlined, size: 48),
-                  SizedBox(height: 12),
+                  SizedBox(height: 110),
+                  Icon(Icons.photo_library_outlined, size: 44),
+                  SizedBox(height: 10),
                   Center(child: Text('Belum ada post di sekitar')),
                   SizedBox(height: 4),
                   Center(
@@ -118,9 +118,9 @@ class _FeedScreenState extends State<FeedScreen> {
                 ],
               )
             : ListView.separated(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 96),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 92),
                 itemCount: _posts.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final post = _posts[index];
                   return _PostCard(
@@ -157,77 +157,133 @@ class _PostCard extends StatelessWidget {
         ? null
         : <String, String>{'Authorization': 'Bearer $token'};
     final liked = post['liked'] == true;
+    final type = account['type_code'] as String?;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: typeColor(account['type_code'] as String?)
-                      .withValues(alpha: 0.15),
-                  child: Icon(
-                    typeIcon(account['type_code'] as String?),
-                    color: typeColor(account['type_code'] as String?),
-                  ),
+                  radius: 17,
+                  backgroundColor: typeColor(type).withValues(alpha: 0.15),
+                  child: Icon(typeIcon(type), size: 18, color: typeColor(type)),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${account['display_name'] ?? ''}',
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
                       Text(
-                          '@${account['handle'] ?? ''} • ${formatWhen(post['created_at'])}',
-                          style: Theme.of(context).textTheme.labelSmall),
+                        '${account['display_name'] ?? ''}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        '@${account['handle'] ?? ''} · ${formatWhen(post['created_at'])}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
             if ('${post['caption'] ?? ''}'.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text('${post['caption']}'),
+              const SizedBox(height: 7),
+              Text(
+                '${post['caption']}',
+                style: const TextStyle(fontSize: 14, height: 1.35),
+              ),
             ],
             if (media.isNotEmpty) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Image.network(
-                  AppConfig.absoluteUrl('${media.first['url'] ?? ''}'),
-                  headers: headers,
-                  height: 220,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    height: 180,
-                    color: Colors.black12,
-                    child: const Center(child: Icon(Icons.broken_image)),
+                borderRadius: BorderRadius.circular(12),
+                child: AspectRatio(
+                  aspectRatio: 4 / 3,
+                  child: Image.network(
+                    AppConfig.absoluteUrl('${media.first['url'] ?? ''}'),
+                    headers: headers,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: Colors.black12,
+                      child: const Center(child: Icon(Icons.broken_image)),
+                    ),
                   ),
                 ),
               ),
+              if (media.length > 1)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text('+${media.length - 1} foto',
+                      style: Theme.of(context).textTheme.labelSmall),
+                ),
             ],
-            const SizedBox(height: 8),
+            const SizedBox(height: 2),
             Row(
               children: [
-                IconButton(
-                  onPressed: onLike,
-                  icon: Icon(
-                    liked ? Icons.favorite : Icons.favorite_border,
-                    color: liked ? Colors.red : null,
-                  ),
+                _ActionButton(
+                  icon: liked ? Icons.favorite : Icons.favorite_border,
+                  color: liked ? Colors.red : null,
+                  count: '${post['like_count'] ?? 0}',
+                  onTap: onLike,
                 ),
-                Text('${post['like_count'] ?? 0}'),
-                const SizedBox(width: 12),
-                IconButton(
-                  onPressed: onComments,
-                  icon: const Icon(Icons.mode_comment_outlined),
+                const SizedBox(width: 14),
+                _ActionButton(
+                  icon: Icons.mode_comment_outlined,
+                  count: '${post['comment_count'] ?? 0}',
+                  onTap: onComments,
                 ),
-                Text('${post['comment_count'] ?? 0}'),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.icon,
+    required this.count,
+    required this.onTap,
+    this.color,
+  });
+
+  final IconData icon;
+  final String count;
+  final VoidCallback onTap;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        child: Row(
+          children: [
+            Icon(icon, size: 19, color: color),
+            const SizedBox(width: 4),
+            Text(
+              count,
+              style: TextStyle(
+                fontSize: 12,
+                color: color ?? Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),

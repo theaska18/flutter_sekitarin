@@ -109,6 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStore>();
     final account = auth.activeAccount;
@@ -119,72 +120,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
         : <String, String>{'Authorization': 'Bearer $token'};
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _createAccount,
-        icon: const Icon(Icons.add_business_outlined),
-        label: const Text('Akun usaha'),
-      ),
       body: RefreshIndicator(
         onRefresh: () async {
           await auth.refresh();
           await _load(auth.activeAccount?['account_id'] as int?);
         },
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
           children: [
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.fromLTRB(14, 14, 10, 12),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AccountAvatar(
-                      account: account,
-                      radius: 40,
-                      token: auth.api.accessToken,
-                      fallbackIcon: typeIcon(type),
-                      backgroundColor: typeColor(type).withValues(alpha: 0.15),
-                      foregroundColor: typeColor(type),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      accountName(account),
-                      style: const TextStyle(
-                          fontSize: 22, fontWeight: FontWeight.w800),
-                    ),
-                    Text('@${account?['handle'] ?? ''}'),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${account?['type_label'] ?? ''}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    if ('${account?['bio'] ?? ''}'.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Text('${account?['bio']}', textAlign: TextAlign.center),
-                    ],
-                    const SizedBox(height: 14),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        OutlinedButton.icon(
-                          onPressed: _switchAccount,
-                          icon: const Icon(Icons.switch_account, size: 18),
-                          label: const Text('Ganti akun'),
+                        AccountAvatar(
+                          account: account,
+                          radius: 32,
+                          token: token,
+                          fallbackIcon: typeIcon(type),
+                          backgroundColor:
+                              typeColor(type).withValues(alpha: 0.15),
+                          foregroundColor: typeColor(type),
                         ),
-                        const SizedBox(width: 8),
-                        OutlinedButton.icon(
-                          onPressed: _createAccount,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Akun baru'),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                accountName(account),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Text(
+                                '@${account?['handle'] ?? ''}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Text(
+                                    '${account?['type_label'] ?? ''}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                  ),
+                                  if (account?['verified'] == true) ...[
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      Icons.verified,
+                                      size: 13,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.center,
-                      children: [
-                        OutlinedButton.icon(
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          tooltip: 'Edit profil',
                           onPressed: () async {
                             final changed =
                                 await Navigator.of(context).push<bool>(
@@ -197,11 +210,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               didChangeDependencies();
                             }
                           },
-                          icon: const Icon(Icons.edit_outlined, size: 18),
-                          label: const Text('Edit profil'),
+                          icon: const Icon(Icons.edit_outlined, size: 19),
                         ),
-                        if (account?['type_code'] != 'personal')
-                          OutlinedButton.icon(
+                      ],
+                    ),
+                    if ('${account?['bio'] ?? ''}'.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '${account?['bio']}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13, height: 1.3),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        ActionChip(
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          avatar: const Icon(Icons.switch_account, size: 16),
+                          label: const Text('Ganti akun'),
+                          labelStyle: const TextStyle(fontSize: 12),
+                          onPressed: _switchAccount,
+                        ),
+                        ActionChip(
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          avatar:
+                              const Icon(Icons.add_business_outlined, size: 16),
+                          label: const Text('Akun baru'),
+                          labelStyle: const TextStyle(fontSize: 12),
+                          onPressed: _createAccount,
+                        ),
+                        if (type != 'personal')
+                          ActionChip(
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            avatar: const Icon(Icons.place_outlined, size: 16),
+                            label: const Text('Lokasi usaha'),
+                            labelStyle: const TextStyle(fontSize: 12),
                             onPressed: () async {
                               final changed =
                                   await Navigator.of(context).push<bool>(
@@ -217,8 +270,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 didChangeDependencies();
                               }
                             },
-                            icon: const Icon(Icons.place_outlined, size: 18),
-                            label: const Text('Lokasi usaha'),
                           ),
                       ],
                     ),
@@ -226,51 +277,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
+            Card(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _QuickAction(
+                      icon: Icons.receipt_long_outlined,
+                      label: 'Pesanan saya',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              const OrdersScreen(initialRole: 'customer'),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 30,
+                    color:
+                        Theme.of(context).dividerColor.withValues(alpha: 0.4),
+                  ),
+                  Expanded(
+                    child: _QuickAction(
+                      icon: Icons.storefront_outlined,
+                      label: 'Pesanan masuk',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              const OrdersScreen(initialRole: 'provider'),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            const OrdersScreen(initialRole: 'customer'),
-                      ),
-                    ),
-                    icon: const Icon(Icons.receipt_long_outlined, size: 18),
-                    label: const Text('Pesanan saya'),
-                  ),
+                Text(
+                  'Post',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            const OrdersScreen(initialRole: 'provider'),
-                      ),
-                    ),
-                    icon: const Icon(Icons.storefront, size: 18),
-                    label: const Text('Pesanan masuk'),
+                const Spacer(),
+                Text(
+                  '${_posts.length} post',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-            Text('Post',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             if (_loading)
               const Padding(
-                padding: EdgeInsets.all(40),
+                padding: EdgeInsets.all(32),
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_posts.isEmpty)
               const Padding(
-                padding: EdgeInsets.all(40),
+                padding: EdgeInsets.all(32),
                 child: Center(child: Text('Belum ada post')),
               )
             else
@@ -279,36 +351,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
-                  crossAxisSpacing: 4,
-                  mainAxisSpacing: 4,
+                  crossAxisSpacing: 2,
+                  mainAxisSpacing: 2,
                 ),
                 itemCount: _posts.length,
                 itemBuilder: (context, index) {
                   final media = _posts[index]['media'];
                   final first =
                       media is List && media.isNotEmpty ? media.first : null;
-                  return Container(
-                    color: Colors.black12,
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
                     child: first is Map
                         ? Image.network(
                             AppConfig.absoluteUrl('${first['url'] ?? ''}'),
                             headers: headers,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                const Icon(Icons.image_not_supported),
+                            errorBuilder: (_, __, ___) => Container(
+                              color: Colors.black12,
+                              child: const Icon(Icons.image_not_supported),
+                            ),
                           )
-                        : Padding(
-                            padding: const EdgeInsets.all(8),
+                        : Container(
+                            color: Colors.black12,
+                            padding: const EdgeInsets.all(6),
                             child: Text(
                               '${_posts[index]['caption'] ?? ''}',
                               maxLines: 4,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 11),
+                              style: const TextStyle(fontSize: 10),
                             ),
                           ),
                   );
                 },
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 17, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
           ],
         ),
       ),
