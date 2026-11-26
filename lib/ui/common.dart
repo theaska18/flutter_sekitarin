@@ -97,6 +97,70 @@ String rupiah(num value) {
   }
 }
 
+String orderStatusLabel(String? status) {
+  switch (status) {
+    case 'pending':
+      return 'Menunggu';
+    case 'accepted':
+      return 'Diterima';
+    case 'in_progress':
+      return 'Diproses';
+    case 'delivering':
+      return 'Diantar';
+    case 'completed':
+      return 'Selesai';
+    case 'cancelled':
+      return 'Dibatalkan';
+    default:
+      return 'Status';
+  }
+}
+
+Color orderStatusColor(String? status) {
+  switch (status) {
+    case 'pending':
+      return const Color(0xFFB45309);
+    case 'accepted':
+      return const Color(0xFF1D4ED8);
+    case 'in_progress':
+    case 'delivering':
+      return const Color(0xFF7C3AED);
+    case 'completed':
+      return const Color(0xFF047857);
+    case 'cancelled':
+      return const Color(0xFFB91C1C);
+    default:
+      return const Color(0xFF475569);
+  }
+}
+
+String orderTypeLabel(String? type) {
+  switch (type) {
+    case 'food':
+      return 'Makanan';
+    case 'ride':
+      return 'Ojek / Ride';
+    case 'service':
+      return 'Jasa';
+    default:
+      return 'Order';
+  }
+}
+
+String orderTypeForAccount(String? typeCode) {
+  switch (typeCode) {
+    case 'warung':
+    case 'restoran':
+      return 'food';
+    case 'driver_motor':
+    case 'driver_mobil':
+    case 'kurir_makanan':
+      return 'ride';
+    default:
+      return 'service';
+  }
+}
+
 void showErrorSnack(BuildContext context, Object error) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text('$error')),

@@ -8,6 +8,9 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
 - Peta OpenStreetMap: akun usaha dan driver di sekitar, tap marker untuk chat.
 - Feed post dari kontak + radius 500 m, like, komentar, dan buat post (1 foto).
 - Profil/grid post, ganti akun personal/usaha, tambah akun usaha.
+- Katalog & order: lihat layanan akun dari peta, order makanan/jasa/ride,
+  pembayaran tunai/transfer, dan alur status (terima → proses → antar →
+  selesai/batal).
 - Consent lokasi/notifikasi dan feed notifikasi in-app.
 
 ## Menjalankan
@@ -56,6 +59,7 @@ lib/
   ui/map/                   peta OSM + nearby
   ui/feed/                  feed, komentar, buat post
   ui/profile/               profil, grid, buat akun usaha
+  ui/orders/                katalog penyedia, buat order, daftar & detail order
   ui/settings/              akun, consent, logout
   ui/notifications/         feed notifikasi
 ```
@@ -71,6 +75,6 @@ Token akses disimpan di `flutter_secure_storage`; device UUID dan akun aktif di
   `/me/push-token` dan worker FCM). Diperlukan `google-services.json`,
   `GoogleService-Info.plist`, dan paket `firebase_messaging`.
 - Belum ada pembuatan grup, pengaturan profil, atau unggah avatar dari app.
-- Order/ride belum punya layar khusus (backend sudah tersedia); chat & peta
-  sudah bisa dipakai untuk menghubungi penyedia.
+- Tarif ride memakai harga layanan dari backend (belum dihitung per jarak).
+- Belum ada pilihan multi-dropoff, jadwal order, atau pembayaran gateway.
 - Tile OSM memakai server publik untuk development.

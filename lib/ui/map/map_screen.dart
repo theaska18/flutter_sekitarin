@@ -7,6 +7,7 @@ import '../../services/location_service.dart';
 import '../../state/auth_store.dart';
 import '../chat/chat_room_screen.dart';
 import '../common.dart';
+import '../orders/provider_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -73,7 +74,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _openPlace(Map<String, dynamic> place) async {
-    final result = await showModalBottomSheet<bool>(
+    final result = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
       builder: (sheetContext) {
@@ -112,17 +113,42 @@ class _MapScreenState extends State<MapScreen> {
                 Text('${place['bio']}'),
               ],
               const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: () => Navigator.of(sheetContext).pop(true),
-                icon: const Icon(Icons.chat_bubble_outline),
-                label: const Text('Chat akun ini'),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.of(sheetContext).pop('chat'),
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: const Text('Chat'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => Navigator.of(sheetContext).pop('view'),
+                      icon: const Icon(Icons.storefront_outlined),
+                      label: const Text('Lihat & pesan'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         );
       },
     );
-    if (result != true || !mounted) return;
+    if (result == 'view' && mounted) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ProviderScreen(
+            accountId: place['account_id'] as int,
+            initialName: place['display_name'] as String?,
+          ),
+        ),
+      );
+      return;
+    }
+    if (result != 'chat' || !mounted) return;
     try {
       final data = await context.read<AuthStore>().api.post('conversations', {
         'type': 'direct',

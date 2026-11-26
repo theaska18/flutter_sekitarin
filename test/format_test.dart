@@ -14,4 +14,13 @@ void main() {
     expect(messagePreview({'type': 'text', 'body': 'Halo'}), 'Halo');
     expect(messagePreview({'deleted_at': '2026-01-01'}), 'Pesan dihapus');
   });
+
+  test('order helpers map account types and statuses', () {
+    expect(orderTypeForAccount('warung'), 'food');
+    expect(orderTypeForAccount('driver_motor'), 'ride');
+    expect(orderTypeForAccount('tambal_ban'), 'service');
+    expect(orderStatusLabel('in_progress'), 'Diproses');
+    expect(orderStatusLabel('cancelled'), 'Dibatalkan');
+    expect(orderTypeLabel('ride'), 'Ojek / Ride');
+  });
 }

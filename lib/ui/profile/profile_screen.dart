@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../config.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../orders/orders_screen.dart';
 import 'create_account_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -175,6 +176,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            const OrdersScreen(initialRole: 'customer'),
+                      ),
+                    ),
+                    icon: const Icon(Icons.receipt_long_outlined, size: 18),
+                    label: const Text('Pesanan saya'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            const OrdersScreen(initialRole: 'provider'),
+                      ),
+                    ),
+                    icon: const Icon(Icons.storefront, size: 18),
+                    label: const Text('Pesanan masuk'),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 18),
             Text('Post',

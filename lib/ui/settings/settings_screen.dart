@@ -5,6 +5,7 @@ import '../../config.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
 import '../notifications/notifications_screen.dart';
+import '../orders/orders_screen.dart';
 import '../profile/create_account_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -202,6 +203,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Card(
           child: Column(
             children: [
+              ListTile(
+                leading: const Icon(Icons.receipt_long_outlined),
+                title: const Text('Pesanan'),
+                subtitle: const Text('Pesanan saya dan pesanan masuk'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const OrdersScreen(),
+                  ),
+                ),
+              ),
               ListTile(
                 leading: const Icon(Icons.notifications_none),
                 title: const Text('Feed notifikasi'),
