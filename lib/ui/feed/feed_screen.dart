@@ -27,9 +27,11 @@ class _FeedScreenState extends State<FeedScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final api = context.read<AuthStore>().api;
+    final auth = context.read<AuthStore>();
+    final api = auth.api;
     try {
-      final position = await LocationService.current();
+      final position =
+          auth.locationConsent ? await LocationService.current() : null;
       final query = <String, String>{'limit': '20'};
       if (position != null) {
         query['lat'] = '${position.latitude}';
@@ -158,6 +160,8 @@ class _PostCard extends StatelessWidget {
         : <String, String>{'Authorization': 'Bearer $token'};
     final liked = post['liked'] == true;
     final type = account['type_code'] as String?;
+    final source = post['feed_source'] as String?;
+    final distance = post['distance_m'];
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
@@ -197,6 +201,8 @@ class _PostCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (source != null)
+                  _FeedSourceBadge(source: source, distance: distance as int?),
               ],
             ),
             if ('${post['caption'] ?? ''}'.isNotEmpty) ...[
@@ -248,6 +254,47 @@ class _PostCard extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FeedSourceBadge extends StatelessWidget {
+  const _FeedSourceBadge({required this.source, required this.distance});
+
+  final String source;
+  final int? distance;
+
+  @override
+  Widget build(BuildContext context) {
+    late final String label;
+    late final Color color;
+    if (source == 'nearby') {
+      final meters = distance ?? 0;
+      label = meters >= 1000
+          ? 'Sekitar ${(meters / 1000).toStringAsFixed(1)} km'
+          : 'Sekitar $meters m';
+      color = Theme.of(context).colorScheme.primary;
+    } else if (source == 'own') {
+      label = 'Akunmu';
+      color = const Color(0xFFB45309);
+    } else {
+      label = 'Kontak';
+      color = Colors.blueGrey;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9.5,
+          fontWeight: FontWeight.w700,
+          color: color,
         ),
       ),
     );

@@ -24,6 +24,7 @@ class _MapScreenState extends State<MapScreen> {
   LatLng _center = const LatLng(-6.9147, 107.6098);
   bool _loading = true;
   bool _hasLocation = false;
+  bool? _lastConsent;
   Timer? _poll;
 
   @override
@@ -237,6 +238,13 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final consent = context.watch<AuthStore>().locationConsent;
+    if (_lastConsent != consent) {
+      _lastConsent = consent;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadPlaces(showLoading: false);
+      });
+    }
     return Stack(
       children: [
         FlutterMap(
@@ -329,18 +337,24 @@ class _MapScreenState extends State<MapScreen> {
               child: Row(
                 children: [
                   Icon(
-                    _hasLocation ? Icons.near_me : Icons.location_off,
+                    !consent
+                        ? Icons.location_off
+                        : (_hasLocation
+                            ? Icons.near_me
+                            : Icons.location_searching),
                     size: 18,
-                    color: _hasLocation
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.error,
+                    color: !consent
+                        ? const Color(0xFFB45309)
+                        : Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      _hasLocation
-                          ? '${_places.length} akun di sekitar Anda'
-                          : 'Aktifkan GPS untuk melihat sekitar',
+                      !consent
+                          ? 'Mode freeze. Aktifkan “Bagikan lokasi” di Setelan untuk melihat akun realtime.'
+                          : _hasLocation
+                              ? '${_places.length} akun di sekitar Anda'
+                              : 'Aktifkan GPS untuk melihat sekitar',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),

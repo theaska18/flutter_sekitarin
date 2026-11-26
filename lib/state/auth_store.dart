@@ -33,6 +33,8 @@ class AuthStore extends ChangeNotifier {
 
   bool get signedIn => _accessToken != null && user != null;
 
+  bool get locationConsent => _locationConsent;
+
   Map<String, dynamic>? get activeAccount {
     for (final account in accounts) {
       if (account['account_id'] == activeAccountId) return account;
@@ -273,7 +275,7 @@ class AuthStore extends ChangeNotifier {
   Map<String, dynamic> _devicePayload() => {
         'device_uuid': store.deviceUuid,
         'platform': devicePlatform,
-        'app_version': '0.7.0',
+        'app_version': '0.8.0',
       };
 
   List<Map<String, dynamic>> _accountList(dynamic raw) {
