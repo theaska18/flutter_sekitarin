@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -22,16 +24,26 @@ class _MapScreenState extends State<MapScreen> {
   LatLng _center = const LatLng(-6.9147, 107.6098);
   bool _loading = true;
   bool _hasLocation = false;
+  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
     _refresh();
+    _poll = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _loadPlaces(showLoading: false),
+    );
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _refresh() async {
     setState(() => _loading = true);
-    final api = context.read<AuthStore>().api;
     final position = await LocationService.current();
     if (position != null) {
       if (mounted) {
@@ -41,18 +53,24 @@ class _MapScreenState extends State<MapScreen> {
         });
       }
       try {
-        _mapController.move(position, 15);
+        _mapController.move(position, 16.5);
       } catch (_) {
         // The map may not be attached on the first frame.
       }
     }
+    await _loadPlaces(showLoading: false);
+  }
+
+  Future<void> _loadPlaces({bool showLoading = true}) async {
+    if (showLoading) setState(() => _loading = true);
+    final api = context.read<AuthStore>().api;
     try {
       final data = await api.get(
         'nearby',
         query: {
           'lat': '${_center.latitude}',
           'lng': '${_center.longitude}',
-          'radius': '2500',
+          'radius': '1000',
           'limit': '100',
         },
       );
@@ -99,9 +117,35 @@ class _MapScreenState extends State<MapScreen> {
                         Text('${place['display_name'] ?? ''}',
                             style: const TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.w700)),
-                        Text(
-                          '${place['type_label'] ?? ''} • ${place['distance_m'] ?? 0} m',
-                          style: Theme.of(sheetContext).textTheme.bodySmall,
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                '${place['type_label'] ?? ''} • ${place['distance_m'] ?? 0} m',
+                                style:
+                                    Theme.of(sheetContext).textTheme.bodySmall,
+                              ),
+                            ),
+                            if (place['is_own'] == true) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF59E0B),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'Akunmu',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ],
                     ),
@@ -115,19 +159,23 @@ class _MapScreenState extends State<MapScreen> {
               const SizedBox(height: 18),
               Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.of(sheetContext).pop('chat'),
-                      icon: const Icon(Icons.chat_bubble_outline),
-                      label: const Text('Chat'),
+                  if (place['is_own'] != true) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.of(sheetContext).pop('chat'),
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        label: const Text('Chat'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
+                    const SizedBox(width: 10),
+                  ],
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: () => Navigator.of(sheetContext).pop('view'),
                       icon: const Icon(Icons.storefront_outlined),
-                      label: const Text('Lihat & pesan'),
+                      label: Text(place['is_own'] == true
+                          ? 'Lihat akun'
+                          : 'Lihat & pesan'),
                     ),
                   ),
                 ],
@@ -176,7 +224,7 @@ class _MapScreenState extends State<MapScreen> {
           mapController: _mapController,
           options: MapOptions(
             initialCenter: _center,
-            initialZoom: 14,
+            initialZoom: 16,
             onTap: (_, __) => FocusScope.of(context).unfocus(),
           ),
           children: [
@@ -199,24 +247,48 @@ class _MapScreenState extends State<MapScreen> {
                       (place['lat'] as num).toDouble(),
                       (place['lng'] as num).toDouble(),
                     ),
-                    width: 46,
-                    height: 46,
+                    width: 52,
+                    height: 52,
                     child: GestureDetector(
                       onTap: () => _openPlace(place),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: typeColor(place['type_code'] as String?),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black26, blurRadius: 6),
-                          ],
-                        ),
-                        child: Icon(
-                          typeIcon(place['type_code'] as String?),
-                          color: Colors.white,
-                          size: 22,
-                        ),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: typeColor(place['type_code'] as String?),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: place['is_own'] == true
+                                    ? const Color(0xFFF59E0B)
+                                    : Colors.white,
+                                width: place['is_own'] == true ? 3 : 2,
+                              ),
+                              boxShadow: const [
+                                BoxShadow(color: Colors.black26, blurRadius: 6),
+                              ],
+                            ),
+                            child: Icon(
+                              typeIcon(place['type_code'] as String?),
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                          ),
+                          if (place['is_own'] == true)
+                            Positioned(
+                              right: -4,
+                              top: -4,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF59E0B),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.star,
+                                    size: 13, color: Colors.white),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),

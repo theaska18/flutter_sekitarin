@@ -8,7 +8,11 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
 - Chat direct/grup, buat grup, kelola anggota, ganti nama grup, kirim teks,
   read receipt, WebSocket + polling fallback.
 - Tambah kontak lewat username dari ikon di topbar samping notifikasi.
-- Peta OpenStreetMap: akun usaha dan driver di sekitar, tap marker untuk chat.
+- Peta OpenStreetMap: akun usaha dan driver di sekitar, zoom dekat, update
+  otomatis tiap 10 detik, marker “Akunmu” untuk akun sendiri, tap marker untuk
+  chat/pesan.
+- Akun usaha: pilih **Realtime GPS** (lokasi diperbarui tiap 15 detik selama app
+  aktif) atau **freeze** dengan titik yang dipilih di peta.
 - Feed post dari kontak + radius 500 m, like, komentar, dan buat post (1 foto).
 - Profil/grid post, edit nama & username, ganti password, ganti akun
   personal/usaha, tambah akun usaha.
@@ -107,6 +111,8 @@ Token akses disimpan di `flutter_secure_storage`; device UUID dan akun aktif di
   `/me/push-token` dan worker FCM). Diperlukan `google-services.json`,
   `GoogleService-Info.plist`, dan paket `firebase_messaging`.
 - Belum ada unggah avatar/grup dan pengaturan foto profil dari app.
+- Realtime GPS berjalan saat aplikasi aktif (foreground); background location
+  perlu foreground service/plugin tambahan.
 - Tarif ride memakai harga layanan dari backend (belum dihitung per jarak).
 - Belum ada pilihan multi-dropoff, jadwal order, atau pembayaran gateway.
 - Tile OSM memakai server publik untuk development.

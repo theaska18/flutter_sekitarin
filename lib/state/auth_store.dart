@@ -7,6 +7,7 @@ import '../core/api_client.dart';
 import '../core/api_exception.dart';
 import '../core/token_store.dart';
 import '../core/ws_client.dart';
+import '../services/location_service.dart';
 
 class AuthStore extends ChangeNotifier {
   AuthStore(this.api, this.store, this.ws) {
@@ -26,6 +27,9 @@ class AuthStore extends ChangeNotifier {
 
   String? _accessToken;
   String? _refreshToken;
+  Timer? _realtimeTimer;
+  bool _realtimeBusy = false;
+  bool _locationConsent = false;
 
   bool get signedIn => _accessToken != null && user != null;
 
@@ -50,6 +54,7 @@ class AuthStore extends ChangeNotifier {
         api.activeAccountId = activeAccountId;
         await _loadMe();
         ws.connect(_accessToken!);
+        _startRealtimeTracking();
       }
     } catch (_) {
       await _clearSession();
@@ -155,6 +160,8 @@ class AuthStore extends ChangeNotifier {
     );
     await store.saveActiveAccount(activeAccountId);
     ws.connect(_accessToken ?? '');
+    await _loadMe();
+    _startRealtimeTracking();
   }
 
   Future<void> _loadMe() async {
@@ -170,7 +177,53 @@ class AuthStore extends ChangeNotifier {
     unreadNotifications = data['unread_notifications'] is int
         ? data['unread_notifications'] as int
         : 0;
+    final consents = data['consents'];
+    _locationConsent = consents is Map &&
+        consents['location'] is Map &&
+        consents['location']['granted'] == true;
     await store.saveActiveAccount(activeAccountId);
+    if (_locationConsent) {
+      _syncRealtimeLocations();
+    }
+  }
+
+  void _startRealtimeTracking() {
+    _realtimeTimer ??= Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _syncRealtimeLocations(),
+    );
+  }
+
+  Future<void> _syncRealtimeLocations() async {
+    if (!signedIn || !_locationConsent || _realtimeBusy) return;
+    final realtimeAccounts = accounts.where((account) {
+      return account['location_mode'] == 'realtime';
+    }).toList();
+    if (realtimeAccounts.isEmpty) return;
+    _realtimeBusy = true;
+    try {
+      final position = await LocationService.current();
+      if (position == null) return;
+      for (final account in realtimeAccounts) {
+        final accountId = account['account_id'];
+        if (accountId == null) continue;
+        final allowsPresence = account['allows_presence'] == true;
+        final path = allowsPresence
+            ? 'accounts/$accountId/presence'
+            : 'accounts/$accountId/location';
+        try {
+          await api.put(path, {
+            'lat': position.latitude,
+            'lng': position.longitude,
+            if (!allowsPresence) 'source': 'gps',
+          });
+        } catch (_) {
+          // One account failing should not stop the others.
+        }
+      }
+    } finally {
+      _realtimeBusy = false;
+    }
   }
 
   Future<bool> _refreshSession() async {
@@ -210,6 +263,9 @@ class AuthStore extends ChangeNotifier {
     accounts = [];
     activeAccountId = null;
     unreadNotifications = 0;
+    _locationConsent = false;
+    _realtimeTimer?.cancel();
+    _realtimeTimer = null;
     await store.clear();
     await ws.disconnect();
   }
@@ -217,7 +273,7 @@ class AuthStore extends ChangeNotifier {
   Map<String, dynamic> _devicePayload() => {
         'device_uuid': store.deviceUuid,
         'platform': devicePlatform,
-        'app_version': '0.2.0',
+        'app_version': '0.3.0',
       };
 
   List<Map<String, dynamic>> _accountList(dynamic raw) {

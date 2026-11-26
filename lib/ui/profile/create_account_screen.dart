@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/location_service.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../orders/location_picker_screen.dart';
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key});
@@ -19,6 +21,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final _address = TextEditingController();
   List<Map<String, dynamic>> _types = [];
   String? _type;
+  LatLng? _location;
+  bool _realtime = false;
   bool _loading = true;
   bool _busy = false;
 
@@ -36,7 +40,20 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     super.dispose();
   }
 
+  Future<void> _pickLocation() async {
+    final picked = await Navigator.of(context).push<LatLng>(
+      MaterialPageRoute(
+        builder: (_) => LocationPickerScreen(initial: _location),
+      ),
+    );
+    if (picked != null && mounted) setState(() => _location = picked);
+  }
+
   Future<void> _loadTypes() async {
+    final current = await LocationService.current();
+    if (current != null && mounted) {
+      setState(() => _location = current);
+    }
     try {
       final data = await context.read<AuthStore>().api.get('account-types');
       if (!mounted) return;
@@ -62,10 +79,17 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     setState(() => _busy = true);
     final auth = context.read<AuthStore>();
     try {
-      final position = await LocationService.current();
+      if (_realtime) {
+        await auth.api.put('me/consents/location', {
+          'granted': true,
+          'policy_version': '1.0',
+        });
+      }
+      final position = _location ?? await LocationService.current();
       final body = <String, dynamic>{
         'type_code': _type,
         'display_name': _name.text.trim(),
+        'location_mode': _realtime ? 'realtime' : 'fixed',
       };
       if (_handle.text.trim().isNotEmpty) {
         body['handle'] = _handle.text.trim().toLowerCase();
@@ -139,8 +163,39 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                     decoration: const InputDecoration(labelText: 'Alamat'),
                   ),
                   const SizedBox(height: 8),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _realtime,
+                    onChanged: (value) => setState(() => _realtime = value),
+                    title: const Text('Realtime GPS'),
+                    subtitle: const Text(
+                      'Lokasi diperbarui otomatis selama aplikasi aktif. '
+                      'Jika nonaktif, titik lokasi dibekukan (freeze).',
+                    ),
+                    secondary: const Icon(Icons.gps_fixed),
+                  ),
+                  if (_realtime)
+                    Text(
+                      'Izin lokasi akan diaktifkan untuk akun ini.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    )
+                  else
+                    Card(
+                      child: ListTile(
+                        onTap: _pickLocation,
+                        leading: const Icon(Icons.place_outlined),
+                        title: const Text('Titik lokasi tetap'),
+                        subtitle: Text(
+                          _location == null
+                              ? 'Ketuk untuk memilih di peta'
+                              : '${_location!.latitude.toStringAsFixed(5)}, ${_location!.longitude.toStringAsFixed(5)}',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
                   Text(
-                    'Lokasi memakai GPS saat ini. Jika izin lokasi belum aktif, dipakai titik demo Jakarta.',
+                    'Jika izin GPS belum aktif dan Anda memilih freeze, pilih titik di peta.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 22),

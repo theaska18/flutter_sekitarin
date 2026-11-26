@@ -48,10 +48,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _setConsent(String scope, bool value) async {
     setState(() => _consents[scope] = value);
     try {
-      await context.read<AuthStore>().api.put('me/consents/$scope', {
+      final auth = context.read<AuthStore>();
+      await auth.api.put('me/consents/$scope', {
         'granted': value,
         'policy_version': '1.0',
       });
+      await auth.refresh();
     } catch (error) {
       if (mounted) {
         setState(() => _consents[scope] = !value);
