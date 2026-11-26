@@ -40,6 +40,30 @@ WebSocket default memakai `wss://` (TLS) karena host sudah mendukungnya. Untuk
 development lokal yang memakai gateway tanpa TLS, override dengan `ws://`.
 
 
+## Build APK untuk uji perangkat
+
+Dengan Android SDK + JDK 17 terpasang:
+
+```bash
+flutter build apk --debug
+```
+
+Hasil: `build/app/outputs/flutter-apk/app-debug.apk`. Kirim ke HP Android dan
+pasang (izinkan “Install unknown apps”), atau lewat USB:
+
+```bash
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+```
+
+Debug APK memakai default production (`https://sekitarin.ckamal.com/api/v1`,
+`wss://sekitarinws.ckamal.com`). Untuk mengarahkan ke server lokal saat build:
+
+```bash
+flutter build apk --debug \
+  --dart-define=API_BASE_URL=http://192.168.1.10:8088/api/v1 \
+  --dart-define=WS_URL=ws://192.168.1.10:8090
+```
+
 Aplikasi memakai HTTP/cleartext untuk development. Sebelum rilis produksi:
 
 - gunakan HTTPS/WSS,
