@@ -275,7 +275,7 @@ class AuthStore extends ChangeNotifier {
   Map<String, dynamic> _devicePayload() => {
         'device_uuid': store.deviceUuid,
         'platform': devicePlatform,
-        'app_version': '0.10.0',
+        'app_version': '0.10.1',
       };
 
   List<Map<String, dynamic>> _accountList(dynamic raw) {

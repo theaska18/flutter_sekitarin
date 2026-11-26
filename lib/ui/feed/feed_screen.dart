@@ -321,7 +321,7 @@ class _PostCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '@${account['handle'] ?? ''} · ${formatWhen(post['created_at'])}',
+                        '@${account['handle'] ?? ''} · ${timeAgo(post['created_at'])}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

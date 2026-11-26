@@ -273,7 +273,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               style:
                                   const TextStyle(fontWeight: FontWeight.w700)),
                           Text(
-                              '@${account['handle'] ?? ''} · ${formatWhen(post['created_at'])}',
+                              '@${account['handle'] ?? ''} · ${timeAgo(post['created_at'])}',
                               style: Theme.of(context).textTheme.labelSmall),
                         ],
                       ),

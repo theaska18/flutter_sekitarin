@@ -15,6 +15,23 @@ void main() {
     expect(messagePreview({'deleted_at': '2026-01-01'}), 'Pesan dihapus');
   });
 
+  test('timeAgo formats relative post times', () {
+    final now = DateTime.now().toUtc();
+    expect(timeAgo(now.toIso8601String()), 'baru saja');
+    expect(
+      timeAgo(now.subtract(const Duration(minutes: 2)).toIso8601String()),
+      '2 menit lalu',
+    );
+    expect(
+      timeAgo(now.subtract(const Duration(hours: 3)).toIso8601String()),
+      '3 jam lalu',
+    );
+    expect(
+      timeAgo(now.subtract(const Duration(days: 2)).toIso8601String()),
+      '2 hari lalu',
+    );
+  });
+
   test('username normalization and validation', () {
     expect(normalizeUsername('@Aska.Development'), 'aska.development');
     expect(validUsername('aska.development'), true);
