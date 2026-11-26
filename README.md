@@ -8,9 +8,11 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
 - Chat direct/grup, buat grup, kelola anggota, ganti nama grup, kirim teks,
   read receipt, WebSocket + polling fallback.
 - Tambah kontak lewat username dari ikon di topbar samping notifikasi.
-- Peta OpenStreetMap: akun freeze selalu tampil; akun realtime/driver muncul
-  setelah “Bagikan lokasi” di Setelan aktif. Zoom dekat, update otomatis tiap
-  10 detik, marker “Akunmu” untuk akun sendiri, tap marker untuk chat/pesan.
+- Peta OpenStreetMap: memuat area yang sedang dilihat (pan/zoom, debounce
+  400 ms), akun freeze selalu tampil; akun realtime/driver muncul setelah
+  “Bagikan lokasi” di Setelan aktif. Di bawah zoom 14.5 data tidak dimuat agar
+  tidak menarik seluruh area. Update otomatis tiap 10 detik, marker “Akunmu”
+  untuk akun sendiri, tap marker untuk chat/pesan.
 - Akun usaha: pilih **Realtime GPS** (lokasi diperbarui tiap 15 detik selama app
   aktif) atau **freeze** dengan titik yang dipilih di peta. Status
   **Aktif/Tutup** juga diatur di layar Pengaturan usaha dan tampil di peta.

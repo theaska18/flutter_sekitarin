@@ -21,11 +21,16 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   final _mapController = MapController();
   final List<Map<String, dynamic>> _places = [];
+  static const double _minDataZoom = 14.5;
   LatLng _center = const LatLng(-6.9147, 107.6098);
   bool _loading = true;
   bool _hasLocation = false;
+  bool _tooFar = false;
   bool? _lastConsent;
+  double _zoom = 16;
+  double _radius = 1000;
   Timer? _poll;
+  Timer? _moveDebounce;
 
   @override
   void initState() {
@@ -40,7 +45,37 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     _poll?.cancel();
+    _moveDebounce?.cancel();
     super.dispose();
+  }
+
+  void _onPositionChanged(MapCamera camera, bool hasGesture) {
+    _center = camera.center;
+    _zoom = camera.zoom;
+    _moveDebounce?.cancel();
+    _moveDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      if (_zoom < _minDataZoom) {
+        setState(() {
+          _tooFar = true;
+          _loading = false;
+          _places.clear();
+        });
+        return;
+      }
+      _tooFar = false;
+      _radius = _radiusForCamera(camera);
+      _loadPlaces(showLoading: false);
+    });
+  }
+
+  double _radiusForCamera(MapCamera camera) {
+    final distance = const Distance().as(
+      LengthUnit.Meter,
+      camera.center,
+      camera.visibleBounds.northEast,
+    );
+    return distance.clamp(150, 5000).toDouble();
   }
 
   Future<void> _refresh() async {
@@ -51,6 +86,8 @@ class _MapScreenState extends State<MapScreen> {
         setState(() {
           _center = position;
           _hasLocation = true;
+          _zoom = 16.5;
+          _radius = 1000;
         });
       }
       try {
@@ -63,6 +100,16 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _loadPlaces({bool showLoading = true}) async {
+    if (_zoom < _minDataZoom) {
+      if (mounted) {
+        setState(() {
+          _tooFar = true;
+          _loading = false;
+          _places.clear();
+        });
+      }
+      return;
+    }
     if (showLoading) setState(() => _loading = true);
     final api = context.read<AuthStore>().api;
     try {
@@ -71,7 +118,7 @@ class _MapScreenState extends State<MapScreen> {
         query: {
           'lat': '${_center.latitude}',
           'lng': '${_center.longitude}',
-          'radius': '1000',
+          'radius': '${_radius.round()}',
           'limit': '100',
         },
       );
@@ -252,6 +299,9 @@ class _MapScreenState extends State<MapScreen> {
           options: MapOptions(
             initialCenter: _center,
             initialZoom: 16,
+            minZoom: 12,
+            maxZoom: 19,
+            onPositionChanged: _onPositionChanged,
             onTap: (_, __) => FocusScope.of(context).unfocus(),
           ),
           children: [
@@ -337,24 +387,30 @@ class _MapScreenState extends State<MapScreen> {
               child: Row(
                 children: [
                   Icon(
-                    !consent
-                        ? Icons.location_off
-                        : (_hasLocation
-                            ? Icons.near_me
-                            : Icons.location_searching),
+                    _tooFar
+                        ? Icons.zoom_in
+                        : !consent
+                            ? Icons.location_off
+                            : (_hasLocation
+                                ? Icons.near_me
+                                : Icons.location_searching),
                     size: 18,
-                    color: !consent
+                    color: _tooFar
                         ? const Color(0xFFB45309)
-                        : Theme.of(context).colorScheme.primary,
+                        : !consent
+                            ? const Color(0xFFB45309)
+                            : Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      !consent
-                          ? 'Mode freeze. Aktifkan “Bagikan lokasi” di Setelan untuk melihat akun realtime.'
-                          : _hasLocation
-                              ? '${_places.length} akun di sekitar Anda'
-                              : 'Aktifkan GPS untuk melihat sekitar',
+                      _tooFar
+                          ? 'Perbesar peta untuk memuat akun di sekitar.'
+                          : !consent
+                              ? 'Mode freeze. Aktifkan “Bagikan lokasi” di Setelan untuk melihat akun realtime.'
+                              : _hasLocation
+                                  ? '${_places.length} akun · ${_radius.round()} m'
+                                  : 'Aktifkan GPS untuk melihat sekitar',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
