@@ -1,10 +1,13 @@
 class AppConfig {
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8088/api/v1',
+    defaultValue: 'https://sekitarin.ckamal.com/api/v1',
   );
 
-  static const String wsUrlOverride = String.fromEnvironment('WS_URL');
+  static const String wsUrlOverride = String.fromEnvironment(
+    'WS_URL',
+    defaultValue: 'ws://sekitarinws.ckamal.com',
+  );
 
   static Uri apiUri(String path, [Map<String, String>? query]) {
     final base = Uri.parse(apiBaseUrl);
@@ -24,12 +27,10 @@ class AppConfig {
     }
     final base = Uri.parse(apiBaseUrl);
     final scheme = base.scheme == 'https' ? 'wss' : 'ws';
-    final port =
-        base.hasPort && base.port != 80 && base.port != 443 ? 8090 : 8090;
     return Uri(
       scheme: scheme,
       host: base.host,
-      port: port,
+      port: 8090,
       path: '',
     ).toString();
   }

@@ -18,23 +18,29 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
 Butuh Flutter 3.50+ (Dart 3.14).
 
 ```bash
-cd mobile
+cd flutter_sekitarin
 flutter pub get
-flutter run \
-  --dart-define=API_BASE_URL=http://10.0.2.2:8088/api/v1
+flutter run
 ```
 
-`API_BASE_URL` default `http://10.0.2.2:8088/api/v1` (Android emulator).
-Untuk iOS simulator gunakan `http://127.0.0.1:8088/api/v1`; untuk perangkat fisik
-pakai IP LAN mesin yang menjalankan Docker, mis.
-`http://192.168.1.10:8088/api/v1`.
+Default production:
 
-WebSocket default memakai host yang sama, port **8090**. Bisa dioverride:
+- `API_BASE_URL` = `https://sekitarin.ckamal.com/api/v1`
+- `WS_URL` = `ws://sekitarinws.ckamal.com`
+
+Untuk development lokal, override lewat `--dart-define`:
 
 ```bash
 flutter run \
   --dart-define=API_BASE_URL=http://192.168.1.10:8088/api/v1 \
   --dart-define=WS_URL=ws://192.168.1.10:8090
+```
+
+`ws://` dipakai sebagai default sesuai konfigurasi saat ini. Untuk produksi
+lebih aman memakai `wss://sekitarinws.ckamal.com`:
+
+```bash
+flutter run --dart-define=WS_URL=wss://sekitarinws.ckamal.com
 ```
 
 Aplikasi memakai HTTP/cleartext untuk development. Sebelum rilis produksi:
