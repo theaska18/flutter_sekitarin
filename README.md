@@ -1,0 +1,76 @@
+# Sekitar — Flutter app
+
+Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
+
+- Registrasi/login email + password dengan token per perangkat.
+- Beranda 5 tab: **Chat**, **Peta**, **Post**, **Profil**, **Setelan**.
+- Chat direct/grup, kirim teks, read receipt, WebSocket + polling fallback.
+- Peta OpenStreetMap: akun usaha dan driver di sekitar, tap marker untuk chat.
+- Feed post dari kontak + radius 500 m, like, komentar, dan buat post (1 foto).
+- Profil/grid post, ganti akun personal/usaha, tambah akun usaha.
+- Consent lokasi/notifikasi dan feed notifikasi in-app.
+
+## Menjalankan
+
+Butuh Flutter 3.50+ (Dart 3.14).
+
+```bash
+cd mobile
+flutter pub get
+flutter run \
+  --dart-define=API_BASE_URL=http://10.0.2.2:8088/api/v1
+```
+
+`API_BASE_URL` default `http://10.0.2.2:8088/api/v1` (Android emulator).
+Untuk iOS simulator gunakan `http://127.0.0.1:8088/api/v1`; untuk perangkat fisik
+pakai IP LAN mesin yang menjalankan Docker, mis.
+`http://192.168.1.10:8088/api/v1`.
+
+WebSocket default memakai host yang sama, port **8090**. Bisa dioverride:
+
+```bash
+flutter run \
+  --dart-define=API_BASE_URL=http://192.168.1.10:8088/api/v1 \
+  --dart-define=WS_URL=ws://192.168.1.10:8090
+```
+
+Aplikasi memakai HTTP/cleartext untuk development. Sebelum rilis produksi:
+
+- gunakan HTTPS/WSS,
+- hapus `android:usesCleartextTraffic="true"` dan `NSAllowsArbitraryLoads` di
+  AndroidManifest/Info.plist,
+- ganti tile OSM publik dengan tile server/penyedia yang sesuai kebijakan.
+
+## Struktur
+
+```text
+lib/
+  main.dart                 bootstrap ApiClient, TokenStore, AuthStore, WsClient
+  config.dart               API/WS URL dari --dart-define
+  core/                     ApiClient, TokenStore, WsClient, ApiException
+  state/auth_store.dart     sesi, akun aktif, refresh token
+  services/location_service.dart
+  ui/auth/                  login & register
+  ui/home/                  bottom navigation
+  ui/chat/                  daftar chat, chat room, chat baru
+  ui/map/                   peta OSM + nearby
+  ui/feed/                  feed, komentar, buat post
+  ui/profile/               profil, grid, buat akun usaha
+  ui/settings/              akun, consent, logout
+  ui/notifications/         feed notifikasi
+```
+
+Token akses disimpan di `flutter_secure_storage`; device UUID dan akun aktif di
+`SharedPreferences`. Access token diperbarui otomatis sekali lewat
+`/auth/refresh` saat server membalas 401.
+
+## Batasan saat ini
+
+- Media post baru satu foto; video belum dipilih dari galeri.
+- Push notification belum dihubungkan ke Firebase (backend sudah punya
+  `/me/push-token` dan worker FCM). Diperlukan `google-services.json`,
+  `GoogleService-Info.plist`, dan paket `firebase_messaging`.
+- Belum ada pembuatan grup, pengaturan profil, atau unggah avatar dari app.
+- Order/ride belum punya layar khusus (backend sudah tersedia); chat & peta
+  sudah bisa dipakai untuk menghubungi penyedia.
+- Tile OSM memakai server publik untuk development.
