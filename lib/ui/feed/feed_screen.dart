@@ -7,6 +7,7 @@ import '../../state/auth_store.dart';
 import '../common.dart';
 import 'comments_sheet.dart';
 import 'create_post_screen.dart';
+import 'post_detail_screen.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -79,7 +80,127 @@ class _FeedScreenState extends State<FeedScreen> {
       showDragHandle: true,
       builder: (_) => CommentsSheet(post: post),
     );
-    if (mounted) _load();
+    if (!mounted) return;
+    await _reloadPost(post['post_id'] as int);
+  }
+
+  Future<void> _reloadPost(int postId) async {
+    try {
+      final data = await context.read<AuthStore>().api.get('posts/$postId');
+      if (!mounted || data is! Map || data['post'] is! Map) return;
+      final fresh = Map<String, dynamic>.from(data['post'] as Map);
+      setState(() {
+        final index = _posts.indexWhere((item) => item['post_id'] == postId);
+        if (index >= 0) {
+          _posts[index] = fresh;
+        }
+      });
+    } catch (_) {
+      // Keep the existing card if the refresh fails.
+    }
+  }
+
+  bool _isOwnPost(Map<String, dynamic> post) {
+    final account = post['account'];
+    if (account is! Map) return false;
+    final accountId = account['account_id'];
+    return context.read<AuthStore>().accounts.any(
+          (item) => item['account_id'] == accountId,
+        );
+  }
+
+  Future<void> _editPost(Map<String, dynamic> post) async {
+    final controller = TextEditingController(text: '${post['caption'] ?? ''}');
+    final caption = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit post'),
+        content: TextField(
+          controller: controller,
+          minLines: 3,
+          maxLines: 6,
+          maxLength: 2200,
+          decoration: const InputDecoration(labelText: 'Caption'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+    if (caption == null || !mounted) return;
+    try {
+      final data = await context
+          .read<AuthStore>()
+          .api
+          .patch('posts/${post['post_id']}', {'caption': caption});
+      if (!mounted) return;
+      if (data['post'] is Map) {
+        final fresh = Map<String, dynamic>.from(data['post'] as Map);
+        setState(() {
+          final index =
+              _posts.indexWhere((item) => item['post_id'] == post['post_id']);
+          if (index >= 0) _posts[index] = fresh;
+        });
+      }
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    }
+  }
+
+  Future<void> _deletePost(Map<String, dynamic> post) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus post?'),
+        content: const Text('Post akan dihapus dari feed dan profil.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await context.read<AuthStore>().api.delete('posts/${post['post_id']}');
+      if (!mounted) return;
+      setState(() {
+        _posts.removeWhere((item) => item['post_id'] == post['post_id']);
+      });
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    }
+  }
+
+  Future<void> _openDetail(Map<String, dynamic> post) async {
+    final result = await Navigator.of(context).push<Object?>(
+      MaterialPageRoute<Object?>(
+        builder: (_) => PostDetailScreen(
+          postId: post['post_id'] as int,
+          initial: post,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (result is Map && result['action'] == 'deleted') {
+      setState(() {
+        _posts.removeWhere((item) => item['post_id'] == post['post_id']);
+      });
+      return;
+    }
+    await _reloadPost(post['post_id'] as int);
   }
 
   Future<void> _createPost() async {
@@ -125,10 +246,14 @@ class _FeedScreenState extends State<FeedScreen> {
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final post = _posts[index];
+                  final own = _isOwnPost(post);
                   return _PostCard(
                     post: post,
                     onLike: () => _toggleLike(post),
                     onComments: () => _openComments(post),
+                    onOpen: () => _openDetail(post),
+                    onEdit: own ? () => _editPost(post) : null,
+                    onDelete: own ? () => _deletePost(post) : null,
                   );
                 },
               ),
@@ -142,11 +267,17 @@ class _PostCard extends StatelessWidget {
     required this.post,
     required this.onLike,
     required this.onComments,
+    required this.onOpen,
+    this.onEdit,
+    this.onDelete,
   });
 
   final Map<String, dynamic> post;
   final VoidCallback onLike;
   final VoidCallback onComments;
+  final VoidCallback onOpen;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -203,28 +334,56 @@ class _PostCard extends StatelessWidget {
                 ),
                 if (source != null)
                   _FeedSourceBadge(source: source, distance: distance as int?),
+                if (onEdit != null || onDelete != null)
+                  PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    iconSize: 18,
+                    tooltip: 'Aksi post',
+                    onSelected: (value) {
+                      if (value == 'edit') onEdit?.call();
+                      if (value == 'delete') onDelete?.call();
+                    },
+                    itemBuilder: (context) => [
+                      if (onEdit != null)
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Text('Edit caption'),
+                        ),
+                      if (onDelete != null)
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Hapus post'),
+                        ),
+                    ],
+                  ),
               ],
             ),
             if ('${post['caption'] ?? ''}'.isNotEmpty) ...[
               const SizedBox(height: 7),
-              Text(
-                '${post['caption']}',
-                style: const TextStyle(fontSize: 14, height: 1.35),
+              GestureDetector(
+                onTap: onOpen,
+                child: Text(
+                  '${post['caption']}',
+                  style: const TextStyle(fontSize: 14, height: 1.35),
+                ),
               ),
             ],
             if (media.isNotEmpty) ...[
               const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: AspectRatio(
-                  aspectRatio: 4 / 3,
-                  child: Image.network(
-                    AppConfig.absoluteUrl('${media.first['url'] ?? ''}'),
-                    headers: headers,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: Colors.black12,
-                      child: const Center(child: Icon(Icons.broken_image)),
+              GestureDetector(
+                onTap: onOpen,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AspectRatio(
+                    aspectRatio: 4 / 3,
+                    child: Image.network(
+                      AppConfig.absoluteUrl('${media.first['url'] ?? ''}'),
+                      headers: headers,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.black12,
+                        child: const Center(child: Icon(Icons.broken_image)),
+                      ),
                     ),
                   ),
                 ),

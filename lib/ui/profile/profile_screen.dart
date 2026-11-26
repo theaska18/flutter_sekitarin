@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../config.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../feed/post_detail_screen.dart';
 import '../orders/orders_screen.dart';
 import '../widgets/account_avatar.dart';
 import 'business_location_screen.dart';
@@ -96,7 +97,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  @override
+  Future<void> _openPost(Map<String, dynamic> post) async {
+    final result = await Navigator.of(context).push<Object?>(
+      MaterialPageRoute<Object?>(
+        builder: (_) => PostDetailScreen(
+          postId: post['post_id'] as int,
+          initial: post,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (result is Map && result['action'] == 'deleted') {
+      setState(() {
+        _posts.removeWhere((item) => item['post_id'] == post['post_id']);
+      });
+      return;
+    }
+    try {
+      final data =
+          await context.read<AuthStore>().api.get('posts/${post['post_id']}');
+      if (!mounted || data is! Map || data['post'] is! Map) return;
+      final fresh = Map<String, dynamic>.from(data['post'] as Map);
+      setState(() {
+        final index =
+            _posts.indexWhere((item) => item['post_id'] == post['post_id']);
+        if (index >= 0) _posts[index] = fresh;
+      });
+    } catch (_) {
+      // Keep the grid image if the refresh fails.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStore>();
@@ -335,31 +366,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 itemCount: _posts.length,
                 itemBuilder: (context, index) {
-                  final media = _posts[index]['media'];
+                  final post = _posts[index];
+                  final media = post['media'];
                   final first =
                       media is List && media.isNotEmpty ? media.first : null;
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: first is Map
-                        ? Image.network(
-                            AppConfig.absoluteUrl('${first['url'] ?? ''}'),
-                            headers: headers,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                  return InkWell(
+                    onTap: () => _openPost(post),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: first is Map
+                          ? Image.network(
+                              AppConfig.absoluteUrl('${first['url'] ?? ''}'),
+                              headers: headers,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: Colors.black12,
+                                child: const Icon(Icons.image_not_supported),
+                              ),
+                            )
+                          : Container(
                               color: Colors.black12,
-                              child: const Icon(Icons.image_not_supported),
+                              padding: const EdgeInsets.all(6),
+                              child: Text(
+                                '${post['caption'] ?? ''}',
+                                maxLines: 4,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 10),
+                              ),
                             ),
-                          )
-                        : Container(
-                            color: Colors.black12,
-                            padding: const EdgeInsets.all(6),
-                            child: Text(
-                              '${_posts[index]['caption'] ?? ''}',
-                              maxLines: 4,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                          ),
+                    ),
                   );
                 },
               ),
