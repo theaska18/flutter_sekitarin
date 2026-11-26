@@ -59,6 +59,18 @@ Color typeColor(String? type) {
   }
 }
 
+String timeRemaining(dynamic iso) {
+  if (iso == null) return '';
+  final parsed = DateTime.tryParse('$iso')?.toLocal();
+  if (parsed == null) return '';
+  final diff = parsed.difference(DateTime.now());
+  if (diff.isNegative || diff.inSeconds <= 0) return 'Kedaluwarsa';
+  final hours = diff.inHours.toString().padLeft(2, '0');
+  final minutes = (diff.inMinutes % 60).toString().padLeft(2, '0');
+  final seconds = (diff.inSeconds % 60).toString().padLeft(2, '0');
+  return 'Sisa $hours:$minutes:$seconds';
+}
+
 String timeAgo(dynamic iso) {
   if (iso == null) return '';
   final parsed = DateTime.tryParse('$iso')?.toLocal();

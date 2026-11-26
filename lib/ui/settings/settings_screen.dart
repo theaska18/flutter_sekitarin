@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -23,11 +25,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
     'notifications': false,
   };
   bool _busy = false;
+  Timer? _timer;
+  bool _expiryRefresh = false;
 
   @override
   void initState() {
     super.initState();
     _loadConsents();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {});
+      final now = DateTime.now();
+      final expired = context.read<AuthStore>().accounts.any((account) {
+        final until = account['active_until'];
+        if (account['type_code'] == 'personal' ||
+            account['is_active'] == false ||
+            until == null) {
+          return false;
+        }
+        final parsed = DateTime.tryParse('$until')?.toLocal();
+        return parsed != null && !parsed.isAfter(now);
+      });
+      if (expired && !_expiryRefresh) {
+        _expiryRefresh = true;
+        context.read<AuthStore>().refresh().whenComplete(() {
+          _expiryRefresh = false;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadConsents() async {
@@ -182,11 +213,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           account['is_active'] != false &&
                           account['active_until'] != null)
                         Text(
-                          'Aktif s/d ${formatWhen(account['active_until'])}',
+                          timeRemaining(account['active_until']),
                           style: TextStyle(
-                            fontSize: 9.5,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                     ],

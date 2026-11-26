@@ -15,6 +15,18 @@ void main() {
     expect(messagePreview({'deleted_at': '2026-01-01'}), 'Pesan dihapus');
   });
 
+  test('timeRemaining formats countdown and expiry', () {
+    final now = DateTime.now().toUtc();
+    expect(
+      timeRemaining(now.subtract(const Duration(seconds: 1)).toIso8601String()),
+      'Kedaluwarsa',
+    );
+    expect(
+      timeRemaining(now.add(const Duration(hours: 2)).toIso8601String()),
+      startsWith('Sisa 01:59:'),
+    );
+  });
+
   test('timeAgo formats relative post times', () {
     final now = DateTime.now().toUtc();
     expect(timeAgo(now.toIso8601String()), 'baru saja');
