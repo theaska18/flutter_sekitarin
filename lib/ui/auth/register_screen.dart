@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_exception.dart';
 import '../../state/auth_store.dart';
+import '../common.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -14,16 +15,20 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
+  final _username = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _confirm = TextEditingController();
   bool _busy = false;
   String? _error;
 
   @override
   void dispose() {
     _name.dispose();
+    _username.dispose();
     _email.dispose();
     _password.dispose();
+    _confirm.dispose();
     super.dispose();
   }
 
@@ -37,7 +42,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await context.read<AuthStore>().register(
             email: _email.text,
             password: _password.text,
+            passwordConfirmation: _confirm.text,
             displayName: _name.text,
+            username: _username.text,
           );
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } on ApiException catch (error) {
@@ -85,6 +92,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 14),
                   TextFormField(
+                    controller: _username,
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                      prefixText: '@',
+                      helperText:
+                          '3–40 karakter: huruf kecil, angka, titik, atau garis bawah.',
+                      prefixIcon: Icon(Icons.alternate_email),
+                    ),
+                    validator: (value) => validUsername(value ?? '')
+                        ? null
+                        : 'Username tidak valid',
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
@@ -111,6 +132,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     validator: (value) => (value == null || value.length < 8)
                         ? 'Minimal 8 karakter'
                         : null,
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _confirm,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Ulangi password',
+                      prefixIcon: Icon(Icons.lock_reset),
+                    ),
+                    validator: (value) => value == _password.text
+                        ? null
+                        : 'Konfirmasi password tidak sama',
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 14),

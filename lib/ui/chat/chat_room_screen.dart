@@ -7,6 +7,7 @@ import '../../config.dart';
 import '../../core/ws_client.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
+import 'group_info_screen.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   const ChatRoomScreen({super.key, required this.conversation});
@@ -29,6 +30,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   bool _loading = true;
   bool _sending = false;
   int _lastId = 0;
+  String? _groupTitle;
+  final Map<int, String> _memberNames = {};
 
   @override
   void initState() {
@@ -57,6 +60,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       }
     });
     _load();
+    if (widget.conversation['type'] == 'group') {
+      _loadConversation();
+    }
     _poll = Timer.periodic(const Duration(seconds: 5), (_) => _pollNew());
   }
 
@@ -96,6 +102,50 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _loadConversation() async {
+    try {
+      final data = await context.read<AuthStore>().api.get(
+            'conversations/$_conversationId',
+          );
+      if (!mounted || data is! Map || data['conversation'] is! Map) return;
+      final conversation = Map<String, dynamic>.from(
+        data['conversation'] as Map,
+      );
+      setState(() {
+        _groupTitle = '${conversation['title'] ?? ''}';
+        _memberNames.clear();
+        final members = conversation['members'];
+        if (members is List) {
+          for (final member in members) {
+            if (member is Map) {
+              _memberNames[member['user_id'] as int] =
+                  '${member['display_name'] ?? ''}';
+            }
+          }
+        }
+      });
+    } catch (_) {
+      // Group details are best-effort.
+    }
+  }
+
+  Future<void> _openGroupInfo() async {
+    final result = await Navigator.of(context).push<Object?>(
+      MaterialPageRoute<Object?>(
+        builder: (_) => GroupInfoScreen(
+          conversationId: _conversationId,
+          initial: widget.conversation,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (result == 'left') {
+      Navigator.of(context).pop();
+      return;
+    }
+    await _loadConversation();
   }
 
   Future<void> _pollNew() async {
@@ -190,12 +240,20 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title),
+            Text(_groupTitle?.isNotEmpty == true ? _groupTitle! : title),
             if (widget.conversation['type'] == 'group')
               Text('${widget.conversation['member_count'] ?? ''} anggota',
                   style: Theme.of(context).textTheme.labelSmall),
           ],
         ),
+        actions: [
+          if (widget.conversation['type'] == 'group')
+            IconButton(
+              onPressed: _openGroupInfo,
+              icon: const Icon(Icons.info_outline),
+              tooltip: 'Info grup',
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -213,6 +271,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                         message: message,
                         mine: mine,
                         token: auth.api.accessToken,
+                        senderName: mine
+                            ? null
+                            : _memberNames[message['sender_user_id'] as int?],
                       );
                     },
                   ),
@@ -264,11 +325,13 @@ class _MessageBubble extends StatelessWidget {
     required this.message,
     required this.mine,
     required this.token,
+    this.senderName,
   });
 
   final Map<String, dynamic> message;
   final bool mine;
   final String? token;
+  final String? senderName;
 
   @override
   Widget build(BuildContext context) {
@@ -337,6 +400,17 @@ class _MessageBubble extends StatelessWidget {
           crossAxisAlignment:
               mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
+            if (senderName != null && senderName!.isNotEmpty) ...[
+              Text(
+                senderName!,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.primary,
+                ),
+              ),
+              const SizedBox(height: 2),
+            ],
             content,
             const SizedBox(height: 3),
             Text(

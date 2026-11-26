@@ -97,6 +97,14 @@ String rupiah(num value) {
   }
 }
 
+String normalizeUsername(String value) {
+  return value.trim().toLowerCase().replaceFirst(RegExp(r'^@+'), '');
+}
+
+bool validUsername(String value) {
+  return RegExp(r'^[a-z0-9._]{3,40}$').hasMatch(normalizeUsername(value));
+}
+
 String orderStatusLabel(String? status) {
   switch (status) {
     case 'pending':

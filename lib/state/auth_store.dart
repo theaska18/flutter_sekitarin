@@ -82,7 +82,9 @@ class AuthStore extends ChangeNotifier {
   Future<void> register({
     required String email,
     required String password,
+    required String passwordConfirmation,
     required String displayName,
+    required String username,
   }) async {
     loading = true;
     lastError = null;
@@ -91,7 +93,9 @@ class AuthStore extends ChangeNotifier {
       final data = await api.post('auth/register', {
         'email': email.trim(),
         'password': password,
+        'password_confirmation': passwordConfirmation,
         'display_name': displayName.trim(),
+        'username': username.trim().toLowerCase(),
         'device': _devicePayload(),
       });
       await _applySession(data);
@@ -213,7 +217,7 @@ class AuthStore extends ChangeNotifier {
   Map<String, dynamic> _devicePayload() => {
         'device_uuid': store.deviceUuid,
         'platform': devicePlatform,
-        'app_version': '0.1.0',
+        'app_version': '0.2.0',
       };
 
   List<Map<String, dynamic>> _accountList(dynamic raw) {

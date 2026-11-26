@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../state/auth_store.dart';
 import '../common.dart';
+import 'group_create_screen.dart';
 
 class NewChatSheet extends StatefulWidget {
   const NewChatSheet({super.key});
@@ -107,8 +108,30 @@ class _NewChatSheetState extends State<NewChatSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Chat baru',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('Chat baru',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    final conversation =
+                        await Navigator.of(context).push<Map<String, dynamic>>(
+                      MaterialPageRoute(
+                        builder: (_) => const GroupCreateScreen(),
+                      ),
+                    );
+                    if (conversation != null && context.mounted) {
+                      Navigator.of(context).pop(conversation);
+                    }
+                  },
+                  icon: const Icon(Icons.group_add_outlined, size: 18),
+                  label: const Text('Buat grup'),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _search,

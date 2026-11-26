@@ -6,6 +6,7 @@ import '../../state/auth_store.dart';
 import '../common.dart';
 import '../orders/orders_screen.dart';
 import 'create_account_screen.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -172,6 +173,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           label: const Text('Akun baru'),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final changed = await Navigator.of(context).push<bool>(
+                          MaterialPageRoute(
+                            builder: (_) => const EditProfileScreen(),
+                          ),
+                        );
+                        if (changed == true && mounted) {
+                          _loadedAccountId = null;
+                          didChangeDependencies();
+                        }
+                      },
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Edit profil'),
                     ),
                   ],
                 ),

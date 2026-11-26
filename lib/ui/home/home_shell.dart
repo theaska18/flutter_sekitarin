@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../state/auth_store.dart';
 import '../chat/chat_list_screen.dart';
+import '../contacts/add_contact_screen.dart';
 import '../feed/feed_screen.dart';
 import '../map/map_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -28,6 +29,15 @@ class _HomeShellState extends State<HomeShell> {
       appBar: AppBar(
         title: Text(_titles[_index]),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person_add_alt_1),
+            tooltip: 'Tambah kontak',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const AddContactScreen(),
+              ),
+            ),
+          ),
           Stack(
             clipBehavior: Clip.none,
             children: [

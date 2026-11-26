@@ -15,6 +15,13 @@ void main() {
     expect(messagePreview({'deleted_at': '2026-01-01'}), 'Pesan dihapus');
   });
 
+  test('username normalization and validation', () {
+    expect(normalizeUsername('@Aska.Development'), 'aska.development');
+    expect(validUsername('aska.development'), true);
+    expect(validUsername('ab'), false);
+    expect(validUsername('bad name'), false);
+  });
+
   test('order helpers map account types and statuses', () {
     expect(orderTypeForAccount('warung'), 'food');
     expect(orderTypeForAccount('driver_motor'), 'ride');

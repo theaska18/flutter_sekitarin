@@ -2,12 +2,16 @@
 
 Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
 
-- Registrasi/login email + password dengan token per perangkat.
+- Registrasi/login email + password, username publik (mis. `@aska.development`),
+  dan konfirmasi password saat daftar.
 - Beranda 5 tab: **Chat**, **Peta**, **Post**, **Profil**, **Setelan**.
-- Chat direct/grup, kirim teks, read receipt, WebSocket + polling fallback.
+- Chat direct/grup, buat grup, kelola anggota, ganti nama grup, kirim teks,
+  read receipt, WebSocket + polling fallback.
+- Tambah kontak lewat username dari ikon di topbar samping notifikasi.
 - Peta OpenStreetMap: akun usaha dan driver di sekitar, tap marker untuk chat.
 - Feed post dari kontak + radius 500 m, like, komentar, dan buat post (1 foto).
-- Profil/grid post, ganti akun personal/usaha, tambah akun usaha.
+- Profil/grid post, edit nama & username, ganti password, ganti akun
+  personal/usaha, tambah akun usaha.
 - Katalog & order: lihat layanan akun dari peta, order makanan/jasa/ride,
   pembayaran tunai/transfer, dan alur status (terima → proses → antar →
   selesai/batal).
@@ -82,7 +86,8 @@ lib/
   services/location_service.dart
   ui/auth/                  login & register
   ui/home/                  bottom navigation
-  ui/chat/                  daftar chat, chat room, chat baru
+  ui/chat/                  daftar chat, chat room, chat baru, buat grup, info grup
+  ui/contacts/              tambah kontak lewat username
   ui/map/                   peta OSM + nearby
   ui/feed/                  feed, komentar, buat post
   ui/profile/               profil, grid, buat akun usaha
@@ -101,7 +106,7 @@ Token akses disimpan di `flutter_secure_storage`; device UUID dan akun aktif di
 - Push notification belum dihubungkan ke Firebase (backend sudah punya
   `/me/push-token` dan worker FCM). Diperlukan `google-services.json`,
   `GoogleService-Info.plist`, dan paket `firebase_messaging`.
-- Belum ada pembuatan grup, pengaturan profil, atau unggah avatar dari app.
+- Belum ada unggah avatar/grup dan pengaturan foto profil dari app.
 - Tarif ride memakai harga layanan dari backend (belum dihitung per jarak).
 - Belum ada pilihan multi-dropoff, jadwal order, atau pembayaran gateway.
 - Tile OSM memakai server publik untuk development.
