@@ -6,7 +6,7 @@ class AppConfig {
 
   static const String wsUrlOverride = String.fromEnvironment(
     'WS_URL',
-    defaultValue: 'ws://sekitarinws.ckamal.com',
+    defaultValue: 'wss://sekitarinws.ckamal.com',
   );
 
   static Uri apiUri(String path, [Map<String, String>? query]) {

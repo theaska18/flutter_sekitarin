@@ -26,7 +26,7 @@ flutter run
 Default production:
 
 - `API_BASE_URL` = `https://sekitarin.ckamal.com/api/v1`
-- `WS_URL` = `ws://sekitarinws.ckamal.com`
+- `WS_URL` = `wss://sekitarinws.ckamal.com`
 
 Untuk development lokal, override lewat `--dart-define`:
 
@@ -36,12 +36,9 @@ flutter run \
   --dart-define=WS_URL=ws://192.168.1.10:8090
 ```
 
-`ws://` dipakai sebagai default sesuai konfigurasi saat ini. Untuk produksi
-lebih aman memakai `wss://sekitarinws.ckamal.com`:
+WebSocket default memakai `wss://` (TLS) karena host sudah mendukungnya. Untuk
+development lokal yang memakai gateway tanpa TLS, override dengan `ws://`.
 
-```bash
-flutter run --dart-define=WS_URL=wss://sekitarinws.ckamal.com
-```
 
 Aplikasi memakai HTTP/cleartext untuk development. Sebelum rilis produksi:
 
