@@ -12,11 +12,14 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
   otomatis tiap 10 detik, marker “Akunmu” untuk akun sendiri, tap marker untuk
   chat/pesan.
 - Akun usaha: pilih **Realtime GPS** (lokasi diperbarui tiap 15 detik selama app
-  aktif) atau **freeze** dengan titik yang dipilih di peta. Mode ini juga bisa
-  diubah kapan saja dari Profil → **Lokasi usaha**.
+  aktif) atau **freeze** dengan titik yang dipilih di peta. Status
+  **Aktif/Tutup** juga diatur di layar Pengaturan usaha dan tampil di peta.
 - Feed post dari kontak + radius 500 m, like, komentar, dan buat post (1 foto).
 - Profil/grid post, edit nama/username, **ganti foto profil** (galeri/kamera),
-  ganti password, ganti akun personal/usaha, tambah akun usaha.
+  ganti password, dan **Pengaturan usaha** (aktif/tutup, realtime/freeze,
+  titik peta). Tambah akun usaha ada di Setelan.
+- Setelan menampilkan daftar akun dengan badge **Aktif/Nonaktif**, tombol
+  pengaturan usaha, dan aksi dalam layout ringkas.
 - Katalog & order: lihat layanan akun dari peta, order makanan/jasa/ride,
   pembayaran tunai/transfer, dan alur status (terima → proses → antar →
   selesai/batal).

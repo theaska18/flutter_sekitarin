@@ -6,6 +6,7 @@ import '../../state/auth_store.dart';
 import '../common.dart';
 import '../notifications/notifications_screen.dart';
 import '../orders/orders_screen.dart';
+import '../profile/business_location_screen.dart';
 import '../profile/create_account_screen.dart';
 import '../widgets/account_avatar.dart';
 
@@ -90,56 +91,120 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStore>();
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 36),
       children: [
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
             child: Row(
               children: [
                 AccountAvatar(
                   account: auth.activeAccount,
-                  radius: 24,
+                  radius: 22,
                   token: auth.api.accessToken,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${auth.user?['display_name'] ?? ''}',
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
-                      Text('${auth.user?['email'] ?? ''}',
-                          style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        '${auth.user?['display_name'] ?? ''}',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        '${auth.user?['email'] ?? ''}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 if (auth.user?['email_verified'] != true)
-                  const Chip(label: Text('Belum verifikasi')),
+                  ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    label: const Text('Belum verifikasi',
+                        style: TextStyle(fontSize: 10)),
+                    onPressed: () {},
+                  ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 18),
-        Text('Akun',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 8),
+        const SizedBox(height: 14),
+        const _SectionTitle('Akun'),
         Card(
           child: Column(
             children: [
               for (final account in auth.accounts)
                 ListTile(
-                  leading: Icon(typeIcon(account['type_code'] as String?)),
-                  title: Text('${account['display_name'] ?? ''}'),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                  leading: AccountAvatar(
+                    account: account,
+                    radius: 20,
+                    token: auth.api.accessToken,
+                    fallbackIcon: typeIcon(account['type_code'] as String?),
+                    backgroundColor: typeColor(account['type_code'] as String?)
+                        .withValues(alpha: 0.15),
+                    foregroundColor: typeColor(account['type_code'] as String?),
+                  ),
+                  title: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '${account['display_name'] ?? ''}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      _ActiveBadge(active: account['is_active'] != false),
+                    ],
+                  ),
                   subtitle: Text(
-                      '@${account['handle'] ?? ''} • ${account['type_label'] ?? ''}'),
-                  trailing: account['account_id'] == auth.activeAccountId
-                      ? Icon(Icons.check_circle,
-                          color: Theme.of(context).colorScheme.primary)
-                      : null,
+                    '@${account['handle'] ?? ''} • ${account['type_label'] ?? ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (account['type_code'] != 'personal')
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          tooltip: 'Pengaturan usaha',
+                          icon: const Icon(Icons.settings_outlined, size: 19),
+                          onPressed: () async {
+                            final changed =
+                                await Navigator.of(context).push<bool>(
+                              MaterialPageRoute(
+                                builder: (_) => BusinessLocationScreen(
+                                  accountId: account['account_id'] as int,
+                                ),
+                              ),
+                            );
+                            if (changed == true && context.mounted) {
+                              await context.read<AuthStore>().refresh();
+                            }
+                          },
+                        ),
+                      if (account['account_id'] == auth.activeAccountId)
+                        Icon(
+                          Icons.check_circle,
+                          size: 19,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                    ],
+                  ),
                   onTap: _busy
                       ? null
                       : () async {
@@ -148,15 +213,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             await auth
                                 .switchAccount(account['account_id'] as int);
                           } catch (error) {
-                            if (context.mounted) showErrorSnack(context, error);
+                            if (context.mounted) {
+                              showErrorSnack(context, error);
+                            }
                           } finally {
                             if (mounted) setState(() => _busy = false);
                           }
                         },
                 ),
+              const Divider(height: 1),
               ListTile(
-                leading: const Icon(Icons.add_business_outlined),
-                title: const Text('Tambah akun usaha'),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                dense: true,
+                leading: const Icon(Icons.add_business_outlined, size: 20),
+                title: const Text('Tambah akun usaha',
+                    style: TextStyle(fontSize: 13)),
                 onTap: () async {
                   final created = await Navigator.of(context).push<bool>(
                     MaterialPageRoute(
@@ -171,43 +242,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 18),
-        Text('Privasi & izin',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 8),
+        const SizedBox(height: 14),
+        const _SectionTitle('Privasi & izin'),
         Card(
           child: Column(
             children: [
               SwitchListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                 value: _consents['location'] ?? false,
                 onChanged: (value) => _setConsent('location', value),
-                secondary: const Icon(Icons.location_on_outlined),
-                title: const Text('Bagikan lokasi'),
+                secondary: const Icon(Icons.location_on_outlined, size: 20),
+                title: const Text('Bagikan lokasi',
+                    style: TextStyle(fontSize: 13)),
                 subtitle: const Text(
-                    'Diperlukan untuk peta, presence, dan live location grup.'),
+                  'Peta, presence, dan live location grup.',
+                  style: TextStyle(fontSize: 11),
+                ),
               ),
               SwitchListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                 value: _consents['notifications'] ?? false,
                 onChanged: (value) => _setConsent('notifications', value),
-                secondary: const Icon(Icons.notifications_outlined),
-                title: const Text('Notifikasi'),
-                subtitle:
-                    const Text('Pesan, like, komentar, dan update order.'),
+                secondary: const Icon(Icons.notifications_outlined, size: 20),
+                title: const Text('Notifikasi', style: TextStyle(fontSize: 13)),
+                subtitle: const Text(
+                  'Pesan, like, komentar, dan update order.',
+                  style: TextStyle(fontSize: 11),
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 14),
+        const _SectionTitle('Lainnya'),
         Card(
           child: Column(
             children: [
               ListTile(
-                leading: const Icon(Icons.receipt_long_outlined),
-                title: const Text('Pesanan'),
-                subtitle: const Text('Pesanan saya dan pesanan masuk'),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                dense: true,
+                leading: const Icon(Icons.receipt_long_outlined, size: 20),
+                title: const Text('Pesanan', style: TextStyle(fontSize: 13)),
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const OrdersScreen(),
@@ -215,10 +292,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.notifications_none),
-                title: const Text('Feed notifikasi'),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                dense: true,
+                leading: const Icon(Icons.notifications_none, size: 20),
+                title: const Text('Feed notifikasi',
+                    style: TextStyle(fontSize: 13)),
                 trailing: auth.unreadNotifications > 0
-                    ? Text('${auth.unreadNotifications}')
+                    ? Badge(
+                        label: Text('${auth.unreadNotifications}'),
+                      )
                     : null,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
@@ -227,22 +309,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.info_outline),
-                title: const Text('Server API'),
-                subtitle: Text(AppConfig.apiBaseUrl),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                dense: true,
+                leading: const Icon(Icons.info_outline, size: 20),
+                title: const Text('Server API', style: TextStyle(fontSize: 13)),
+                subtitle: Text(
+                  AppConfig.apiBaseUrl,
+                  style: const TextStyle(fontSize: 10),
+                ),
               ),
+              const Divider(height: 1),
               ListTile(
-                leading: Icon(Icons.logout,
-                    color: Theme.of(context).colorScheme.error),
-                title: Text('Keluar',
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                dense: true,
+                leading: Icon(
+                  Icons.logout,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                title: Text(
+                  'Keluar',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
                 onTap: _logout,
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveBadge extends StatelessWidget {
+  const _ActiveBadge({required this.active});
+
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? const Color(0xFF047857) : Colors.blueGrey;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        active ? 'Aktif' : 'Nonaktif',
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: color,
+        ),
+      ),
     );
   }
 }

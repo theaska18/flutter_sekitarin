@@ -24,6 +24,7 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
   String _mode = 'fixed';
   LatLng? _location;
   bool _allowsPresence = false;
+  bool _active = true;
   bool _loading = true;
   bool _busy = false;
 
@@ -50,6 +51,7 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
         setState(() {
           _mode = '${account['location_mode'] ?? 'fixed'}';
           _allowsPresence = account['allows_presence'] == true;
+          _active = account['is_active'] != false;
           _addressController.text = '${account['address'] ?? ''}';
           if (location is Map) {
             _location = LatLng(
@@ -89,7 +91,10 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
       final position = _mode == 'fixed'
           ? _location
           : (_location ?? await LocationService.current());
-      final body = <String, dynamic>{'location_mode': _mode};
+      final body = <String, dynamic>{
+        'location_mode': _mode,
+        'is_active': _active,
+      };
       if (position != null) {
         body['location'] = {
           'lat': position.latitude,
@@ -123,7 +128,7 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
     final realtime = _mode == 'realtime';
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lokasi usaha'),
+        title: const Text('Pengaturan usaha'),
         actions: [
           TextButton(
             onPressed: _loading || _busy ? null : _save,
@@ -142,11 +147,29 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _active,
+                  onChanged: (value) => setState(() => _active = value),
+                  title: const Text('Akun aktif'),
+                  subtitle: Text(
+                    _active
+                        ? 'Tampil sebagai buka/aktif di peta.'
+                        : 'Tampil sebagai tutup/nonaktif di peta.',
+                  ),
+                  secondary: Icon(
+                    _active ? Icons.storefront : Icons.storefront_outlined,
+                    color: _active
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.outline,
+                  ),
+                ),
+                const Divider(height: 24),
                 Text(
                   'Pilih bagaimana akun usaha ini tampil di peta.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 SegmentedButton<String>(
                   segments: const [
                     ButtonSegment(

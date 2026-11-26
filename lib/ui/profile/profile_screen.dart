@@ -7,7 +7,6 @@ import '../common.dart';
 import '../orders/orders_screen.dart';
 import '../widgets/account_avatar.dart';
 import 'business_location_screen.dart';
-import 'create_account_screen.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -60,17 +59,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) showErrorSnack(context, error);
     } finally {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _createAccount() async {
-    final created = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const CreateAccountScreen()),
-    );
-    if (created == true && mounted) {
-      await context.read<AuthStore>().refresh();
-      _loadedAccountId = null;
-      didChangeDependencies();
     }
   }
 
@@ -237,23 +225,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           labelStyle: const TextStyle(fontSize: 12),
                           onPressed: _switchAccount,
                         ),
-                        ActionChip(
-                          visualDensity: VisualDensity.compact,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          avatar:
-                              const Icon(Icons.add_business_outlined, size: 16),
-                          label: const Text('Akun baru'),
-                          labelStyle: const TextStyle(fontSize: 12),
-                          onPressed: _createAccount,
-                        ),
                         if (type != 'personal')
                           ActionChip(
                             visualDensity: VisualDensity.compact,
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
-                            avatar: const Icon(Icons.place_outlined, size: 16),
-                            label: const Text('Lokasi usaha'),
+                            avatar:
+                                const Icon(Icons.settings_outlined, size: 16),
+                            label: const Text('Pengaturan usaha'),
                             labelStyle: const TextStyle(fontSize: 12),
                             onPressed: () async {
                               final changed =

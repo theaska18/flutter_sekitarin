@@ -145,6 +145,25 @@ class _MapScreenState extends State<MapScreen> {
                                 ),
                               ),
                             ],
+                            if (place['is_active'] == false) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.blueGrey,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'Tutup',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ],
@@ -256,7 +275,9 @@ class _MapScreenState extends State<MapScreen> {
                         children: [
                           Container(
                             decoration: BoxDecoration(
-                              color: typeColor(place['type_code'] as String?),
+                              color: place['is_active'] == false
+                                  ? Colors.blueGrey
+                                  : typeColor(place['type_code'] as String?),
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: place['is_own'] == true
