@@ -5,6 +5,7 @@ import '../../config.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
 import '../orders/orders_screen.dart';
+import '../widgets/account_avatar.dart';
 import 'create_account_screen.dart';
 import 'edit_profile_screen.dart';
 
@@ -135,11 +136,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.all(18),
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 38,
+                    AccountAvatar(
+                      account: account,
+                      radius: 40,
+                      token: auth.api.accessToken,
+                      fallbackIcon: typeIcon(type),
                       backgroundColor: typeColor(type).withValues(alpha: 0.15),
-                      child: Icon(typeIcon(type),
-                          size: 38, color: typeColor(type)),
+                      foregroundColor: typeColor(type),
                     ),
                     const SizedBox(height: 12),
                     Text(

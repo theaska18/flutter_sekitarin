@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/api_exception.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../widgets/account_avatar.dart';
 
 class AddContactScreen extends StatefulWidget {
   const AddContactScreen({super.key});
@@ -129,11 +130,13 @@ class _AddContactScreenState extends State<AddContactScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 30,
+                    AccountAvatar(
+                      account: account,
+                      radius: 32,
+                      token: context.read<AuthStore>().api.accessToken,
+                      fallbackIcon: typeIcon(type),
                       backgroundColor: typeColor(type).withValues(alpha: 0.15),
-                      child: Icon(typeIcon(type),
-                          size: 30, color: typeColor(type)),
+                      foregroundColor: typeColor(type),
                     ),
                     const SizedBox(height: 10),
                     Text('${account['display_name'] ?? ''}',

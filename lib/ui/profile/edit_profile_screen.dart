@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api_exception.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../widgets/account_avatar.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -17,6 +19,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _name;
   late final TextEditingController _username;
   bool _busy = false;
+  bool _avatarBusy = false;
+  int? _avatarMediaId;
 
   Map<String, dynamic>? get _personalAccount {
     final accounts = context.read<AuthStore>().accounts;
@@ -39,6 +43,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _username = TextEditingController(
       text: personal.isEmpty ? '' : '${personal.first['handle'] ?? ''}',
     );
+    if (personal.isNotEmpty) {
+      final avatar = personal.first['avatar_media_id'];
+      _avatarMediaId = avatar is int ? avatar : null;
+    }
   }
 
   @override
@@ -80,6 +88,66 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  Future<void> _pickAvatar() async {
+    final personal = _personalAccount;
+    if (personal == null || _avatarBusy) return;
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Pilih dari galeri'),
+              onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Ambil foto'),
+              onTap: () => Navigator.of(context).pop(ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 1200,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _avatarBusy = true);
+    final auth = context.read<AuthStore>();
+    try {
+      final media = await auth.api.uploadFile(
+        'media',
+        filePath: picked.path,
+        purpose: 'avatar',
+      );
+      final mediaData = media['media'];
+      if (mediaData is! Map || mediaData['media_id'] is! int) {
+        throw Exception('Upload foto gagal.');
+      }
+      final mediaId = mediaData['media_id'] as int;
+      await auth.api.patch('accounts/${personal['account_id']}', {
+        'avatar_media_id': mediaId,
+      });
+      await auth.refresh();
+      if (!mounted) return;
+      setState(() => _avatarMediaId = mediaId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto profil diperbarui.')),
+      );
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    } finally {
+      if (mounted) setState(() => _avatarBusy = false);
+    }
+  }
+
   Future<void> _changePassword() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -113,6 +181,47 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            Center(
+              child: GestureDetector(
+                onTap: _avatarBusy ? null : _pickAvatar,
+                child: Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    AccountAvatar(
+                      account: {
+                        'avatar_media_id': _avatarMediaId,
+                      },
+                      radius: 46,
+                      token: auth.api.accessToken,
+                    ),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: _avatarBusy
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.photo_camera,
+                              size: 16, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton(
+                onPressed: _avatarBusy ? null : _pickAvatar,
+                child: const Text('Ganti foto profil'),
+              ),
+            ),
+            const SizedBox(height: 10),
             TextFormField(
               controller: _name,
               textCapitalization: TextCapitalization.words,

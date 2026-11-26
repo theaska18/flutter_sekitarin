@@ -14,8 +14,8 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
 - Akun usaha: pilih **Realtime GPS** (lokasi diperbarui tiap 15 detik selama app
   aktif) atau **freeze** dengan titik yang dipilih di peta.
 - Feed post dari kontak + radius 500 m, like, komentar, dan buat post (1 foto).
-- Profil/grid post, edit nama & username, ganti password, ganti akun
-  personal/usaha, tambah akun usaha.
+- Profil/grid post, edit nama/username, **ganti foto profil** (galeri/kamera),
+  ganti password, ganti akun personal/usaha, tambah akun usaha.
 - Katalog & order: lihat layanan akun dari peta, order makanan/jasa/ride,
   pembayaran tunai/transfer, dan alur status (terima → proses → antar →
   selesai/batal).

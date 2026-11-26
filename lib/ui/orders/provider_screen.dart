@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../state/auth_store.dart';
 import '../chat/chat_room_screen.dart';
 import '../common.dart';
+import '../widgets/account_avatar.dart';
 import 'create_order_screen.dart';
 
 class ProviderScreen extends StatefulWidget {
@@ -121,12 +122,14 @@ class _ProviderScreenState extends State<ProviderScreen> {
                       padding: const EdgeInsets.all(18),
                       child: Column(
                         children: [
-                          CircleAvatar(
-                            radius: 34,
+                          AccountAvatar(
+                            account: account,
+                            radius: 36,
+                            token: context.read<AuthStore>().api.accessToken,
+                            fallbackIcon: typeIcon(type),
                             backgroundColor:
                                 typeColor(type).withValues(alpha: 0.15),
-                            child: Icon(typeIcon(type),
-                                size: 34, color: typeColor(type)),
+                            foregroundColor: typeColor(type),
                           ),
                           const SizedBox(height: 12),
                           Text('${account['display_name'] ?? ''}',

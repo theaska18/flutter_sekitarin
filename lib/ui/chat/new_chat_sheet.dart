@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../widgets/account_avatar.dart';
 import 'group_create_screen.dart';
 
 class NewChatSheet extends StatefulWidget {
@@ -171,10 +172,14 @@ class _NewChatSheetState extends State<NewChatSheet> {
                     final type = account['type_code'] as String?;
                     return ListTile(
                       onTap: () => _start(item),
-                      leading: CircleAvatar(
+                      leading: AccountAvatar(
+                        account: account,
+                        radius: 22,
+                        token: context.read<AuthStore>().api.accessToken,
+                        fallbackIcon: typeIcon(type),
                         backgroundColor:
                             typeColor(type).withValues(alpha: 0.15),
-                        child: Icon(typeIcon(type), color: typeColor(type)),
+                        foregroundColor: typeColor(type),
                       ),
                       title: Text(
                         '${item['alias'] ?? account['display_name'] ?? ''}',

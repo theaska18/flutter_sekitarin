@@ -7,6 +7,7 @@ import '../common.dart';
 import '../notifications/notifications_screen.dart';
 import '../orders/orders_screen.dart';
 import '../profile/create_account_screen.dart';
+import '../widgets/account_avatar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -88,9 +89,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStore>();
-    final displayName = '${auth.user?['display_name'] ?? '?'}';
-    final initial =
-        displayName.isEmpty ? '?' : displayName.substring(0, 1).toUpperCase();
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
       children: [
@@ -99,9 +97,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                CircleAvatar(
+                AccountAvatar(
+                  account: auth.activeAccount,
                   radius: 24,
-                  child: Text(initial),
+                  token: auth.api.accessToken,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
