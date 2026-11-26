@@ -169,15 +169,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       _ActiveBadge(active: account['is_active'] != false),
                     ],
                   ),
-                  subtitle: Text(
-                    '@${account['handle'] ?? ''} • ${account['type_label'] ?? ''}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '@${account['handle'] ?? ''} • ${account['type_label'] ?? ''}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                      if (account['type_code'] != 'personal' &&
+                          account['is_active'] != false &&
+                          account['active_until'] != null)
+                        Text(
+                          'Aktif s/d ${formatWhen(account['active_until'])}',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (account['type_code'] != 'personal' &&
+                          account['location_mode'] == 'realtime')
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 2),
+                          child: Tooltip(
+                            message: 'Live GPS',
+                            child: Icon(
+                              Icons.gps_fixed,
+                              size: 16,
+                              color: Color(0xFF047857),
+                            ),
+                          ),
+                        ),
                       if (account['type_code'] != 'personal')
                         IconButton(
                           visualDensity: VisualDensity.compact,

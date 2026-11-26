@@ -24,8 +24,10 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
 - Profil/grid post, edit nama/username, **ganti foto profil** (galeri/kamera),
   ganti password, dan **Pengaturan usaha** (aktif/tutup, realtime/freeze,
   titik peta). Tambah akun usaha ada di Setelan.
-- Setelan menampilkan daftar akun dengan badge **Aktif/Nonaktif**, tombol
-  pengaturan usaha, dan aksi dalam layout ringkas.
+- Setelan menampilkan daftar akun dengan badge **Aktif/Nonaktif**, ikon GPS
+  untuk akun live GPS, waktu berlaku aktif, tombol pengaturan usaha, dan aksi
+  dalam layout ringkas. Akun bisnis aktif otomatis berakhir setelah 24 jam dan
+  harus diaktifkan ulang dari Setelan.
 - Katalog & order: lihat layanan akun dari peta, order makanan/jasa/ride,
   pembayaran tunai/transfer, dan alur status (terima → proses → antar →
   selesai/batal).

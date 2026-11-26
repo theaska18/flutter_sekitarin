@@ -25,6 +25,7 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
   LatLng? _location;
   bool _allowsPresence = false;
   bool _active = true;
+  String? _activeUntil;
   bool _loading = true;
   bool _busy = false;
 
@@ -52,6 +53,7 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
           _mode = '${account['location_mode'] ?? 'fixed'}';
           _allowsPresence = account['allows_presence'] == true;
           _active = account['is_active'] != false;
+          _activeUntil = account['active_until'] as String?;
           _addressController.text = '${account['address'] ?? ''}';
           if (location is Map) {
             _location = LatLng(
@@ -75,6 +77,33 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
       ),
     );
     if (picked != null && mounted) setState(() => _location = picked);
+  }
+
+  Future<void> _toggleActive(bool value) async {
+    if (value && !_active) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Aktifkan akun 24 jam?'),
+          content: const Text(
+            'Akun akan tampil aktif di peta selama 24 jam. Setelah itu akun '
+            'mati otomatis dan harus diaktifkan kembali dari Setelan.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Aktifkan'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+    setState(() => _active = value);
   }
 
   Future<void> _save() async {
@@ -150,12 +179,13 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: _active,
-                  onChanged: (value) => setState(() => _active = value),
+                  onChanged: _toggleActive,
                   title: const Text('Akun aktif'),
                   subtitle: Text(
                     _active
-                        ? 'Tampil sebagai buka/aktif di peta.'
-                        : 'Tampil sebagai tutup/nonaktif di peta.',
+                        ? 'Aktif 24 jam${_activeUntil == null ? '' : ' hingga ${formatWhen(_activeUntil)}'}. '
+                            'Setelah itu mati otomatis dan harus diaktifkan lagi dari Setelan.'
+                        : 'Tampil sebagai tutup/nonaktif. Aktifkan untuk tampil 24 jam.',
                   ),
                   secondary: Icon(
                     _active ? Icons.storefront : Icons.storefront_outlined,
