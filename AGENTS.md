@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.19+35 | Android relaunch as **Sekitarin** with package `com.kamal.sekitarin`; Firebase client config + FCM push (token registration, background notifications, notification-tap to chat), Android 13 permission; WebSocket auto-reconnect and live chat-list/badge refresh. Installing this build replaces the old `net.emetrotel` package, so the old app must be uninstalled first. |
 | 2026-11-27 | 0.12.18+34 | One combined Chat list for all accounts: incoming business chats render “my business avatar/name < sender”, outgoing business chats show the target business; replies use the thread’s own account. Profile edit button hidden for business accounts. |
 | 2026-11-27 | 0.12.17+33 | Group avatars visible to every member and refreshed live; map follows dark mode via a free tile filter and marker icons scale with zoom; direct chats are scoped per account (all account types) with an active-account chip; chat supports photo and file attachments (PDF/Word/Excel/TXT/ZIP). |
 | 2026-11-27 | 0.12.16+32 | Fix random logouts: refresh is single-flight (parallel 401s share one rotation) and only a rejected refresh token clears the session — network/timeout/429/5xx keep it. Backend refresh rotation now updates only if the old token still matches, returning 401 on races. |
