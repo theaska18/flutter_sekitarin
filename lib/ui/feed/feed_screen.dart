@@ -32,13 +32,14 @@ class _FeedScreenState extends State<FeedScreen> {
     final auth = context.read<AuthStore>();
     final api = auth.api;
     try {
-      final position =
-          auth.locationConsent ? await LocationService.current() : null;
+      // Location is only used to filter posts around the viewer; asking for it
+      // here does not broadcast the position to other users.
+      final position = await LocationService.current();
       final query = <String, String>{'limit': '20'};
       if (position != null) {
         query['lat'] = '${position.latitude}';
         query['lng'] = '${position.longitude}';
-        query['radius'] = '500';
+        query['radius'] = '2000';
       }
       final data = await api.get('feed', query: query);
       if (!mounted) return;
@@ -236,7 +237,7 @@ class _FeedScreenState extends State<FeedScreen> {
                   Center(child: Text('Belum ada post di sekitar')),
                   SizedBox(height: 4),
                   Center(
-                    child: Text('Post dari kontak dan akun dalam radius 500 m.',
+                    child: Text('Post dari kontak dan akun dalam radius 2 km.',
                         style: TextStyle(fontSize: 12)),
                   ),
                 ],

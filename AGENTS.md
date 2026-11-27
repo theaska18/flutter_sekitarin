@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.7+23 | Feed always requests the viewer position when loading (consent no longer blocks “posts around me”) and uses a 2 km radius; backend feed default radius is now 2000 m. |
 | 2026-11-27 | 0.12.6+22 | Group map opens on the user's own GPS position (with a recenter button and 1-hour share that auto-grants consent); Android header shows only the Sekitarin mark without the adjacent wordmark. |
 | 2026-11-27 | 0.12.5+21 | Chat header shows the conversation photo before the name for both direct and group chats (no avatar in AppBar actions); group avatars get a group badge overlay in the header, chat list, and Group Info. |
 | 2026-11-27 | 0.12.4+20 | Feed posts and direct-chat rows now show the poster/peer profile photo (backend peer payload includes handle + avatar); new Contacts list screen replaces the empty search page, with add-contact FAB; direct chat offers “add to contact” when the peer is not saved; sent bubbles use a darker container in dark mode with readable metadata text. |

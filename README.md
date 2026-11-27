@@ -32,11 +32,11 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
   **Aktif/Tutup** juga diatur di layar Pengaturan usaha dan tampil di peta.
   Foto, nama, dan username bisnis dapat diubah; username bisnis terpisah dari
   username personal dan tidak bisa dipakai untuk login.
-- Feed post dari kontak + radius 500 m, label **Kontak / Sekitar (jarak) /
+- Feed post dari kontak + radius 2 km, label **Kontak / Sekitar (jarak) /
   Akunmu**, like, komentar, buat post, serta menu tiga titik untuk edit/hapus
   post milik sendiri. Detail post bisa dibuka dari feed atau grid profil, dengan
-  daftar komentator dan aksi edit/hapus. Tanpa consent lokasi, feed hanya
-  menampilkan akun sendiri + kontak.
+  daftar komentator dan aksi edit/hapus. Lokasi dipakai hanya untuk memfilter
+  post sekitar (tidak dibagikan ke pengguna lain) dan diminta saat feed dimuat.
 - Profil/grid post, edit nama/username, **ganti foto profil** (galeri/kamera),
   ganti password, dan **Pengaturan usaha** (aktif/tutup, realtime/freeze,
   titik peta). Tambah akun usaha ada di Setelan.
