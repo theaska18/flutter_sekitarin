@@ -8,8 +8,15 @@ import '../config.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  if (!AppConfig.firebaseConfigured) return;
-  await Firebase.initializeApp(options: PushService.options);
+  try {
+    if (AppConfig.firebaseConfigured) {
+      await Firebase.initializeApp(options: PushService.options);
+    } else {
+      await Firebase.initializeApp();
+    }
+  } catch (_) {
+    // No Firebase configuration on this build.
+  }
 }
 
 /// FCM setup. When Firebase build-time values are absent the service is a
@@ -23,6 +30,16 @@ class PushService {
   static final ValueNotifier<int?> conversationToOpen = ValueNotifier(null);
 
   static bool get configured => AppConfig.firebaseConfigured;
+
+  static Future<void> _initializeFirebase() async {
+    if (AppConfig.firebaseConfigured) {
+      await Firebase.initializeApp(options: options);
+      return;
+    }
+    // Uses android/app/google-services.json (Android) or
+    // GoogleService-Info.plist (iOS) when build-time values are absent.
+    await Firebase.initializeApp();
+  }
 
   static FirebaseOptions get options => FirebaseOptions(
         apiKey: AppConfig.firebaseApiKey,
@@ -39,9 +56,9 @@ class PushService {
   static Stream<String> get tokenRefreshes => _tokenRefreshes.stream;
 
   static Future<void> initialize() async {
-    if (_initialized || !configured) return;
+    if (_initialized) return;
     try {
-      await Firebase.initializeApp(options: options);
+      await _initializeFirebase();
       final messaging = FirebaseMessaging.instance;
       await messaging.requestPermission(
         alert: true,

@@ -138,17 +138,15 @@ Aplikasi memakai HTTP/cleartext untuk development. Sebelum rilis produksi:
 Push sistem memakai Firebase Cloud Messaging dan **nonaktif jika kredensial
 tidak diberikan** (aplikasi tetap berjalan normal).
 
-1. Buat aplikasi Android `net.emetrotel.sekitar_app` (dan iOS `net.emetrotel.sekitarApp`)
+1. Buat aplikasi Android `com.kamal.sekitarin` (dan iOS `net.emetrotel.sekitarApp`)
    di Firebase, lalu ambil nilai konfigurasi.
-2. Build dengan `--dart-define`:
+2. Salin `google-services.json` (package `com.kamal.sekitarin`) ke
+   `android/app/google-services.json` (file ini di-ignore Git), lalu build:
    ```bash
-   flutter build apk --debug --split-per-abi \
-     --dart-define=FIREBASE_API_KEY=... \
-     --dart-define=FIREBASE_APP_ID=... \
-     --dart-define=FIREBASE_MESSAGING_SENDER_ID=... \
-     --dart-define=FIREBASE_PROJECT_ID=... \
-     --dart-define=FIREBASE_STORAGE_BUCKET=...        # opsional
+   flutter build apk --debug --split-per-abi
    ```
+   Alternatif tanpa file: berikan `--dart-define=FIREBASE_API_KEY=...`,
+   `FIREBASE_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_PROJECT_ID`.
 3. Di server, simpan service account FCM sebagai
    `../cms_sekitarin/secrets/fcm-service-account.json`, lalu
    `docker compose restart sekitar-push`.

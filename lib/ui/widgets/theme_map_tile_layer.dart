@@ -16,7 +16,7 @@ class ThemeMapTileLayer extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return TileLayer(
       urlTemplate: _lightUrl,
-      userAgentPackageName: 'net.emetrotel.sekitar_app',
+      userAgentPackageName: 'com.kamal.sekitarin',
       tileBuilder: dark ? darkModeTileBuilder : null,
     );
   }

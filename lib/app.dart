@@ -9,7 +9,7 @@ class SekitarApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Sekitar',
+      title: 'Sekitarin',
       debugShowCheckedModeBanner: false,
       theme: buildSekitarTheme(Brightness.light),
       darkTheme: buildSekitarTheme(Brightness.dark),

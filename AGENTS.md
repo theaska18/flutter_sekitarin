@@ -113,8 +113,10 @@ the manifest and downloads/installs the APK.
 - **Updater:** keep update progress inline on the Settings row, never in a
   dialog; cache the APK per version so installing can be retried without a new
   download.
-- **Push:** Firebase credentials come from `--dart-define` build values, never
-  hardcode them. Push must stay optional so the app runs without Firebase
-  config; FCM token registration/logout is handled in `AuthStore`.
+- **Push:** Android package is `com.kamal.sekitarin` with display name
+  **Sekitarin**. Firebase config comes from `android/app/google-services.json`
+  (Git-ignored) or `--dart-define`; never hardcode credentials. Push must stay
+  optional so the app runs without Firebase config; FCM token
+  registration/logout is handled in `AuthStore`.
 - **Maps:** use the shared `ThemeMapTileLayer` (light OSM). CARTO dark tiles
   require an API key now; do not re-enable keyless dark tiles.

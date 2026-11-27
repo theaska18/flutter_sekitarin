@@ -1,4 +1,4 @@
-package net.emetrotel.sekitar_app
+package com.kamal.sekitarin
 
 import io.flutter.embedding.android.FlutterActivity
 
