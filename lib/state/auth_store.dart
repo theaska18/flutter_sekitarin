@@ -223,15 +223,19 @@ class AuthStore extends ChangeNotifier {
 
   Future<void> _syncRealtimeLocations() async {
     if (!signedIn || !_locationConsent || _realtimeBusy) return;
-    final realtimeAccounts = accounts.where((account) {
-      return account['location_mode'] == 'realtime';
+    final targets = accounts.where((account) {
+      final allowsPresence = account['allows_presence'] == true;
+      if (allowsPresence) return account['location_mode'] == 'realtime';
+      // Personal accounts follow the phone so nearby posts can find them.
+      // Business pins stay where the owner placed them.
+      return account['type_code'] == 'personal';
     }).toList();
-    if (realtimeAccounts.isEmpty) return;
+    if (targets.isEmpty) return;
     _realtimeBusy = true;
     try {
       final position = await LocationService.current();
       if (position == null) return;
-      for (final account in realtimeAccounts) {
+      for (final account in targets) {
         final accountId = account['account_id'];
         if (accountId == null) continue;
         final allowsPresence = account['allows_presence'] == true;

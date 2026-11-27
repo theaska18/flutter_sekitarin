@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/ws_client.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
 import '../widgets/account_avatar.dart';
@@ -23,18 +26,94 @@ class _ChatListScreenState extends State<ChatListScreen> {
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
   String? _error;
+  final Map<int, Map<int, String>> _typingUsers = {};
+  final Map<String, Timer> _typingTimers = {};
+  final Set<int> _subscribed = {};
+  StreamSubscription? _wsSub;
+  late final WsClient _ws;
 
   @override
   void initState() {
     super.initState();
     chatListRefreshTick.addListener(_load);
+    _ws = context.read<AuthStore>().ws;
+    _wsSub = _ws.events.listen(_onWsEvent);
     _load();
   }
 
   @override
   void dispose() {
     chatListRefreshTick.removeListener(_load);
+    _wsSub?.cancel();
+    for (final timer in _typingTimers.values) {
+      timer.cancel();
+    }
+    for (final id in _subscribed) {
+      _ws.unsubscribe(id);
+    }
     super.dispose();
+  }
+
+  void _syncSubscriptions() {
+    final ids =
+        _items.map((item) => item['conversation_id']).whereType<int>().toSet();
+    for (final id in _subscribed.difference(ids).toList()) {
+      _ws.unsubscribe(id);
+      _subscribed.remove(id);
+      _typingUsers.remove(id);
+    }
+    for (final id in ids.difference(_subscribed).toList()) {
+      _ws.subscribe(id);
+      _subscribed.add(id);
+    }
+  }
+
+  void _clearTyping(int conversationId, [int? userId]) {
+    if (userId == null) {
+      _typingUsers.remove(conversationId);
+      _typingTimers.removeWhere((key, timer) {
+        if (!key.startsWith('$conversationId:')) return false;
+        timer.cancel();
+        return true;
+      });
+    } else {
+      _typingUsers[conversationId]?.remove(userId);
+      if (_typingUsers[conversationId]?.isEmpty == true) {
+        _typingUsers.remove(conversationId);
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _onWsEvent(Map<String, dynamic> event) {
+    final conversationId = event['conversation_id'];
+    if (conversationId is! int) return;
+    final name = '${event['event']}';
+    if (name == 'message.created') {
+      _clearTyping(conversationId);
+      return;
+    }
+    if (name != 'typing') return;
+    final payload = event['payload'];
+    if (payload is! Map) return;
+    final userId = payload['user_id'];
+    if (userId is! int) return;
+    if (userId == context.read<AuthStore>().user?['user_id']) return;
+    final typing = payload['is_typing'] == true;
+    final displayName = '${payload['display_name'] ?? 'Seseorang'}';
+    final key = '$conversationId:$userId';
+    _typingTimers[key]?.cancel();
+    if (!typing) {
+      _typingTimers.remove(key);
+      _clearTyping(conversationId, userId);
+      return;
+    }
+    _typingUsers.putIfAbsent(conversationId, () => {})[userId] = displayName;
+    _typingTimers[key] = Timer(const Duration(seconds: 4), () {
+      _typingTimers.remove(key);
+      _clearTyping(conversationId, userId);
+    });
+    if (mounted) setState(() {});
   }
 
   Future<void> _load() async {
@@ -50,6 +129,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 .toList()
             : [];
       });
+      _syncSubscriptions();
     } catch (error) {
       if (mounted) setState(() => _error = '$error');
     } finally {
@@ -127,6 +207,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       final peer = item['peer'] is Map
                           ? Map<String, dynamic>.from(item['peer'] as Map)
                           : null;
+                      final conversationId = item['conversation_id'] as int?;
+                      final typing = conversationId == null
+                          ? null
+                          : _typingUsers[conversationId];
+                      final typingLabel = typing == null || typing.isEmpty
+                          ? null
+                          : '${typing.values.join(', ')} sedang mengetik…';
                       return Card(
                         color: hasUnread
                             ? scheme.primaryContainer.withValues(alpha: 0.35)
@@ -155,18 +242,25 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             ),
                           ),
                           subtitle: Text(
-                            messagePreview(
-                              item['last_message'] is Map
-                                  ? Map<String, dynamic>.from(
-                                      item['last_message'] as Map)
-                                  : null,
-                            ),
+                            typingLabel ??
+                                messagePreview(
+                                  item['last_message'] is Map
+                                      ? Map<String, dynamic>.from(
+                                          item['last_message'] as Map)
+                                      : null,
+                                ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontWeight:
-                                  hasUnread ? FontWeight.w600 : FontWeight.w400,
-                              color: hasUnread ? scheme.onSurface : null,
+                              fontWeight: typingLabel != null || hasUnread
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              fontStyle: typingLabel != null
+                                  ? FontStyle.italic
+                                  : FontStyle.normal,
+                              color: typingLabel != null
+                                  ? scheme.primary
+                                  : (hasUnread ? scheme.onSurface : null),
                             ),
                           ),
                           trailing: Column(

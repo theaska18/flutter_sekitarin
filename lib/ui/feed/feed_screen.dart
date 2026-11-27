@@ -443,6 +443,9 @@ class _FeedSourceBadge extends StatelessWidget {
     } else if (source == 'own') {
       label = 'Akunmu';
       color = const Color(0xFFB45309);
+    } else if (source == 'recent') {
+      label = 'Terbaru';
+      color = const Color(0xFF475569);
     } else {
       label = 'Kontak';
       color = Colors.blueGrey;

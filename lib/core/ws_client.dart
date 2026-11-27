@@ -11,7 +11,7 @@ class WsClient {
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   final _events = StreamController<Map<String, dynamic>>.broadcast();
-  final Set<int> _subscriptions = <int>{};
+  final Map<int, int> _subscriptions = <int, int>{};
   bool _ready = false;
 
   Stream<Map<String, dynamic>> get events => _events.stream;
@@ -32,7 +32,7 @@ class WsClient {
             final map = Map<String, dynamic>.from(event);
             if (map['event'] == 'ready') {
               _ready = true;
-              for (final id in _subscriptions) {
+              for (final id in _subscriptions.keys) {
                 _sendSubscribe(id);
               }
             }
@@ -51,11 +51,17 @@ class WsClient {
   }
 
   void subscribe(int conversationId) {
-    _subscriptions.add(conversationId);
-    if (_ready) _sendSubscribe(conversationId);
+    final count = (_subscriptions[conversationId] ?? 0) + 1;
+    _subscriptions[conversationId] = count;
+    if (count == 1 && _ready) _sendSubscribe(conversationId);
   }
 
   void unsubscribe(int conversationId) {
+    final count = (_subscriptions[conversationId] ?? 0) - 1;
+    if (count > 0) {
+      _subscriptions[conversationId] = count;
+      return;
+    }
     _subscriptions.remove(conversationId);
     _channel?.sink.add(jsonEncode({
       'type': 'unsubscribe',
