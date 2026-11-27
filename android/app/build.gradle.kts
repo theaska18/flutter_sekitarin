@@ -30,6 +30,13 @@ android {
         versionName = flutter.versionName
     }
 
+    lint {
+        // firebase_core triggers an Android Lint internal crash on this
+        // toolchain; lint is not part of the Flutter release gate.
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

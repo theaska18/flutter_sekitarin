@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.24+40 | Release build: notification channel with sound/high priority; direct typing shows no name; chat scrolls above keyboard; touch sound + bubble fade/slide animation; full-bleed chat list; message status ticks (clock/sent/delivered/read); optimistic sending; long-press delete for me/everyone. Signed with debug key for internal testing. |
 | 2026-11-27 | 0.12.23+39 | Fix login/register payload: `_devicePayload` is async and must be awaited, otherwise JSON encoding fails with “Instance of Future<Map>” and login never reaches the server. |
 | 2026-11-27 | 0.12.22+38 | Login diagnostics: detailed network/TLS/timeout errors and a “Tes koneksi ke server” button on the login screen showing API URL/status. |
 | 2026-11-27 | 0.12.21+37 | Force-reset FCM token from Settings to replace stale/invalid tokens (`deleteToken` + new token registration). |
