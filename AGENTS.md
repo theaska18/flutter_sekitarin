@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.32+48 | Call liveness: while in a call the app sends `/calls/{id}/heartbeat`; the backend ends answered calls silent for 3 minutes, dismisses stale CallKit UI on launch, and hangs up Jitsi when the other side ends the call. |
 | 2026-11-27 | 0.12.31+47 | Fix call start failing (push queue rejected NULL notification) and blank Jitsi screen (release build now unminified); Jitsi token `sub` matches the working webcasting token (`jitsi.ckamal.com`). |
 | 2026-11-27 | 0.12.30+46 | Call polish: outgoing call notification is marked connected while in Jitsi and cleared when the call ends. |
 | 2026-11-27 | 0.12.29+45 | Voice/video calls via Jitsi (`jitsi.ckamal.com`): 1:1 calls ring through CallKit/full-screen notification, group calls only show an in-chat banner with join, Log Telepon filled with call history and call-back, mic/camera permissions. |

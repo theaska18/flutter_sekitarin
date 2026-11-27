@@ -28,6 +28,10 @@ class CallService extends ChangeNotifier {
   Map<String, dynamic>? _pendingAccept;
   bool _joining = false;
   final Set<int> _acceptedCalls = {};
+  JitsiMeet? _activeMeet;
+  int? _activeMeetCallId;
+  Timer? _heartbeat;
+  bool _clearedStaleCallkit = false;
 
   Map<String, dynamic>? get incomingCall => _incoming;
   Map<String, dynamic>? get outgoingCall => _outgoing;
@@ -68,9 +72,24 @@ class CallService extends ChangeNotifier {
         await FlutterCallkitIncoming.requestFullIntentPermission();
       }
       await _resumeAcceptedCall();
+      await _clearStaleCallkit();
     } catch (error) {
       debugPrint('CallKit setup failed: $error');
     }
+  }
+
+  /// Dismiss call UI left behind by a previous crashed/killed call.
+  Future<void> _clearStaleCallkit() async {
+    if (_clearedStaleCallkit) return;
+    _clearedStaleCallkit = true;
+    if (_incoming != null || _active != null || _outgoing != null || _joining) {
+      return;
+    }
+    try {
+      final calls = await FlutterCallkitIncoming.activeCalls();
+      if (calls.any((call) => call.isAccepted == true)) return;
+      await FlutterCallkitIncoming.endAllCalls();
+    } catch (_) {}
   }
 
   /// The app may have been killed when the user accepted a call. Resume it.
@@ -156,9 +175,16 @@ class CallService extends ChangeNotifier {
     }
     if (callId != null && _outgoing?['call_id'] == callId) {
       _outgoing = null;
+      _endCallKit(callId);
     }
     if (callId != null && _active?['call_id'] == callId) {
       _active = null;
+    }
+    if (callId != null && _activeMeetCallId == callId) {
+      _heartbeat?.cancel();
+      _activeMeet?.hangUp();
+      _activeMeet = null;
+      _activeMeetCallId = null;
     }
     if (data['active_call'] == null) {
       final conversationId = _asInt(data['conversation_id']);
@@ -372,6 +398,24 @@ class CallService extends ChangeNotifier {
     if (callId != null) await _declineCallId(callId);
   }
 
+  Future<void> _sendHeartbeat(int callId) async {
+    try {
+      final data = await _auth?.api.post('calls/$callId/heartbeat');
+      final status = '${data?['status']}';
+      if (status == 'ended' ||
+          status == 'missed' ||
+          status == 'declined' ||
+          status == 'canceled') {
+        _heartbeat?.cancel();
+        if (_activeMeetCallId == callId) {
+          _activeMeet?.hangUp();
+        }
+      }
+    } catch (_) {
+      // Transient failures are fine; the backend only expires silent calls.
+    }
+  }
+
   // ----- Public actions ---------------------------------------------------
 
   Future<Map<String, dynamic>?> startDirectCall({
@@ -580,6 +624,14 @@ class CallService extends ChangeNotifier {
     );
     try {
       await meet.join(options, listener);
+      _activeMeet = meet;
+      _activeMeetCallId = callId;
+      _heartbeat?.cancel();
+      if (!group && callId != null) {
+        _heartbeat = Timer.periodic(const Duration(seconds: 20), (_) {
+          _sendHeartbeat(callId);
+        });
+      }
       if (callId != null) {
         try {
           await FlutterCallkitIncoming.setCallConnected('call-$callId');
@@ -590,6 +642,12 @@ class CallService extends ChangeNotifier {
         onTimeout: () {},
       );
     } finally {
+      _heartbeat?.cancel();
+      _heartbeat = null;
+      if (identical(_activeMeet, meet)) {
+        _activeMeet = null;
+        _activeMeetCallId = null;
+      }
       await meet.hangUp();
       if (callId != null) {
         try {
