@@ -151,6 +151,47 @@ class _MapScreenState extends State<MapScreen> {
     return const Distance().as(LengthUnit.Meter, from, point).round();
   }
 
+  bool _isDriverType(String? type) {
+    return type == 'driver_mobil' ||
+        type == 'driver_motor' ||
+        type == 'kurir_makanan';
+  }
+
+  Widget _placeMarkerIcon(Map<String, dynamic> place) {
+    final type = place['type_code'] as String?;
+    final color =
+        place['is_active'] == false ? Colors.blueGrey : typeColor(type);
+    if (_isDriverType(type)) {
+      // Drivers use a bare vehicle icon instead of a circular badge.
+      return Icon(
+        typeIcon(type),
+        size: 38,
+        color: color,
+        shadows: const [
+          Shadow(color: Colors.white, blurRadius: 4),
+          Shadow(color: Colors.black45, blurRadius: 6),
+        ],
+      );
+    }
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color:
+              place['is_own'] == true ? const Color(0xFFF59E0B) : Colors.white,
+          width: place['is_own'] == true ? 3 : 2,
+        ),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 6),
+        ],
+      ),
+      child: Icon(typeIcon(type), color: Colors.white, size: 21),
+    );
+  }
+
   String _distanceLabel(int meters) {
     return meters >= 1000
         ? '${(meters / 1000).toStringAsFixed(1)} km'
@@ -379,32 +420,7 @@ class _MapScreenState extends State<MapScreen> {
                           Stack(
                             clipBehavior: Clip.none,
                             children: [
-                              Container(
-                                width: 42,
-                                height: 42,
-                                decoration: BoxDecoration(
-                                  color: place['is_active'] == false
-                                      ? Colors.blueGrey
-                                      : typeColor(
-                                          place['type_code'] as String?),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: place['is_own'] == true
-                                        ? const Color(0xFFF59E0B)
-                                        : Colors.white,
-                                    width: place['is_own'] == true ? 3 : 2,
-                                  ),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                        color: Colors.black26, blurRadius: 6),
-                                  ],
-                                ),
-                                child: Icon(
-                                  typeIcon(place['type_code'] as String?),
-                                  color: Colors.white,
-                                  size: 21,
-                                ),
-                              ),
+                              _placeMarkerIcon(place),
                               if (place['is_own'] == true)
                                 Positioned(
                                   right: -3,

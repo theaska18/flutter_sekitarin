@@ -5,12 +5,14 @@ import 'package:provider/provider.dart';
 
 import '../../state/auth_store.dart';
 import '../calls/call_log_screen.dart';
+import '../common.dart';
 import '../chat/chat_list_screen.dart';
 import '../contacts/contacts_screen.dart';
 import '../feed/feed_screen.dart';
 import '../map/map_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/profile_screen.dart';
+import '../widgets/account_avatar.dart';
 import '../widgets/sekitarin_logo.dart';
 
 class HomeShell extends StatefulWidget {
@@ -136,12 +138,22 @@ class _HomeShellState extends State<HomeShell> {
                 ),
             ],
           ),
-          IconButton(
-            icon: const Icon(Icons.account_circle_outlined),
-            tooltip: 'Profil',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ProfileScreen(),
+          Tooltip(
+            message: 'Profil',
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ProfileScreen(),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: _HeaderAccountAvatar(
+                  account: auth.activeAccount,
+                  type: auth.activeAccount?['type_code'] as String?,
+                  token: auth.api.accessToken,
+                ),
               ),
             ),
           ),
@@ -192,6 +204,53 @@ class _HomeShellState extends State<HomeShell> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Active account photo for the header, with a business-type badge in the
+/// bottom-right corner (same treatment as the group badge in chat).
+class _HeaderAccountAvatar extends StatelessWidget {
+  const _HeaderAccountAvatar({
+    required this.account,
+    required this.type,
+    required this.token,
+  });
+
+  final Map<String, dynamic>? account;
+  final String? type;
+  final String? token;
+
+  @override
+  Widget build(BuildContext context) {
+    final isBusiness = type != null && type != 'personal';
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        AccountAvatar(
+          account: account,
+          radius: 15,
+          token: token,
+          fallbackIcon: typeIcon(type),
+        ),
+        if (isBusiness)
+          Positioned(
+            right: -3,
+            bottom: -3,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: typeColor(type),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.surface,
+                  width: 1.5,
+                ),
+              ),
+              child: Icon(typeIcon(type), size: 9, color: Colors.white),
+            ),
+          ),
+      ],
     );
   }
 }

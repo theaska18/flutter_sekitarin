@@ -31,8 +31,11 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
   400 ms), akun freeze selalu tampil; akun realtime/driver muncul setelah
   “Bagikan lokasi” di Setelan aktif. Di bawah zoom 14.5 data tidak dimuat agar
   tidak menarik seluruh area. Update otomatis tiap 10 detik, marker “Akunmu”
-  untuk akun sendiri, tap marker untuk chat/pesan. Peta memakai tile OSM terang
-  untuk sementara, termasuk saat mode gelap.
+  untuk akun sendiri, tap marker untuk chat/pesan. Marker pengemudi (mobil,
+  motor, kurir) memakai ikon kendaraan tanpa lingkaran. Peta memakai tile OSM
+  terang untuk sementara, termasuk saat mode gelap. Ikon profil di header
+  menampilkan foto akun aktif; akun non-personal diberi badge ikon tipe akun
+  (mis. mobil untuk driver) di pojok kanan bawah.
 - Akun usaha: pilih **Realtime GPS** (lokasi diperbarui tiap 15 detik selama app
   aktif) atau **freeze** dengan titik yang dipilih di peta. Status
   **Aktif/Tutup** juga diatur di layar Pengaturan usaha dan tampil di peta.
@@ -44,8 +47,10 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
   daftar komentator dan aksi edit/hapus. Lokasi dipakai hanya untuk memfilter
   post sekitar (tidak dibagikan ke pengguna lain) dan diminta saat feed dimuat.
   Bila tidak ada akun yang berbagi lokasi di sekitar, feed menampilkan post
-  publik 7 hari terakhir dengan label **Terbaru**. Post dari radius sekitar
-  menampilkan jarak, mis. **Sekitar 850 m** atau **Sekitar 1,2 km dari kamu**.
+  publik 7 hari terakhir dengan label **Terbaru**. Post dengan lokasi akun
+  diketahui menampilkan jarak, mis. **850 m dari kamu** — termasuk jika akun
+  tersebut kontak atau akun sendiri. Post **Terbaru** tidak punya jarak karena
+  lokasi akunnya tidak diketahui.
 - Profil/grid post, edit nama/username, **ganti foto profil** (galeri/kamera),
   ganti password, dan **Pengaturan usaha** (aktif/tutup, realtime/freeze,
   titik peta). Tambah akun usaha ada di Setelan. Foto/nama pembuat post dan

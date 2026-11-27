@@ -311,6 +311,7 @@ class _PostCard extends StatelessWidget {
     final type = account['type_code'] as String?;
     final source = post['feed_source'] as String?;
     final distance = post['distance_m'];
+    final distanceLabel = formatDistance(distance);
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
@@ -349,7 +350,7 @@ class _PostCard extends StatelessWidget {
                         ),
                         Text(
                           '@${account['handle'] ?? ''}'
-                          '${source == 'nearby' && formatDistance(distance).isNotEmpty ? ' · ${formatDistance(distance)} dari kamu' : ''}'
+                          '${distanceLabel.isNotEmpty ? ' · $distanceLabel dari kamu' : ''}'
                           ' · ${timeAgo(post['created_at'])}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

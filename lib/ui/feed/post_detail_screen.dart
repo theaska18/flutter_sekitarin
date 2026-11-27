@@ -225,9 +225,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         ? Map<String, dynamic>.from(post['account'] as Map)
         : <String, dynamic>{};
     final media = post['media'] is List ? post['media'] as List : const [];
-    final distance = post['feed_source'] == 'nearby'
-        ? formatDistance(post['distance_m'])
-        : '';
+    final distance = formatDistance(post['distance_m']);
     final token = context.read<AuthStore>().api.accessToken;
     final headers = token == null
         ? null

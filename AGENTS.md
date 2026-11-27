@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.15+31 | Map driver markers use bare vehicle icons (no circle); the header profile button shows the active account photo and, for non-personal accounts, a bottom-right badge with that account type's icon; nearby distance is now returned for own/contact posts too and shown whenever known. |
 | 2026-11-27 | 0.12.14+30 | Tapping a profile that belongs to any of your accounts (not just the active one) switches to it and opens the existing Profile page; other accounts open the read-only posts profile. |
 | 2026-11-27 | 0.12.13+29 | Map self marker is now a location icon; chat headers show call + video-call buttons (group: video only, no-op for now); feed/post/comment avatars and names open a read-only profile with the same post grid, or the existing Profile page when it is your active account. |
 | 2026-11-27 | 0.12.12+28 | Maps reverted to light OSM tiles even in dark mode (CARTO dark tiles need a key); shared `ThemeMapTileLayer` kept for a future keyed provider. |
