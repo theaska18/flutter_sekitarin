@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.9+25 | Nearby posts show their distance in the feed card (“Sekitar 850 m / 1,2 km dari kamu”, with a near-me icon) and on the post detail header; detail preserves feed distance metadata after reloading the post. |
 | 2026-11-27 | 0.12.8+24 | Personal accounts now publish their position when “Bagikan lokasi” is on (business fixed pins stay put), so nearby feed works for personal users; feed falls back to public posts from the last 7 days labeled “Terbaru” when nobody is nearby; the chat list shows “sedang mengetik…” per conversation (direct and group) over WebSocket with ref-counted subscriptions. |
 | 2026-11-27 | 0.12.7+23 | Feed always requests the viewer position when loading (consent no longer blocks “posts around me”) and uses a 2 km radius; backend feed default radius is now 2000 m. |
 | 2026-11-27 | 0.12.6+22 | Group map opens on the user's own GPS position (with a recenter button and 1-hour share that auto-grants consent); Android header shows only the Sekitarin mark without the adjacent wordmark. |

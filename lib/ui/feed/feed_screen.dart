@@ -326,7 +326,9 @@ class _PostCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '@${account['handle'] ?? ''} · ${timeAgo(post['created_at'])}',
+                        '@${account['handle'] ?? ''}'
+                        '${source == 'nearby' && formatDistance(distance).isNotEmpty ? ' · ${formatDistance(distance)} dari kamu' : ''}'
+                        ' · ${timeAgo(post['created_at'])}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -435,10 +437,8 @@ class _FeedSourceBadge extends StatelessWidget {
     late final String label;
     late final Color color;
     if (source == 'nearby') {
-      final meters = distance ?? 0;
-      label = meters >= 1000
-          ? 'Sekitar ${(meters / 1000).toStringAsFixed(1)} km'
-          : 'Sekitar $meters m';
+      final shown = formatDistance(distance);
+      label = shown.isEmpty ? 'Sekitar' : 'Sekitar $shown';
       color = Theme.of(context).colorScheme.primary;
     } else if (source == 'own') {
       label = 'Akunmu';
@@ -456,13 +456,22 @@ class _FeedSourceBadge extends StatelessWidget {
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(7),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 9.5,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (source == 'nearby') ...[
+            Icon(Icons.near_me, size: 10, color: color),
+            const SizedBox(width: 2),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -124,6 +124,16 @@ String chatMessageTime(dynamic iso) {
   return DateFormat('HH:mm').format(parsed);
 }
 
+/// Human-readable distance for nearby posts: "850 m" or "1,2 km".
+String formatDistance(dynamic meters) {
+  final value = meters is num ? meters.toDouble() : double.tryParse('$meters');
+  if (value == null || value <= 0) return '';
+  if (value >= 1000) {
+    return '${(value / 1000).toStringAsFixed(1).replaceAll('.', ',')} km';
+  }
+  return '${value.round()} m';
+}
+
 String formatWhen(dynamic iso) {
   if (iso == null) return '';
   final parsed = DateTime.tryParse('$iso')?.toLocal();

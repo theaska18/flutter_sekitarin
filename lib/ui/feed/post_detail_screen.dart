@@ -54,7 +54,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       final commentData = results[1];
       setState(() {
         if (postData is Map && postData['post'] is Map) {
-          _post = Map<String, dynamic>.from(postData['post'] as Map);
+          final loaded = Map<String, dynamic>.from(postData['post'] as Map);
+          final previous = _post;
+          if (previous != null) {
+            for (final key in ['feed_source', 'distance_m']) {
+              if (previous[key] != null) loaded[key] = previous[key];
+            }
+          }
+          _post = loaded;
         }
         _comments = commentData is Map && commentData['data'] is List
             ? (commentData['data'] as List)
@@ -219,6 +226,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         ? Map<String, dynamic>.from(post['account'] as Map)
         : <String, dynamic>{};
     final media = post['media'] is List ? post['media'] as List : const [];
+    final distance = post['feed_source'] == 'nearby'
+        ? formatDistance(post['distance_m'])
+        : '';
     final token = context.read<AuthStore>().api.accessToken;
     final headers = token == null
         ? null
@@ -275,8 +285,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                               style:
                                   const TextStyle(fontWeight: FontWeight.w700)),
                           Text(
-                              '@${account['handle'] ?? ''} · ${timeAgo(post['created_at'])}',
-                              style: Theme.of(context).textTheme.labelSmall),
+                            '@${account['handle'] ?? ''}'
+                            '${distance.isNotEmpty ? ' · $distance dari kamu' : ''}'
+                            ' · ${timeAgo(post['created_at'])}',
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
                         ],
                       ),
                     ),

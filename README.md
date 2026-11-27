@@ -40,7 +40,8 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
   daftar komentator dan aksi edit/hapus. Lokasi dipakai hanya untuk memfilter
   post sekitar (tidak dibagikan ke pengguna lain) dan diminta saat feed dimuat.
   Bila tidak ada akun yang berbagi lokasi di sekitar, feed menampilkan post
-  publik 7 hari terakhir dengan label **Terbaru**.
+  publik 7 hari terakhir dengan label **Terbaru**. Post dari radius sekitar
+  menampilkan jarak, mis. **Sekitar 850 m** atau **Sekitar 1,2 km dari kamu**.
 - Profil/grid post, edit nama/username, **ganti foto profil** (galeri/kamera),
   ganti password, dan **Pengaturan usaha** (aktif/tutup, realtime/freeze,
   titik peta). Tambah akun usaha ada di Setelan.
