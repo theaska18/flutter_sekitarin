@@ -707,56 +707,94 @@ class JitsiSdpHelper {
       String? setup;
       final audioVideoExtensions = <List<Map<String, String>>>[];
       final mediaOrder = <Map<String, String>>[];
-      final midToNameMapping = <String, String>{};
+      final mediaTransports = <Map<String, String>>[];
+      final mediaDirections = <String>[];
       bool inAudio = false;
       bool inVideo = false;
-      String? currentMid;
       int currentMediaIndex = -1;
+      int transportIndex = -1;
+      Map<String, String>? currentTransport;
       for (final line in lines) {
         final trimmed = line.trim();
-        if (trimmed.startsWith('m=audio')) {
-          inAudio = true;
-          inVideo = false;
-          currentMediaIndex++;
-          final parts = trimmed.split(' ');
-          if (parts.length > 3) audioPayloads.addAll(parts.sublist(3));
-          mediaOrder.add({'name': 'audio', 'media': 'audio'});
-          audioVideoExtensions.add([]);
-        } else if (trimmed.startsWith('m=video')) {
-          inAudio = false;
-          inVideo = true;
-          currentMediaIndex++;
-          final parts = trimmed.split(' ');
-          if (parts.length > 3) videoPayloads.addAll(parts.sublist(3));
-          mediaOrder.add({'name': 'video', 'media': 'video'});
-          audioVideoExtensions.add([]);
+        if (trimmed.startsWith('m=')) {
+          transportIndex++;
+          final transportMedia = trimmed.startsWith('m=audio')
+              ? 'audio'
+              : trimmed.startsWith('m=video')
+                  ? 'video'
+                  : trimmed.startsWith('m=application')
+                      ? 'data'
+                      : 'unknown';
+          currentTransport = <String, String>{'media': transportMedia};
+          mediaTransports.add(currentTransport);
+          if (trimmed.startsWith('m=audio')) {
+            inAudio = true;
+            inVideo = false;
+            currentMediaIndex++;
+            final parts = trimmed.split(' ');
+            if (parts.length > 3) audioPayloads.addAll(parts.sublist(3));
+            mediaOrder.add({
+              'name': 'audio',
+              'media': 'audio',
+              'transportIndex': '$transportIndex',
+              'directionIndex': '${mediaDirections.length}',
+            });
+            mediaDirections.add('sendrecv');
+            audioVideoExtensions.add([]);
+          } else if (trimmed.startsWith('m=video')) {
+            inAudio = false;
+            inVideo = true;
+            currentMediaIndex++;
+            final parts = trimmed.split(' ');
+            if (parts.length > 3) videoPayloads.addAll(parts.sublist(3));
+            mediaOrder.add({
+              'name': 'video',
+              'media': 'video',
+              'transportIndex': '$transportIndex',
+              'directionIndex': '${mediaDirections.length}',
+            });
+            mediaDirections.add('sendrecv');
+            audioVideoExtensions.add([]);
+          } else {
+            inAudio = false;
+            inVideo = false;
+          }
         } else if (trimmed.startsWith('a=mid:')) {
-          currentMid = trimmed.substring(6);
+          final currentMid = trimmed.substring(6);
           if (currentMid.isNotEmpty) {
             if (inAudio) {
               final mediaIndex =
                   mediaOrder.indexWhere((m) => m['media'] == 'audio');
-              if (mediaIndex != -1) {
-                mediaOrder[mediaIndex]['name'] = currentMid;
-                midToNameMapping[currentMid] = 'audio';
-              }
+              if (mediaIndex != -1) mediaOrder[mediaIndex]['name'] = currentMid;
             } else if (inVideo) {
               final mediaIndex =
                   mediaOrder.indexWhere((m) => m['media'] == 'video');
-              if (mediaIndex != -1) {
-                mediaOrder[mediaIndex]['name'] = currentMid;
-                midToNameMapping[currentMid] = 'video';
-              }
+              if (mediaIndex != -1) mediaOrder[mediaIndex]['name'] = currentMid;
             }
           }
         } else if (trimmed.startsWith('a=ice-ufrag:')) {
           iceUfrag = trimmed.substring(12);
+          currentTransport?['ufrag'] = iceUfrag;
         } else if (trimmed.startsWith('a=ice-pwd:')) {
           icePwd = trimmed.substring(10);
+          currentTransport?['pwd'] = icePwd;
         } else if (trimmed.startsWith('a=fingerprint:sha-256')) {
           fingerprint = trimmed.substring(22);
+          currentTransport?['fingerprint'] = fingerprint;
         } else if (trimmed.startsWith('a=setup:')) {
           setup = trimmed.substring(8);
+          currentTransport?['setup'] = setup;
+        } else if (trimmed == 'a=sendrecv' ||
+            trimmed == 'a=sendonly' ||
+            trimmed == 'a=recvonly' ||
+            trimmed == 'a=inactive') {
+          if (inAudio || inVideo) {
+            final directionIndex = mediaOrder.lastOrNull?['directionIndex'];
+            final index = int.tryParse(directionIndex ?? '');
+            if (index != null && index >= 0 && index < mediaDirections.length) {
+              mediaDirections[index] = trimmed.substring(2);
+            }
+          }
         } else if (trimmed.startsWith('a=extmap:')) {
           final extParts = trimmed.substring(9).split(' ');
           if (extParts.length >= 2) {
@@ -766,9 +804,10 @@ class JitsiSdpHelper {
               audioVideoExtensions[currentMediaIndex]
                   .add({'id': id, 'uri': uri});
             } else if (inVideo &&
-                currentMediaIndex < audioVideoExtensions.length)
+                currentMediaIndex < audioVideoExtensions.length) {
               audioVideoExtensions[currentMediaIndex]
                   .add({'id': id, 'uri': uri});
+            }
           }
         }
       }
@@ -805,7 +844,12 @@ class JitsiSdpHelper {
             names != null && names.isNotEmpty ? names.removeAt(0) : null;
         final name =
             offeredName ?? (usesNumericFormat ? i.toString() : mediaType);
-        finalMediaOrder.add({'name': name, 'media': mediaType});
+        finalMediaOrder.add({
+          'name': name,
+          'media': mediaType,
+          'transportIndex': m['transportIndex'] ?? '$i',
+          'directionIndex': m['directionIndex'] ?? '$i',
+        });
       }
       final dataContentName = incomingNames['data']?.isNotEmpty == true
           ? incomingNames['data']!.first
@@ -834,12 +878,38 @@ class JitsiSdpHelper {
             sdp, responderJid.split('-')[0], mediaType, false, index);
         final ssrcContent = await convertSsrcToXml(
             sdp, responderJid.split('-')[0], mediaType, true, index);
-        if (ssrcXml.isEmpty) return "";
-        final descriptionAttributes = 'media="$mediaType" ssrc="$ssrcXml"';
+        // A recvonly video m-line has no local SSRC: JVB is sending the video
+        // to this client. It still must be present in the Jingle answer, or
+        // Jicofo accepts audio only and never forwards video.
+        if (ssrcXml.isEmpty && mediaType != 'video') return '';
+        final mediaTransportIndex =
+            int.tryParse(mediaInfo['transportIndex'] ?? '') ?? index;
+        final transport = mediaTransportIndex < mediaTransports.length
+            ? mediaTransports[mediaTransportIndex]
+            : <String, String>{};
+        final localUfrag = transport['ufrag'] ?? iceUfrag;
+        final localPwd = transport['pwd'] ?? icePwd;
+        final localFingerprint = transport['fingerprint'] ?? fingerprint;
+        final localSetup = transport['setup'] ?? finalSetup;
+        final directionIndex =
+            int.tryParse(mediaInfo['directionIndex'] ?? '') ?? index;
+        final direction =
+            directionIndex >= 0 && directionIndex < mediaDirections.length
+                ? mediaDirections[directionIndex]
+                : 'sendrecv';
+        final senders = switch (direction) {
+          'recvonly' => 'initiator',
+          'sendonly' => 'responder',
+          'inactive' => 'none',
+          _ => 'both',
+        };
+        final descriptionAttributes = ssrcXml.isEmpty
+            ? 'media="$mediaType"'
+            : 'media="$mediaType" ssrc="$ssrcXml"';
         final description =
-            '''<description $descriptionAttributes xmlns="urn:xmpp:jingle:apps:rtp:1">${isAudio ? await _buildAudioPayloadTypes(payloads, sdp, index) : await _buildVideoPayloadTypes(sdp, payloads, index)}$ssrcContent<rtcp-mux/>${await _buildRtpHeaderExtensions(extensions)}<extmap-allow-mixed/></description>${await _buildTransportXml(iceUfrag, icePwd, fingerprint, setup: finalSetup)}''';
+            '''<description $descriptionAttributes xmlns="urn:xmpp:jingle:apps:rtp:1">${isAudio ? await _buildAudioPayloadTypes(payloads, sdp, index) : await _buildVideoPayloadTypes(sdp, payloads, index)}$ssrcContent<rtcp-mux/>${await _buildRtpHeaderExtensions(extensions)}<extmap-allow-mixed/></description>${await _buildTransportXml(localUfrag, localPwd, localFingerprint, setup: localSetup)}''';
         validGroupNames.add(name);
-        return '''<content creator="${initiate ? 'initiator' : 'responder'}" name="$name" senders="both">$description</content>''';
+        return '''<content creator="${initiate ? 'initiator' : 'responder'}" name="$name" senders="$senders">$description</content>''';
       }
 
       final xmlBuffer = StringBuffer();
@@ -869,16 +939,23 @@ class JitsiSdpHelper {
         // still carries the bridge's ICE credentials. Replace them with our
         // own local ufrag/pwd/fingerprint, otherwise JVB authenticates its
         // connectivity checks against the wrong credentials (401).
-        if (iceUfrag != null && icePwd != null && fingerprint != null) {
+        final dataTransport = mediaTransports.firstWhereOrNull(
+          (transport) => transport['media'] == 'data',
+        );
+        final dataUfrag = dataTransport?['ufrag'] ?? iceUfrag;
+        final dataPwd = dataTransport?['pwd'] ?? icePwd;
+        final dataFingerprint = dataTransport?['fingerprint'] ?? fingerprint;
+        final dataSetup = dataTransport?['setup'] ?? finalSetup;
+        if (dataUfrag != null && dataPwd != null && dataFingerprint != null) {
           dataXml = dataXml
-              .replaceAll(RegExp(r'pwd="[^"]*"'), 'pwd="${_xmlAttr(icePwd)}"')
+              .replaceAll(RegExp(r'pwd="[^"]*"'), 'pwd="${_xmlAttr(dataPwd)}"')
               .replaceAll(
-                  RegExp(r'ufrag="[^"]*"'), 'ufrag="${_xmlAttr(iceUfrag)}"')
+                  RegExp(r'ufrag="[^"]*"'), 'ufrag="${_xmlAttr(dataUfrag)}"')
               .replaceAll(
                 RegExp(r'<fingerprint[^>]*>[^<]*</fingerprint>'),
-                '<fingerprint hash="sha-256" setup="${_xmlAttr(finalSetup)}" '
+                '<fingerprint hash="sha-256" setup="${_xmlAttr(dataSetup)}" '
                 'xmlns="urn:xmpp:jingle:apps:dtls:0">'
-                '${_xmlAttr(fingerprint)}</fingerprint>',
+                '${_xmlAttr(dataFingerprint)}</fingerprint>',
               );
         }
         xmlBuffer.write(dataXml);
@@ -1024,7 +1101,8 @@ class JitsiSdpHelper {
     final buffer = <String>[];
     List<String>? currentSection;
     String? currentMediaType;
-    for (final line in lines) {
+    for (final rawLine in lines) {
+      final line = rawLine.trim();
       if (line.startsWith('m=')) {
         if (currentSection != null && currentMediaType != null) {
           if (currentMediaType == 'video')
@@ -1105,7 +1183,8 @@ class JitsiSdpHelper {
     String ufrag = '';
     String pwd = '';
     String fingerprint = '';
-    for (final line in lines) {
+    for (final rawLine in lines) {
+      final line = rawLine.trim();
       if (line.startsWith('a=ice-ufrag:')) {
         ufrag = line.replaceFirst('a=ice-ufrag:', '').trim();
       } else if (line.startsWith('a=ice-pwd:')) {

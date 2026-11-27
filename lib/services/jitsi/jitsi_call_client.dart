@@ -79,8 +79,10 @@ class JitsiCallClient implements JitsiSessionView {
   bool _negotiating = false;
   bool _negotiationPending = false;
   final Map<String, String> _sourceOwners = {};
+  final Map<String, Map<String, dynamic>> _remoteVideoSources = {};
   String _lastConstraintSignature = '';
   bool _dataChannelAnnounced = false;
+  bool _iceConnected = false;
   Timer? _connectTimer;
   Timer? _durationTimer;
   DateTime? _connectedAt;
@@ -475,6 +477,7 @@ class JitsiCallClient implements JitsiSessionView {
       channel.onDataChannelState = (state) {
         if (state == RTCDataChannelState.RTCDataChannelOpen) {
           _onDataChannelOpen();
+          _onMediaConnected();
         }
       };
     };
@@ -491,7 +494,8 @@ class JitsiCallClient implements JitsiSessionView {
       _diag('ICE: ${state.name}');
       if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
           state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
-        _onMediaConnected();
+        _iceConnected = true;
+        _diag('ICE tersambung; menunggu DTLS/data channel');
       } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
         _fail('Koneksi media gagal (ICE).');
       }
@@ -692,7 +696,11 @@ class JitsiCallClient implements JitsiSessionView {
       'videoType': 'camera'
     });
     _sendReceiverVideoConstraints(force: true);
-    _diag('Data channel siap; meminta audio/video peserta');
+    _diag(
+      _iceConnected
+          ? 'Data channel + ICE siap; meminta audio/video peserta'
+          : 'Data channel siap; menunggu ICE dan meminta audio/video peserta',
+    );
   }
 
   void _sendData(Map<String, dynamic> data) {
@@ -708,14 +716,7 @@ class JitsiCallClient implements JitsiSessionView {
   }
 
   void _sendReceiverVideoConstraints({bool force = false}) {
-    final sourceNames = <String>[];
-    for (final participant in participants) {
-      final jid = participant.jid;
-      if (jid.contains('focus') || !jid.startsWith('$_roomJid/')) continue;
-      final endpoint = jid.substring('$_roomJid/'.length);
-      if (endpoint.isEmpty || endpoint == nick) continue;
-      sourceNames.add('$endpoint-v0');
-    }
+    final sourceNames = _remoteVideoSources.keys.toList();
     final constraints = <String, dynamic>{
       for (final source in sourceNames) source: {'maxHeight': 720},
     };
@@ -761,6 +762,9 @@ class JitsiCallClient implements JitsiSessionView {
       if (ownerId.isEmpty || sourceName.isEmpty || ssrc.isEmpty) continue;
       if (ownerId == nick) continue;
       _sourceOwners[sourceName] = ownerId;
+      if (sourceType == 'video') {
+        _remoteVideoSources[sourceName] = Map<String, dynamic>.from(item);
+      }
       final rtx = '${item['rtx'] ?? ''}';
       var mid = '';
       _sdpMap.forEach((key, value) {
@@ -797,7 +801,10 @@ class JitsiCallClient implements JitsiSessionView {
       entry['ssrc'] = ssrcLines;
       _sdpMap[mid] = entry;
     }
-    if (changed) _scheduleNegotiation();
+    if (changed) {
+      _scheduleNegotiation();
+      if (sourceType == 'video') _sendReceiverVideoConstraints(force: true);
+    }
   }
 
   void _scheduleNegotiation() {

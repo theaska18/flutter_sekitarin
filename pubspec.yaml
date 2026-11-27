@@ -1,7 +1,7 @@
 name: sekitar_app
 description: Sekitar mobile client for iOS and Android.
 publish_to: none
-version: 0.12.50+66
+version: 0.12.51+67
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
