@@ -638,8 +638,10 @@ class JitsiCallClient implements JitsiSessionView {
     }
     final answer = await peer.createAnswer({'voiceActivityDetection': true});
     await peer.setLocalDescription(answer);
-    onDebug?.call('answer-sdp', '${answer.sdp}');
-    final reordered = await _sdp.reorderSdpForVP8OrVP9(answer.sdp);
+    final localDescription = await peer.getLocalDescription();
+    final localSdp = localDescription?.sdp ?? answer.sdp ?? '';
+    onDebug?.call('answer-sdp', localSdp);
+    final reordered = await _sdp.reorderSdpForVP8OrVP9(localSdp);
     _sdpTemplate = await _sdp.extactTemplateSDP(reordered);
     final xml = await _sdp.sdpToJingleSessionAccept(
       reordered,

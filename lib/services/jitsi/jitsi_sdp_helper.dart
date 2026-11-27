@@ -997,7 +997,7 @@ class JitsiSdpHelper {
       {String setup = 'actpass'}) async {
     if (iceUfrag == null || icePwd == null || fingerprint == null)
       return '<transport xmlns="urn:xmpp:jingle:transports:ice-udp:1"/>';
-    return '''<transport pwd="$icePwd" ufrag="$iceUfrag" xmlns="urn:xmpp:jingle:transports:ice-udp:1"><fingerprint hash="sha-256" setup="$setup" xmlns="urn:xmpp:jingle:apps:dtls:0">$fingerprint</fingerprint></transport>''';
+    return '''<transport pwd="${_xmlAttr(icePwd)}" ufrag="${_xmlAttr(iceUfrag)}" xmlns="urn:xmpp:jingle:transports:ice-udp:1"><fingerprint hash="sha-256" setup="${_xmlAttr(setup)}" xmlns="urn:xmpp:jingle:apps:dtls:0">${_xmlAttr(fingerprint)}</fingerprint></transport>''';
   }
 
   Future<String> reorderSdpForVP8OrVP9(String? sdp) async {
@@ -1321,6 +1321,12 @@ class JitsiSdpHelper {
     }
     return buffer.toString().trim();
   }
+
+  String _xmlAttr(String value) => value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
 
   Future<Map<String, Map<String, dynamic>>> extactTemplateSDP(
       String? sdp) async {
