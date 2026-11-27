@@ -111,6 +111,9 @@ the manifest and downloads/installs the APK.
 - **Message feedback:** play `MessageSound` for new incoming/sent messages and
   animate newly added bubbles once (fade + slide). Suppress the chat-list sound
   when that conversation is already open (`ChatPresence`).
+- **Reactions/copy:** long-press any message opens the emoji row, “Salin pesan”
+  (text only), and delete options for own messages. Reaction counts render as
+  chips below the bubble; tapping a chip toggles it.
 - **Message delete:** long-press an own message → “Hapus untuk saya”
   (`sek_message_hidden`, per user) or “Hapus untuk semua” (soft delete + WS
   `message.deleted`, bubble becomes “Pesan ini dihapus”).

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -96,6 +97,31 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
           }
           widget.conversation['avatar_media_id'] = payload['avatar_media_id'];
         });
+      } else if (name == 'message.reaction') {
+        final messageId = payload['message_id'];
+        final reactions = payload['reactions'];
+        final userId = payload['user_id'];
+        final reaction = payload['reaction'];
+        final myId = context.read<AuthStore>().user?['user_id'];
+        if (messageId is int && reactions is Map) {
+          setState(() {
+            final index =
+                _messages.indexWhere((item) => item['message_id'] == messageId);
+            if (index >= 0) {
+              _messages[index]['reactions'] =
+                  Map<String, dynamic>.from(reactions);
+              if (userId == myId) {
+                _messages[index]['my_reaction'] =
+                    reaction is String && reaction.isNotEmpty ? reaction : null;
+              }
+            }
+          });
+          final index =
+              _messages.indexWhere((item) => item['message_id'] == messageId);
+          if (index >= 0) {
+            ChatCache.upsert(_conversationId, _messages[index]);
+          }
+        }
       } else if (name == 'messages.delivered') {
         final ids = payload['message_ids'];
         final myId = context.read<AuthStore>().user?['user_id'];
@@ -434,6 +460,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
   }
 
   Future<void> _showMessageMenu(Map<String, dynamic> message) async {
+    final mine =
+        message['sender_user_id'] == context.read<AuthStore>().user?['user_id'];
+    final canCopy = '${message['type']}' == 'text' &&
+        '${message['body'] ?? ''}'.isNotEmpty &&
+        message['deleted_at'] == null;
+    final reactions = const ['❤️', '👍', '😂', '😮', '😢', '🙏'];
     final action = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
@@ -441,25 +473,65 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: Icon(
-                Icons.delete_outline,
-                color: Theme.of(sheetContext).colorScheme.error,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  for (final emoji in reactions)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () =>
+                          Navigator.of(sheetContext).pop('react:$emoji'),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child:
+                            Text(emoji, style: const TextStyle(fontSize: 26)),
+                      ),
+                    ),
+                ],
               ),
-              title: Text(
-                'Hapus pesan',
-                style: TextStyle(
+            ),
+            if (canCopy)
+              ListTile(
+                leading: const Icon(Icons.copy_outlined),
+                title: const Text('Salin pesan'),
+                onTap: () => Navigator.of(sheetContext).pop('copy'),
+              ),
+            if (mine)
+              ListTile(
+                leading: Icon(
+                  Icons.delete_outline,
                   color: Theme.of(sheetContext).colorScheme.error,
                 ),
+                title: Text(
+                  'Hapus pesan',
+                  style: TextStyle(
+                    color: Theme.of(sheetContext).colorScheme.error,
+                  ),
+                ),
+                onTap: () => Navigator.of(sheetContext).pop('delete'),
               ),
-              onTap: () => Navigator.of(sheetContext).pop('delete'),
-            ),
             const SizedBox(height: 8),
           ],
         ),
       ),
     );
-    if (action != 'delete' || !mounted) return;
+    if (action == null || !mounted) return;
+    if (action.startsWith('react:')) {
+      await _reactMessage(message, action.substring(6));
+      return;
+    }
+    if (action == 'copy') {
+      await Clipboard.setData(ClipboardData(text: '${message['body'] ?? ''}'));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pesan disalin.')),
+        );
+      }
+      return;
+    }
+    if (action != 'delete') return;
     final scope = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -486,6 +558,32 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     );
     if (scope == null || !mounted) return;
     await _deleteMessage(message, forEveryone: scope == 'all');
+  }
+
+  Future<void> _reactMessage(
+    Map<String, dynamic> message,
+    String emoji,
+  ) async {
+    final id = message['message_id'];
+    if (id is! int || id <= 0) return;
+    final current = message['my_reaction'];
+    final next = current == emoji ? '' : emoji;
+    try {
+      final data = await context.read<AuthStore>().api.post(
+        'messages/$id/reaction',
+        {'reaction': next},
+      );
+      if (!mounted) return;
+      setState(() {
+        message['reactions'] = data['reactions'] is Map
+            ? Map<String, dynamic>.from(data['reactions'] as Map)
+            : <String, dynamic>{};
+        message['my_reaction'] = data['my_reaction'];
+      });
+      ChatCache.upsert(_conversationId, message);
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    }
   }
 
   Future<void> _deleteMessage(
@@ -744,8 +842,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
                 final message = messages[index];
                 final mine = message['sender_user_id'] == myId;
                 final id = message['message_id'] as int?;
-                final canDelete = mine &&
-                    id != null &&
+                final canInteract = id != null &&
                     id > 0 &&
                     message['deleted_at'] == null &&
                     message['pending'] != true;
@@ -756,7 +853,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
                   token: token,
                   animate: id != null && _incomingIds.contains(id),
                   onLongPress:
-                      canDelete ? () => _showMessageMenu(message) : null,
+                      canInteract ? () => _showMessageMenu(message) : null,
+                  onReact: canInteract
+                      ? (emoji) => _reactMessage(message, emoji)
+                      : null,
                   senderName: mine
                       ? null
                       : _memberNames[message['sender_user_id'] as int?],
@@ -958,6 +1058,7 @@ class _MessageBubble extends StatelessWidget {
     this.senderName,
     this.animate = false,
     this.onLongPress,
+    this.onReact,
   });
 
   final Map<String, dynamic> message;
@@ -966,6 +1067,7 @@ class _MessageBubble extends StatelessWidget {
   final String? senderName;
   final bool animate;
   final VoidCallback? onLongPress;
+  final ValueChanged<String>? onReact;
 
   @override
   Widget build(BuildContext context) {
@@ -993,12 +1095,19 @@ class _MessageBubble extends StatelessWidget {
     final failed = message['failed'] == true;
     final delivered = (message['delivered_count'] as int? ?? 0) > 0;
     final read = (message['read_count'] as int? ?? 0) > 0;
+    final reactions = message['reactions'] is Map
+        ? Map<String, dynamic>.from(message['reactions'] as Map)
+        : <String, dynamic>{};
+    final myReaction = message['my_reaction'] as String?;
 
     Widget content;
     if (deleted) {
       content = Text(
         'Pesan ini dihapus',
-        style: TextStyle(fontStyle: FontStyle.italic, color: bubbleTextColor),
+        style: TextStyle(
+          fontStyle: FontStyle.italic,
+          color: bubbleTextColor.withValues(alpha: 0.45),
+        ),
       );
     } else if (type == 'image' && mediaId != null) {
       content = ClipRRect(
@@ -1093,38 +1202,84 @@ class _MessageBubble extends StatelessWidget {
               ),
               const SizedBox(height: 2),
             ],
-            content,
-            const SizedBox(height: 3),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  chatMessageTime(message['created_at']),
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: bubbleMetaColor,
-                  ),
+                Flexible(child: content),
+                const SizedBox(width: 6),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      chatMessageTime(message['created_at']),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: bubbleMetaColor,
+                      ),
+                    ),
+                    if (mine) ...[
+                      const SizedBox(width: 3),
+                      Icon(
+                        failed
+                            ? Icons.error_outline
+                            : pending
+                                ? Icons.schedule
+                                : read || delivered
+                                    ? Icons.done_all
+                                    : Icons.done,
+                        size: 12,
+                        color: failed
+                            ? Theme.of(context).colorScheme.error
+                            : read
+                                ? const Color(0xFF38BDF8)
+                                : bubbleMetaColor,
+                      ),
+                    ],
+                  ],
                 ),
-                if (mine) ...[
-                  const SizedBox(width: 3),
-                  Icon(
-                    failed
-                        ? Icons.error_outline
-                        : pending
-                            ? Icons.schedule
-                            : read || delivered
-                                ? Icons.done_all
-                                : Icons.done,
-                    size: 12,
-                    color: failed
-                        ? Theme.of(context).colorScheme.error
-                        : read
-                            ? const Color(0xFF38BDF8)
-                            : bubbleMetaColor,
-                  ),
-                ],
               ],
             ),
+            if (reactions.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 4,
+                runSpacing: 2,
+                children: [
+                  for (final entry in reactions.entries)
+                    if ((entry.value as num? ?? 0) > 0)
+                      InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap:
+                            onReact == null ? null : () => onReact!(entry.key),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: bubbleTextColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                            border: myReaction == entry.key
+                                ? Border.all(
+                                    color: bubbleTextColor.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          child: Text(
+                            '${entry.key} ${entry.value}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: bubbleTextColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

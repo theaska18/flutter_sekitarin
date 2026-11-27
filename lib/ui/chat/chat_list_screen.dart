@@ -286,6 +286,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           : isGroup
                               ? '${typing.values.join(', ')} sedang mengetik…'
                               : 'sedang mengetik…';
+                      final lastMessage = item['last_message'] is Map
+                          ? Map<String, dynamic>.from(
+                              item['last_message'] as Map)
+                          : null;
+                      final senderPrefix = isGroup &&
+                              lastMessage?['sender_name'] != null &&
+                              '${lastMessage?['sender_name']}'.isNotEmpty
+                          ? '${lastMessage?['sender_name']}: '
+                          : '';
                       final titleStyle = TextStyle(
                         fontWeight:
                             hasUnread ? FontWeight.w800 : FontWeight.w600,
@@ -360,12 +369,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           title: titleWidget,
                           subtitle: Text(
                             typingLabel ??
-                                messagePreview(
-                                  item['last_message'] is Map
-                                      ? Map<String, dynamic>.from(
-                                          item['last_message'] as Map)
-                                      : null,
-                                ),
+                                '$senderPrefix${messagePreview(lastMessage)}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -383,37 +387,43 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    timeAgo(item['last_message_at']),
-                                    style:
-                                        Theme.of(context).textTheme.labelSmall,
-                                  ),
-                                  if (unread > 0) ...[
-                                    const SizedBox(height: 4),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(
-                                        '$unread',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
+                              SizedBox(
+                                height: 44,
+                                child: Column(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    if (unread > 0)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 7, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                          borderRadius:
+                                              BorderRadius.circular(10),
                                         ),
-                                      ),
+                                        child: Text(
+                                          '$unread',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      const SizedBox.shrink(),
+                                    Text(
+                                      timeAgo(item['last_message_at']),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall,
                                     ),
                                   ],
-                                ],
+                                ),
                               ),
                               PopupMenuButton<String>(
                                 padding: EdgeInsets.zero,
