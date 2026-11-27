@@ -5,7 +5,7 @@ import '../../state/auth_store.dart';
 import '../common.dart';
 import '../orders/provider_screen.dart';
 import '../profile/account_profile_route.dart';
-import '../widgets/account_avatar.dart';
+import '../widgets/account_type_avatar.dart';
 import 'add_contact_screen.dart';
 
 class ContactsScreen extends StatefulWidget {
@@ -124,11 +124,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
                           return Card(
                             child: ListTile(
                               onTap: () => _open(account),
-                              leading: AccountAvatar(
+                              leading: AccountTypeAvatar(
                                 account: account,
                                 radius: 22,
                                 token: token,
-                                fallbackIcon: typeIcon(type),
+                                showStatusDot: true,
                                 backgroundColor:
                                     typeColor(type).withValues(alpha: 0.15),
                                 foregroundColor: typeColor(type),

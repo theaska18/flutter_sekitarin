@@ -9,7 +9,6 @@ import '../../state/auth_store.dart';
 import '../../state/chat_cache.dart';
 import '../../state/chat_presence.dart';
 import '../common.dart';
-import '../widgets/account_avatar.dart';
 import '../widgets/account_type_avatar.dart';
 import '../widgets/group_avatar.dart';
 import 'chat_room_screen.dart';
@@ -35,6 +34,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   final Set<int> _subscribed = {};
   StreamSubscription? _wsSub;
   Timer? _reloadDebounce;
+  Timer? _presencePoll;
   late final WsClient _ws;
 
   @override
@@ -43,6 +43,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
     chatListRefreshTick.addListener(_load);
     _ws = context.read<AuthStore>().ws;
     _wsSub = _ws.events.listen(_onWsEvent);
+    _presencePoll = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _load(),
+    );
     _load();
   }
 
@@ -51,6 +55,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     chatListRefreshTick.removeListener(_load);
     _wsSub?.cancel();
     _reloadDebounce?.cancel();
+    _presencePoll?.cancel();
     for (final timer in _typingTimers.values) {
       timer.cancel();
     }
@@ -150,40 +155,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  Widget _chatAvatar(Map<String, dynamic>? account, String? token) {
-    final type = account?['type_code'] as String?;
-    final isBusiness = type != null && type != 'personal';
-    final avatar = AccountTypeAvatar(
-      account: account,
-      radius: 20,
-      token: token,
-    );
-    if (!isBusiness) return avatar;
-    final active = account?['is_active'] != false;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        avatar,
-        Positioned(
-          right: -1,
-          top: -1,
-          child: Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-              color: active ? const Color(0xFF22C55E) : const Color(0xFF94A3B8),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Theme.of(context).colorScheme.surface,
-                width: 1.5,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   Future<void> _chatAction(Map<String, dynamic> item, String action) async {
@@ -353,10 +324,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
                               padding: EdgeInsets.symmetric(horizontal: 4),
                               child: Text('<'),
                             ),
-                            AccountAvatar(
+                            AccountTypeAvatar(
                               account: peer,
                               radius: 9,
                               token: token,
+                              showBadge: false,
+                              showStatusDot: true,
                             ),
                             const SizedBox(width: 4),
                             Flexible(
@@ -389,9 +362,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                   radius: 20,
                                   token: token,
                                 )
-                              : _chatAvatar(
-                                  myBusiness ? myAccount : peer,
-                                  token,
+                              : AccountTypeAvatar(
+                                  account: myBusiness ? myAccount : peer,
+                                  radius: 20,
+                                  token: token,
+                                  showStatusDot: true,
                                 ),
                           title: titleWidget,
                           subtitle: Text(

@@ -15,7 +15,7 @@ import '../../state/chat_cache.dart';
 import '../../state/chat_presence.dart';
 import '../common.dart';
 import '../profile/account_profile_route.dart';
-import '../widgets/account_avatar.dart';
+import '../widgets/account_type_avatar.dart';
 import '../widgets/group_avatar.dart';
 import 'group_info_screen.dart';
 import 'group_map_screen.dart';
@@ -921,10 +921,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
                   radius: 18,
                 )
               else
-                AccountAvatar(
+                AccountTypeAvatar(
                   account: peerMap,
                   radius: 18,
                   token: auth.api.accessToken,
+                  showStatusDot: true,
                 ),
               const SizedBox(width: 8),
               Flexible(

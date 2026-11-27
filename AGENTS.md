@@ -103,8 +103,9 @@ the manifest and downloads/installs the APK.
 - **Chat badge:** never show the bottom Chat badge while the Chat tab is
   selected; chat notifications received while the Chat tab is active are marked
   read (also when leaving the tab) so the badge does not appear on other tabs.
-- **Business rows:** show a green dot at the avatar's top-right when the
-  business account is active, grey when closed/inactive.
+- **Active dots:** chat list, chat header, and contacts show a green dot at the
+  avatar's top-right for active/online accounts (personal uses `is_online`,
+  business uses `is_active`), grey otherwise.
 - **Chat cache:** messages are cached per conversation in `ChatCache`; opening a
   chat uses the cache and only fetches messages after the last cached id. Clear
   the cache on logout, clear-chat, and delete/leave.
