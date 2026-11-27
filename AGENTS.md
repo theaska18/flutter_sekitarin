@@ -103,7 +103,8 @@ the manifest and downloads/installs the APK.
 - Chat list timestamps use time-ago; never show absolute dates there.
 - **Chat badge:** never show the bottom Chat badge while the Chat tab is
   selected; chat notifications received while the Chat tab is active are marked
-  read (also when leaving the tab) so the badge does not appear on other tabs.
+  read (also when leaving the tab). Opening a conversation marks only that
+  conversation's chat notifications read; resume reloads the chat list.
 - **Active dots:** chat list, chat header, and contacts show a green dot at the
   avatar's top-right for active/online accounts (personal uses `is_online`,
   business uses `is_active`), grey otherwise.

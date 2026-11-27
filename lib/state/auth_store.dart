@@ -126,13 +126,23 @@ class AuthStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> markChatNotificationsRead({bool force = false}) async {
+  Future<void> markChatNotificationsRead({
+    bool force = false,
+    int? conversationId,
+  }) async {
     if (!signedIn) return;
-    if (unreadChatNotifications == 0 && !force) return;
-    unreadChatNotifications = 0;
-    notifyListeners();
+    if (conversationId == null) {
+      if (unreadChatNotifications == 0 && !force) return;
+      unreadChatNotifications = 0;
+      notifyListeners();
+    }
     try {
-      await api.post('notifications/read-chat');
+      await api.post('notifications/read-chat', {
+        if (conversationId != null) 'conversation_id': conversationId,
+      });
+      if (conversationId != null) {
+        await refresh();
+      }
     } catch (_) {
       // Next refresh may restore the count; try again when leaving the tab.
     }

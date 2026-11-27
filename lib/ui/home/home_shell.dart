@@ -23,7 +23,7 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
   int? _lastActiveAccountId;
   Timer? _badgePoll;
@@ -33,6 +33,7 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _badgePoll = Timer.periodic(
       const Duration(seconds: 25),
       (_) => context.read<AuthStore>().refresh(),
@@ -73,7 +74,15 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      chatListRefreshTick.value++;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     PushService.conversationToOpen.removeListener(_openPushedConversation);
     _badgePoll?.cancel();
     super.dispose();

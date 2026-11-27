@@ -74,7 +74,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
       final name = '${event['event']}';
       if (name == 'message.created' || name == 'message.updated') {
         _upsert(message);
-        if (name == 'message.created') _markRead(message);
+        if (name == 'message.created') {
+          _markRead(message);
+          context.read<AuthStore>().markChatNotificationsRead(
+                conversationId: _conversationId,
+              );
+        }
       } else if (name == 'typing') {
         final userId = payload['user_id'] as int?;
         if (userId != null &&
@@ -174,11 +179,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
         ChatCache.markDeleted(_conversationId, message);
       }
     });
+    final auth = context.read<AuthStore>();
+    auth.markChatNotificationsRead(conversationId: _conversationId);
     if (ChatCache.has(_conversationId)) {
       _messages.addAll(ChatCache.messages(_conversationId));
       _lastId = ChatCache.lastId(_conversationId);
       _loading = false;
       _scrollToBottom();
+      if (_messages.isNotEmpty) _markRead(_messages.last);
       _pollNew();
     } else {
       _load();
@@ -334,8 +342,19 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
         query: {'after_id': '$_lastId', 'limit': '50'},
       );
       if (!mounted || data is! Map || data['data'] is! List) return;
+      Map<String, dynamic>? newest;
       for (final raw in data['data'] as List) {
-        if (raw is Map) _upsert(Map<String, dynamic>.from(raw));
+        if (raw is Map) {
+          final message = Map<String, dynamic>.from(raw);
+          _upsert(message);
+          newest = message;
+        }
+      }
+      if (newest != null) {
+        _markRead(newest);
+        context.read<AuthStore>().markChatNotificationsRead(
+              conversationId: _conversationId,
+            );
       }
     } catch (_) {
       // Polling is best-effort.
