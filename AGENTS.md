@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.38+54 | Request microphone/camera permissions before the native Jitsi join (the SDK starts a mic foreground service) and fall back to the WebView when the native conference drops with an error within 45s. |
 | 2026-11-27 | 0.12.37+53 | Pin `jitsi_meet_flutter_sdk` 12.1.5 (matching the 2.0.11031 server) for the native Jitsi call UI, with automatic WebView fallback when the SDK cannot connect. |
 | 2026-11-27 | 0.12.36+52 | Full-screen Jitsi call UI (our AppBar removed) so the call looks like the Jitsi app; only a small floating back button remains. |
 | 2026-11-27 | 0.12.35+51 | Leaving a call from Jitsi's own hangup button is detected in the WebView and ends the call for both sides; the other device closes its call screen immediately. |

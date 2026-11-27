@@ -1,7 +1,7 @@
 name: sekitar_app
 description: Sekitar mobile client for iOS and Android.
 publish_to: none
-version: 0.12.37+53
+version: 0.12.38+54
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -30,6 +30,10 @@ dependencies:
   jitsi_meet_flutter_sdk:
     path: packages/jitsi_meet_flutter_sdk
   flutter_inappwebview: ^6.1.5
+  flutter_webrtc: ^1.7.0
+  xml: ^7.0.1
+  crypto: ^3.0.7
+  ed25519_edwards: ^0.3.1
   permission_handler: ^11.3.1
   url_launcher: ^6.3.2
   flutter_callkit_incoming: ^3.1.6

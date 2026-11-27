@@ -7,6 +7,7 @@ import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 
 import 'package:flutter/material.dart';
 import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../config.dart';
 import '../state/auth_store.dart';
@@ -608,6 +609,9 @@ class CallService extends ChangeNotifier {
       } catch (_) {}
     }
     try {
+      // The native SDK starts a microphone foreground service, so the runtime
+      // permissions must be granted before joining.
+      await [Permission.microphone, Permission.camera].request();
       // Prefer the official Jitsi SDK (same UI as the Jitsi app). Fall back to
       // the in-app web view when this server/SDK combination cannot connect.
       final handled = await _joinNative(
@@ -673,11 +677,15 @@ class CallService extends ChangeNotifier {
     final meet = JitsiMeet();
     final joined = Completer<bool>();
     final closed = Completer<void>();
+    Object? terminationError;
+    DateTime? joinedAt;
     final listener = JitsiMeetEventListener(
       conferenceJoined: (url) {
+        joinedAt = DateTime.now();
         if (!joined.isCompleted) joined.complete(true);
       },
       conferenceTerminated: (url, error) {
+        terminationError = error;
         if (!joined.isCompleted) joined.complete(false);
         if (!closed.isCompleted) closed.complete();
       },
@@ -729,6 +737,13 @@ class CallService extends ChangeNotifier {
         const Duration(hours: 6),
         onTimeout: () {},
       );
+      // The SDK joined but dropped the conference with an error a few seconds
+      // later (server/SDK mismatch). Retry in the web view instead.
+      final shortLived = joinedAt != null &&
+          DateTime.now().difference(joinedAt!) < const Duration(seconds: 45);
+      if (terminationError != null && shortLived) {
+        return false;
+      }
       return true;
     } catch (_) {
       try {
