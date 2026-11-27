@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -72,6 +73,10 @@ class JitsiCallClient implements JitsiSessionView {
   String? bridgeSession;
   List<Map<String, dynamic>> _iceServers = [];
   Map<String, Map<String, dynamic>> _sdpMap = {};
+  Map<String, Map<String, dynamic>> _sdpTemplate = {};
+  bool _negotiating = false;
+  bool _negotiationPending = false;
+  final Map<String, String> _sourceOwners = {};
   Timer? _connectTimer;
   Timer? _durationTimer;
   DateTime? _connectedAt;
@@ -445,6 +450,9 @@ class JitsiCallClient implements JitsiSessionView {
     pc!.onDataChannel = (channel) {
       channel.onMessage = (_) {};
     };
+    _dataChannel?.onMessage = (message) {
+      _handleDataMessage(message.text);
+    };
     _dataChannel?.onDataChannelState = (state) {
       if (state == RTCDataChannelState.RTCDataChannelOpen) {
         _onMediaConnected();
@@ -627,7 +635,7 @@ class JitsiCallClient implements JitsiSessionView {
     final answer = await peer.createAnswer({'voiceActivityDetection': true});
     await peer.setLocalDescription(answer);
     final reordered = await _sdp.reorderSdpForVP8OrVP9(answer.sdp);
-    await _sdp.extactTemplateSDP(reordered);
+    _sdpTemplate = await _sdp.extactTemplateSDP(reordered);
     final xml = await _sdp.sdpToJingleSessionAccept(
       reordered,
       participants[idx].jid,
@@ -638,6 +646,162 @@ class JitsiCallClient implements JitsiSessionView {
     );
     _send(xml);
     _setStage('Menghubungkan media');
+  }
+
+  void _handleDataMessage(String text) {
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is! Map) return;
+      final cls = '${decoded['colibriClass'] ?? ''}';
+      if (cls == 'VideoSourcesMap') {
+        _onSources(decoded['mappedSources'] ?? decoded['sources'], 'video');
+      } else if (cls == 'AudioSourcesMap') {
+        _onSources(decoded['mappedSources'] ?? decoded['sources'], 'audio');
+      } else if (cls == 'EndpointMessage' ||
+          cls == 'ReceiverVideoConstraints') {
+        // Not required for basic media.
+      }
+    } catch (_) {}
+  }
+
+  void _onSources(dynamic raw, String sourceType) {
+    if (raw is! List) return;
+    var changed = false;
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final ownerId = '${item['owner'] ?? ''}';
+      final sourceName = '${item['source'] ?? ''}';
+      final ssrc = '${item['ssrc'] ?? ''}';
+      if (ownerId.isEmpty || sourceName.isEmpty || ssrc.isEmpty) continue;
+      if (ownerId == nick) continue;
+      _sourceOwners[sourceName] = ownerId;
+      final rtx = '${item['rtx'] ?? ''}';
+      var mid = '';
+      _sdpMap.forEach((key, value) {
+        if (key == 'master') return;
+        final lines = value['ssrc'];
+        if (lines is List &&
+            lines.any((line) => '$line'.contains(sourceName))) {
+          mid = key;
+        }
+      });
+      final master = _sdpMap['master'];
+      if (master == null) continue;
+      if (mid.isEmpty) {
+        final lastMid = int.tryParse('${master['lastMid']}') ?? 2;
+        mid = '${lastMid + 1}';
+        master['lastMid'] = mid;
+        changed = true;
+      }
+      final entry = _sdpMap[mid] ?? <String, dynamic>{};
+      entry['type'] = sourceType;
+      entry['direction'] = 'sendonly';
+      entry['msid'] = '$sourceName $sourceName';
+      final ssrcLines = <String>[
+        'a=ssrc:$ssrc msid:$sourceName $sourceName',
+      ];
+      if (rtx.isNotEmpty) {
+        ssrcLines.add('a=ssrc:$rtx msid:$sourceName $sourceName');
+        ssrcLines.add('a=ssrc-group:FID $ssrc $rtx');
+      }
+      final previous =
+          entry['ssrc'] is List ? (entry['ssrc'] as List).join('|') : '';
+      final next = ssrcLines.join('|');
+      if (previous != next) changed = true;
+      entry['ssrc'] = ssrcLines;
+      _sdpMap[mid] = entry;
+    }
+    if (changed) _scheduleNegotiation();
+  }
+
+  void _scheduleNegotiation() {
+    if (pc == null || _negotiating) return;
+    _negotiationPending = true;
+    Future.delayed(const Duration(milliseconds: 200), _flushNegotiation);
+  }
+
+  Future<void> _flushNegotiation() async {
+    if (_negotiating || !_negotiationPending) return;
+    final peer = pc;
+    if (peer == null) return;
+    if (_sdpTemplate.isEmpty || _sdpMap['master'] == null) return;
+    if (peer.signalingState != RTCSignalingState.RTCSignalingStateStable) {
+      Future.delayed(const Duration(milliseconds: 300), _flushNegotiation);
+      return;
+    }
+    _negotiating = true;
+    _negotiationPending = false;
+    try {
+      final master = _sdpMap['master']!;
+      final buffer = StringBuffer();
+      buffer.writeln('v=0');
+      final noNego = (int.tryParse('${master['lastNegotiation']}') ?? 0) + 1;
+      buffer.writeln('o=- ${master['sid']} $noNego IN IP4 127.0.0.1');
+      buffer.writeln('s=-');
+      buffer.writeln('t=0 0');
+      buffer.writeln('a=msid-semantic: WMS mixedmslabel');
+      final mids = <String>[];
+      _sdpMap.forEach((key, value) {
+        if (key != 'master') mids.add(key);
+      });
+      buffer.writeln('a=group:BUNDLE ${mids.join(' ')}');
+      var detectVideo = false;
+      for (final entry in _sdpMap.entries) {
+        if (entry.key == 'master') continue;
+        final value = entry.value;
+        final template = _sdpTemplate[value['type']];
+        final lines = template?['lines'];
+        if (lines is! List) continue;
+        for (final rawLine in lines) {
+          var line = '$rawLine';
+          line = line.replaceAll('{{port}}', '${master['port']}');
+          line = line.replaceAll('{{ip}}', '${master['ip']}');
+          line = line.replaceAll('{{direction}}', '${value['direction']}');
+          line = line.replaceAll('{{setup}}', '${master['setup']}');
+          line = line.replaceAll('{{pwd}}', '${master['pwd']}');
+          line = line.replaceAll('{{ufrag}}', '${master['ufrag']}');
+          line = line.replaceAll(
+            '{{fingerprint}}',
+            '${master['fingerprint']}',
+          );
+          line = line.replaceAll('{{mid}}', entry.key);
+          buffer.writeln(line);
+          if (line.contains('fingerprint')) {
+            if (value['msid'] != null)
+              buffer.writeln('a=msid:${value['msid']}');
+            final candidates = master['candidates'];
+            if (candidates is List) {
+              for (final candidate in candidates) {
+                buffer.writeln('$candidate');
+              }
+            }
+            final ssrcs = value['ssrc'];
+            if (ssrcs is List) {
+              for (final ssrc in ssrcs) {
+                buffer.writeln('$ssrc');
+              }
+            }
+          }
+          if (line.contains('video') && !detectVideo) {
+            detectVideo = true;
+            buffer.writeln('b=AS:400');
+          }
+        }
+      }
+      await peer.setRemoteDescription(
+        RTCSessionDescription(buffer.toString(), 'offer'),
+      );
+      final answer = await peer.createAnswer({'voiceActivityDetection': true});
+      await peer.setLocalDescription(answer);
+      master['lastNegotiation'] = '$noNego';
+      _diag('Renegosiasi media diterapkan');
+    } catch (e) {
+      _diag('Renegosiasi gagal: $e');
+      _negotiationPending = true;
+    } finally {
+      _negotiating = false;
+      if (_negotiationPending) _scheduleNegotiation();
+    }
   }
 
   Future<void> toggleAudio() async {
