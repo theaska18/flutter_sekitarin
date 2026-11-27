@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'services/call_service.dart';
 import 'ui/auth/auth_gate.dart';
 import 'ui/theme.dart';
 
@@ -10,6 +11,7 @@ class SekitarApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Sekitarin',
+      navigatorKey: CallService.navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: buildSekitarTheme(Brightness.light),
       darkTheme: buildSekitarTheme(Brightness.dark),

@@ -4,10 +4,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
-import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
+
+import 'package:flutter/material.dart';
 
 import '../config.dart';
 import '../state/auth_store.dart';
+import '../ui/calls/call_webview_screen.dart';
 import 'push_service.dart';
 
 /// Voice/video calls: direct calls ring through CallKit, group calls are only
@@ -28,10 +30,16 @@ class CallService extends ChangeNotifier {
   Map<String, dynamic>? _pendingAccept;
   bool _joining = false;
   final Set<int> _acceptedCalls = {};
-  JitsiMeet? _activeMeet;
   int? _activeMeetCallId;
   Timer? _heartbeat;
   bool _clearedStaleCallkit = false;
+
+  /// Navigation handle so calls can be opened from background events.
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
+  /// Signals the open call screen that the remote side ended the call.
+  final ValueNotifier<int?> endSignal = ValueNotifier(null);
 
   Map<String, dynamic>? get incomingCall => _incoming;
   Map<String, dynamic>? get outgoingCall => _outgoing;
@@ -182,9 +190,8 @@ class CallService extends ChangeNotifier {
     }
     if (callId != null && _activeMeetCallId == callId) {
       _heartbeat?.cancel();
-      _activeMeet?.hangUp();
-      _activeMeet = null;
       _activeMeetCallId = null;
+      endSignal.value = callId;
     }
     if (data['active_call'] == null) {
       final conversationId = _asInt(data['conversation_id']);
@@ -408,7 +415,7 @@ class CallService extends ChangeNotifier {
           status == 'canceled') {
         _heartbeat?.cancel();
         if (_activeMeetCallId == callId) {
-          _activeMeet?.hangUp();
+          endSignal.value = callId;
         }
       }
     } catch (_) {
@@ -583,72 +590,44 @@ class CallService extends ChangeNotifier {
     int? callId,
     bool group = false,
   }) async {
+    final nav = navigatorKey.currentState;
     final serverUrl = '${jitsi['server_url'] ?? ''}';
     final room = '${jitsi['room'] ?? ''}';
-    if (room.isEmpty) return;
-    final completer = Completer<void>();
-    final meet = JitsiMeet();
-    final listener = JitsiMeetEventListener(
-      readyToClose: () {
-        if (!completer.isCompleted) completer.complete();
-      },
-      conferenceTerminated: (url, error) {
-        if (!completer.isCompleted) completer.complete();
-      },
-    );
-    final options = JitsiMeetConferenceOptions(
-      serverURL: serverUrl.isEmpty ? null : serverUrl,
-      room: room,
-      token: '${jitsi['token'] ?? ''}',
-      configOverrides: {
-        'startWithAudioMuted': false,
-        'startWithVideoMuted': kind != 'video',
-        'prejoinConfig': {'enabled': false},
-        'prejoinPageEnabled': false,
-        'requireDisplayName': false,
-        'disableDeepLinking': true,
-        'enableWelcomePage': false,
-        'toolbarButtons': [
-          'microphone',
-          'camera',
-          'hangup',
-          'tileview',
-          'settings',
-        ],
-      },
-      featureFlags: {
-        'welcomePageEnabled': false,
-        'prejoinPageEnabled': false,
-        'unsafeRoomWarningEnabled': false,
-      },
-    );
+    final token = '${jitsi['token'] ?? ''}';
+    if (nav == null || room.isEmpty) return;
+    _activeMeetCallId = callId;
+    _heartbeat?.cancel();
+    if (!group && callId != null) {
+      _heartbeat = Timer.periodic(const Duration(seconds: 20), (_) {
+        _sendHeartbeat(callId);
+      });
+    }
+    if (callId != null) {
+      try {
+        await FlutterCallkitIncoming.setCallConnected('call-$callId');
+      } catch (_) {}
+    }
     try {
-      await meet.join(options, listener);
-      _activeMeet = meet;
-      _activeMeetCallId = callId;
-      _heartbeat?.cancel();
-      if (!group && callId != null) {
-        _heartbeat = Timer.periodic(const Duration(seconds: 20), (_) {
-          _sendHeartbeat(callId);
-        });
-      }
-      if (callId != null) {
-        try {
-          await FlutterCallkitIncoming.setCallConnected('call-$callId');
-        } catch (_) {}
-      }
-      await completer.future.timeout(
-        const Duration(hours: 6),
-        onTimeout: () {},
+      await nav.push(
+        MaterialPageRoute<void>(
+          builder: (_) => CallWebViewScreen(
+            serverUrl: serverUrl,
+            room: room,
+            token: token,
+            title: group
+                ? 'Panggilan grup'
+                : (kind == 'video' ? 'Panggilan video' : 'Panggilan suara'),
+            video: kind == 'video',
+            callId: callId,
+          ),
+        ),
       );
+    } catch (_) {
+      // The screen dismissed itself (remote end or user action).
     } finally {
       _heartbeat?.cancel();
       _heartbeat = null;
-      if (identical(_activeMeet, meet)) {
-        _activeMeet = null;
-        _activeMeetCallId = null;
-      }
-      await meet.hangUp();
+      if (_activeMeetCallId == callId) _activeMeetCallId = null;
       if (callId != null) {
         try {
           await FlutterCallkitIncoming.endCall('call-$callId');

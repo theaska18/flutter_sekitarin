@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.33+49 | Calls now run the Jitsi web app inside an in-app WebView (native Jitsi SDK removed after "You have been disconnected"); mic/camera permissions requested in-app, browser fallback when the WebView cannot render, APK back to ~27 MB. |
 | 2026-11-27 | 0.12.32+48 | Call liveness: while in a call the app sends `/calls/{id}/heartbeat`; the backend ends answered calls silent for 3 minutes, dismisses stale CallKit UI on launch, and hangs up Jitsi when the other side ends the call. |
 | 2026-11-27 | 0.12.31+47 | Fix call start failing (push queue rejected NULL notification) and blank Jitsi screen (release build now unminified); Jitsi token `sub` matches the working webcasting token (`jitsi.ckamal.com`). |
 | 2026-11-27 | 0.12.30+46 | Call polish: outgoing call notification is marked connected while in Jitsi and cleared when the call ends. |
@@ -148,8 +149,9 @@ the manifest and downloads/installs the APK.
 - **Calls:** 1:1 voice/video calls ring through CallKit (`flutter_callkit_incoming`)
   and open the Jitsi SDK; group calls never ring, they only publish an
   `active_call` marker on the group. Join uses a short-lived JWT minted by the
-  backend; never commit the Jitsi secret. The Jitsi plugin is vendored under
-  `packages/jitsi_meet_flutter_sdk` to pin `compileSdk 36`.
+  backend; never commit the Jitsi secret. Calls open the server's Jitsi web app
+  in an in-app WebView (`flutter_inappwebview`). `flutter_inappwebview_android`
+  is vendored under `packages/` to drop the AGP 9-incompatible ProGuard file.
 - **Chat actions:** the three-dot menu exists in both the chat list and chat
   room (pin, mute for groups, clear all, add contact for unknown personal
   peers, delete/leave). Logout exits the app instead of showing login; login
