@@ -86,6 +86,18 @@ class PushService {
     }
   }
 
+  /// Forces FCM to discard the cached token and issue a new one.
+  static Future<String?> refreshToken() async {
+    if (!_initialized) return null;
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+      return await FirebaseMessaging.instance.getToken();
+    } catch (error) {
+      debugPrint('FCM token refresh failed: $error');
+      return null;
+    }
+  }
+
   static Future<String?> getToken() async {
     if (!_initialized) return null;
     try {

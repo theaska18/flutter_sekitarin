@@ -618,13 +618,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: TextStyle(fontSize: 13)),
                 subtitle: Text(
                   PushService.ready
-                      ? 'Aktif. Ketuk untuk mendaftarkan ulang token.'
+                      ? 'Ketuk untuk reset token FCM dan daftarkan ulang.'
                       : 'Firebase belum aktif di build ini.',
                   style: const TextStyle(fontSize: 11),
                 ),
                 onTap: () async {
                   final registered =
-                      await context.read<AuthStore>().registerPushToken();
+                      await context.read<AuthStore>().resetPushToken();
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(

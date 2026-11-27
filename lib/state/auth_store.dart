@@ -78,6 +78,19 @@ class AuthStore extends ChangeNotifier {
     }
   }
 
+  Future<bool> resetPushToken() async {
+    if (!signedIn) return false;
+    final token = await PushService.refreshToken();
+    if (token == null || token.isEmpty) return false;
+    try {
+      await api.post('me/push-token', {'push_token': token});
+      _pushRetryCount = 0;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _registerPushToken() async {
     final registered = await registerPushToken();
     if (registered || !signedIn) return;
