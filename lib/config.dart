@@ -35,6 +35,29 @@ class AppConfig {
     ).toString();
   }
 
+  // Firebase / FCM, supplied at build time:
+  // --dart-define=FIREBASE_API_KEY=... --dart-define=FIREBASE_APP_ID=...
+  // --dart-define=FIREBASE_MESSAGING_SENDER_ID=... --dart-define=FIREBASE_PROJECT_ID=...
+  static const String firebaseApiKey =
+      String.fromEnvironment('FIREBASE_API_KEY');
+  static const String firebaseAppId = String.fromEnvironment('FIREBASE_APP_ID');
+  static const String firebaseMessagingSenderId =
+      String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID');
+  static const String firebaseProjectId =
+      String.fromEnvironment('FIREBASE_PROJECT_ID');
+  static const String firebaseStorageBucket =
+      String.fromEnvironment('FIREBASE_STORAGE_BUCKET');
+  static const String firebaseIosBundleId = String.fromEnvironment(
+    'FIREBASE_IOS_BUNDLE_ID',
+    defaultValue: 'net.emetrotel.sekitarApp',
+  );
+
+  static bool get firebaseConfigured =>
+      firebaseApiKey.isNotEmpty &&
+      firebaseAppId.isNotEmpty &&
+      firebaseMessagingSenderId.isNotEmpty &&
+      firebaseProjectId.isNotEmpty;
+
   static String absoluteUrl(String path) {
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return path;

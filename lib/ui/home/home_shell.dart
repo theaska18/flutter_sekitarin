@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../state/auth_store.dart';
+import '../../services/push_service.dart';
 import '../calls/call_log_screen.dart';
 import '../chat/chat_list_screen.dart';
+import '../chat/chat_room_screen.dart';
 import '../contacts/contacts_screen.dart';
 import '../feed/feed_screen.dart';
 import '../map/map_screen.dart';
@@ -35,10 +37,44 @@ class _HomeShellState extends State<HomeShell> {
       const Duration(seconds: 25),
       (_) => context.read<AuthStore>().refresh(),
     );
+    PushService.conversationToOpen.addListener(_openPushedConversation);
+    if (PushService.conversationToOpen.value != null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _openPushedConversation(),
+      );
+    }
+  }
+
+  Future<void> _openPushedConversation() async {
+    final conversationId = PushService.conversationToOpen.value;
+    if (conversationId == null || !mounted) return;
+    PushService.conversationToOpen.value = null;
+    try {
+      final data = await context
+          .read<AuthStore>()
+          .api
+          .get('conversations/$conversationId');
+      final conversation = data is Map ? data['conversation'] : null;
+      if (conversation is! Map || !mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ChatRoomScreen(
+            conversation: Map<String, dynamic>.from(conversation),
+          ),
+        ),
+      );
+      if (mounted) {
+        chatListRefreshTick.value++;
+        context.read<AuthStore>().refresh();
+      }
+    } catch (_) {
+      // The conversation may have been removed.
+    }
   }
 
   @override
   void dispose() {
+    PushService.conversationToOpen.removeListener(_openPushedConversation);
     _badgePoll?.cancel();
     super.dispose();
   }

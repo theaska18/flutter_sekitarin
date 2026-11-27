@@ -133,6 +133,32 @@ Aplikasi memakai HTTP/cleartext untuk development. Sebelum rilis produksi:
   AndroidManifest/Info.plist,
 - ganti tile OSM publik dengan tile server/penyedia yang sesuai kebijakan.
 
+## Notifikasi push (Firebase)
+
+Push sistem memakai Firebase Cloud Messaging dan **nonaktif jika kredensial
+tidak diberikan** (aplikasi tetap berjalan normal).
+
+1. Buat aplikasi Android `net.emetrotel.sekitar_app` (dan iOS `net.emetrotel.sekitarApp`)
+   di Firebase, lalu ambil nilai konfigurasi.
+2. Build dengan `--dart-define`:
+   ```bash
+   flutter build apk --debug --split-per-abi \
+     --dart-define=FIREBASE_API_KEY=... \
+     --dart-define=FIREBASE_APP_ID=... \
+     --dart-define=FIREBASE_MESSAGING_SENDER_ID=... \
+     --dart-define=FIREBASE_PROJECT_ID=... \
+     --dart-define=FIREBASE_STORAGE_BUCKET=...        # opsional
+   ```
+3. Di server, simpan service account FCM sebagai
+   `../cms_sekitarin/secrets/fcm-service-account.json`, lalu
+   `docker compose restart sekitar-push`.
+4. Setelah login, aplikasi otomatis meminta izin notifikasi dan mengirim FCM
+   token ke `/me/push-token`. Tap notifikasi chat membuka percakapan terkait.
+
+Tanpa `google-services.json`/`GoogleService-Info.plist`, aplikasi memakai
+`FirebaseOptions` dari `--dart-define` di atas. iOS tetap memerlukan capability
+**Push Notifications** dan APNs key di Firebase.
+
 ## Update aplikasi
 
 Buka **Profil → Setelan → Cek update**. Aplikasi membandingkan versi terpasang

@@ -32,6 +32,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     if (!auth.signedIn && auth.hasStoredToken) {
       auth.retryBootstrap();
     } else if (auth.signedIn) {
+      auth.reconnectRealtime();
       auth.refresh();
     }
   }

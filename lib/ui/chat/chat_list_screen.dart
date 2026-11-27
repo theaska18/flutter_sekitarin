@@ -31,6 +31,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   final Map<String, Timer> _typingTimers = {};
   final Set<int> _subscribed = {};
   StreamSubscription? _wsSub;
+  Timer? _reloadDebounce;
   late final WsClient _ws;
 
   @override
@@ -46,6 +47,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   void dispose() {
     chatListRefreshTick.removeListener(_load);
     _wsSub?.cancel();
+    _reloadDebounce?.cancel();
     for (final timer in _typingTimers.values) {
       timer.cancel();
     }
@@ -92,6 +94,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final name = '${event['event']}';
     if (name == 'message.created') {
       _clearTyping(conversationId);
+      _reloadDebounce?.cancel();
+      _reloadDebounce = Timer(const Duration(milliseconds: 350), _load);
       return;
     }
     if (name == 'conversation.updated') {

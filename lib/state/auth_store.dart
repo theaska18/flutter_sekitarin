@@ -8,10 +8,16 @@ import '../core/api_exception.dart';
 import '../core/token_store.dart';
 import '../core/ws_client.dart';
 import '../services/location_service.dart';
+import '../services/push_service.dart';
 
 class AuthStore extends ChangeNotifier {
   AuthStore(this.api, this.store, this.ws) {
     api.onUnauthorized = _refreshSession;
+    _wsEventsSub = ws.events.listen(_onWsEvent);
+    _pushForegroundSub = PushService.foregroundMessages.listen(
+      (_) => _scheduleBadgeRefresh(),
+    );
+    _pushTokenSub = PushService.tokenRefreshes.listen(_savePushToken);
   }
 
   final ApiClient api;
@@ -29,6 +35,10 @@ class AuthStore extends ChangeNotifier {
   String? _accessToken;
   String? _refreshToken;
   Future<bool>? _refreshFuture;
+  StreamSubscription? _wsEventsSub;
+  StreamSubscription? _pushForegroundSub;
+  StreamSubscription? _pushTokenSub;
+  Timer? _badgeRefreshDebounce;
   Timer? _realtimeTimer;
   bool _realtimeBusy = false;
   bool _locationConsent = false;
@@ -38,6 +48,41 @@ class AuthStore extends ChangeNotifier {
   bool get hasStoredToken => _accessToken != null && _accessToken!.isNotEmpty;
 
   bool get locationConsent => _locationConsent;
+
+  void _onWsEvent(Map<String, dynamic> event) {
+    final name = '${event['event']}';
+    if (name != 'message.created' && name != 'notification.created') return;
+    _scheduleBadgeRefresh();
+  }
+
+  void _scheduleBadgeRefresh() {
+    _badgeRefreshDebounce?.cancel();
+    _badgeRefreshDebounce = Timer(const Duration(milliseconds: 700), () {
+      refresh();
+    });
+  }
+
+  Future<void> _registerPushToken() async {
+    if (!signedIn) return;
+    final token = await PushService.getToken();
+    if (token != null) await _savePushToken(token);
+  }
+
+  Future<void> _savePushToken(String token) async {
+    if (!signedIn || token.isEmpty) return;
+    try {
+      await api.post('me/push-token', {'push_token': token});
+    } catch (_) {
+      // Push registration is best-effort.
+    }
+  }
+
+  /// Reconnects the realtime socket after the app returns to the foreground or
+  /// the connection was dropped.
+  Future<void> reconnectRealtime() async {
+    if (_accessToken == null || _accessToken!.isEmpty) return;
+    await ws.reconnect();
+  }
 
   void clearChatBadge() {
     if (unreadChatNotifications == 0) return;
@@ -67,6 +112,7 @@ class AuthStore extends ChangeNotifier {
         await _loadMe();
         ws.connect(_accessToken!);
         _startRealtimeTracking();
+        _registerPushToken();
       }
     } on ApiException catch (error) {
       if (error.statusCode == 401) {
@@ -158,6 +204,11 @@ class AuthStore extends ChangeNotifier {
 
   Future<void> logout() async {
     try {
+      await api.delete('me/push-token');
+    } catch (_) {
+      // Token cleanup is best-effort.
+    }
+    try {
       await api.post('auth/logout');
     } catch (_) {
       // Local logout still proceeds.
@@ -187,6 +238,7 @@ class AuthStore extends ChangeNotifier {
     ws.connect(_accessToken ?? '');
     await _loadMe();
     _startRealtimeTracking();
+    await _registerPushToken();
   }
 
   Future<void> _loadMe() async {
@@ -213,6 +265,16 @@ class AuthStore extends ChangeNotifier {
     if (_locationConsent) {
       _syncRealtimeLocations();
     }
+  }
+
+  @override
+  void dispose() {
+    _wsEventsSub?.cancel();
+    _pushForegroundSub?.cancel();
+    _pushTokenSub?.cancel();
+    _badgeRefreshDebounce?.cancel();
+    _realtimeTimer?.cancel();
+    super.dispose();
   }
 
   void _startRealtimeTracking() {
