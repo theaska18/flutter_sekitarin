@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.52+68 | Keep receive-only video in the Jingle answer and map it to `senders=initiator`; fix CallKit end-event race that could decline an answered call, dedupe active CallKit IDs, and mark CallKit connected only after media opens. |
 | 2026-11-27 | 0.12.51+67 | Keep recvonly video in Jingle session-accept (without requiring local video SSRC), mark it `senders=initiator`, and retain per-m-line audio/video/data ICE credentials. Added regression test. |
 | 2026-11-27 | 0.12.50+66 | Send SourceVideoTypeMessage and ReceiverVideoConstraints on JVB data-channel open and when peers join; preserve call-debug uploads (fix broken retention that deleted every diagnostic row). |
 | 2026-11-27 | 0.12.49+65 | Delay opening the WebRTC call screen until the app is resumed (CallKit accept leaves the Flutter activity in the background, which previously dropped the route on the callee). CallKit's incoming notification is dismissed before joining. |

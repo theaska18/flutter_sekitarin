@@ -17,6 +17,7 @@ class WebrtcCallScreen extends StatefulWidget {
     required this.title,
     required this.video,
     this.callId,
+    this.onConnected,
     this.onDebug,
   });
 
@@ -29,6 +30,7 @@ class WebrtcCallScreen extends StatefulWidget {
   final String title;
   final bool video;
   final int? callId;
+  final VoidCallback? onConnected;
   final void Function(String stage, String payload)? onDebug;
 
   @override
@@ -71,6 +73,7 @@ class _WebrtcCallScreenState extends State<WebrtcCallScreen> {
           _connected = true;
           _error = null;
         });
+        widget.onConnected?.call();
       },
       onEnded: () {
         if (!mounted || _closing) return;

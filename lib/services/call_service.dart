@@ -31,6 +31,7 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
   Map<String, dynamic>? _pendingAccept;
   bool _joining = false;
   final Set<int> _acceptedCalls = {};
+  final Set<int> _programmaticCallKitEnds = {};
   int? _activeMeetCallId;
   Timer? _heartbeat;
   bool _clearedStaleCallkit = false;
@@ -277,6 +278,10 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _showCallKit(Map<String, dynamic> call) async {
     final callId = call['call_id'];
+    try {
+      final active = await FlutterCallkitIncoming.activeCalls();
+      if (active.any((item) => item.id == 'call-$callId')) return;
+    } catch (_) {}
     final caller = call['caller'] is Map
         ? Map<String, dynamic>.from(call['caller'] as Map)
         : <String, dynamic>{};
@@ -337,10 +342,15 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> _endCallKit(int callId) async {
+    _programmaticCallKitEnds.add(callId);
     try {
       await FlutterCallkitIncoming.endCall('call-$callId');
     } catch (_) {
       // Ignore: the call may already be gone.
+    } finally {
+      Timer(const Duration(seconds: 3), () {
+        _programmaticCallKitEnds.remove(callId);
+      });
     }
   }
 
@@ -385,7 +395,6 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
     _acceptedCalls.add(callId);
     _seenIncoming.add(callId);
     _incoming = null;
-    await _endCallKit(callId);
     notifyListeners();
     try {
       final data = await auth.api.post('calls/$callId/answer');
@@ -425,12 +434,34 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
       await _auth?.api.post('calls/$callId/decline');
     } catch (_) {
       // Best effort: the call may already have ended.
+    } finally {
+      await _endCallKit(callId);
     }
   }
 
   Future<void> _endIncoming(Map<String, dynamic> extra) async {
     final callId = _asInt(extra['call_id']);
-    if (callId != null) await _declineCallId(callId);
+    if (callId == null) return;
+    if (_programmaticCallKitEnds.remove(callId)) return;
+    if (_acceptedCalls.contains(callId)) {
+      final hasActiveCall = _activeMeetCallId == callId ||
+          _asInt(_active?['call_id']) == callId ||
+          _asInt(_outgoing?['call_id']) == callId;
+      // Some CallKit implementations emit ACTION_CALL_ENDED while tearing
+      // down the incoming screen after ACTION_CALL_ACCEPT. That is not a
+      // second user hang-up; only end if the actual in-app call is active.
+      if (!hasActiveCall) return;
+      try {
+        await _auth?.api.post('calls/$callId/end');
+      } catch (_) {}
+      if (_activeMeetCallId == callId) endSignal.value = callId;
+      return;
+    }
+    if ('${extra['outgoing']}' == '1') {
+      await cancelOutgoing(callId);
+      return;
+    }
+    await _declineCallId(callId);
   }
 
   Future<void> _sendHeartbeat(int callId) async {
@@ -629,11 +660,6 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
         _sendHeartbeat(callId);
       });
     }
-    if (callId != null) {
-      try {
-        await FlutterCallkitIncoming.endCall('call-$callId');
-      } catch (_) {}
-    }
     await _waitForForeground();
     try {
       await [Permission.microphone, Permission.camera].request();
@@ -725,6 +751,12 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
           title: kind == 'video' ? 'Panggilan video' : 'Panggilan suara',
           video: kind == 'video',
           callId: callId,
+          onConnected: () async {
+            if (callId == null) return;
+            try {
+              await FlutterCallkitIncoming.setCallConnected('call-$callId');
+            } catch (_) {}
+          },
           onDebug: (stage, payload) {
             unawaited(() async {
               try {
