@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.5+21 | Chat header shows the conversation photo before the name for both direct and group chats (no avatar in AppBar actions); group avatars get a group badge overlay in the header, chat list, and Group Info. |
 | 2026-11-27 | 0.12.4+20 | Feed posts and direct-chat rows now show the poster/peer profile photo (backend peer payload includes handle + avatar); new Contacts list screen replaces the empty search page, with add-contact FAB; direct chat offers “add to contact” when the peer is not saved; sent bubbles use a darker container in dark mode with readable metadata text. |
 | 2026-11-27 | 0.12.3+19 | In-app update shows download progress (percentage, MB downloaded/total, status, cancel/close) before opening the installer; header/login logo now uses the blue app icon (`assets/brand/app_icon.png`) instead of the custom teal mark. |
 | 2026-11-27 | 0.12.2+18 | Per-group location sharing switch in Group Info (profile-level toggle removed); any member can change the group photo; group chat always shows the group avatar at the top-right with the standard back button restored; contacts button only on the Chat tab; chat badge clears server-side when the Chat tab is opened; unread chats highlighted with bold text + badge; Sekitarin logo on the home header and login screen. |
@@ -65,9 +66,11 @@ the manifest and downloads/installs the APK.
   live location only render members who granted it.
 - Times from the API are UTC; display relative labels with helpers in
   `lib/ui/common.dart`.
-- **Group chat header:** always show the group avatar/icon in the **top-right**
-  corner (opens Group Info) and keep the default back button on the left. Never
-  replace the AppBar `leading` with the group avatar.
+- **Chat header:** show the conversation photo **before the name** for both
+  direct and group chats, keep the default back button on the left, and never
+  put the avatar in the AppBar actions. Group avatars always carry a small
+  group badge (`lib/ui/widgets/group_avatar.dart`) in the header, chat list, and
+  Group Info.
 - **Location sharing is per group.** Configure it from Group Info; do not add a
   profile-level share toggle. Enabling it also grants the location consent
   needed by the API.

@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../../config.dart';
 import '../../services/location_service.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../widgets/group_avatar.dart';
 
 class GroupInfoScreen extends StatefulWidget {
   const GroupInfoScreen({
@@ -294,7 +294,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                           child: Stack(
                             alignment: Alignment.bottomRight,
                             children: [
-                              _GroupAvatar(
+                              GroupAvatar(
                                 mediaId:
                                     _conversation?['avatar_media_id'] as int?,
                                 token:
@@ -422,41 +422,6 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                 ),
               ],
             ),
-    );
-  }
-}
-
-class _GroupAvatar extends StatelessWidget {
-  const _GroupAvatar({
-    required this.mediaId,
-    required this.token,
-    this.radius = 24,
-  });
-
-  final int? mediaId;
-  final String? token;
-  final double radius;
-
-  @override
-  Widget build(BuildContext context) {
-    final fallback = CircleAvatar(
-      radius: radius,
-      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-      child: Icon(Icons.groups, size: radius),
-    );
-    if (mediaId == null) return fallback;
-    final headers = token == null || token!.isEmpty
-        ? null
-        : <String, String>{'Authorization': 'Bearer $token'};
-    return ClipOval(
-      child: Image.network(
-        AppConfig.absoluteUrl('/api/v1/media/$mediaId'),
-        headers: headers,
-        width: radius * 2,
-        height: radius * 2,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => fallback,
-      ),
     );
   }
 }

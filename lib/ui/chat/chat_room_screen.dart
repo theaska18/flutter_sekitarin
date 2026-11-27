@@ -9,6 +9,7 @@ import '../../state/auth_store.dart';
 import '../common.dart';
 import '../profile/personal_profile_screen.dart';
 import '../widgets/account_avatar.dart';
+import '../widgets/group_avatar.dart';
 import 'group_info_screen.dart';
 import 'group_map_screen.dart';
 
@@ -418,10 +419,39 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final groupAvatarId = widget.conversation['avatar_media_id'];
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 0,
         title: GestureDetector(
-          onTap: isGroup ? _openGroupInfo : null,
+          onTap: () {
+            if (isGroup) {
+              _openGroupInfo();
+              return;
+            }
+            final accountId = peerMap?['account_id'];
+            if (accountId is! int) return;
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => PersonalProfileScreen(
+                  accountId: accountId,
+                  initialName: '${peerMap?['display_name'] ?? ''}',
+                ),
+              ),
+            );
+          },
           child: Row(
             children: [
+              if (isGroup)
+                GroupAvatar(
+                  mediaId: groupAvatarId as int?,
+                  token: auth.api.accessToken,
+                  radius: 18,
+                )
+              else
+                AccountAvatar(
+                  account: peerMap,
+                  radius: 18,
+                  token: auth.api.accessToken,
+                ),
+              const SizedBox(width: 8),
               Flexible(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -448,55 +478,18 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           ),
         ),
         actions: [
-          if (isGroup) ...[
-            Padding(
-              padding: const EdgeInsets.only(left: 4, right: 2),
-              child: GestureDetector(
-                onTap: _openGroupInfo,
-                child: AccountAvatar(
-                  account: {'avatar_media_id': groupAvatarId},
-                  radius: 18,
-                  token: auth.api.accessToken,
-                  fallbackIcon: Icons.groups,
-                ),
-              ),
-            ),
+          if (isGroup)
             IconButton(
               onPressed: _openGroupMap,
               icon: const Icon(Icons.map_outlined),
               tooltip: 'Peta anggota',
+            )
+          else if (_peerAccountId != null && !_peerIsContact)
+            IconButton(
+              onPressed: _contactBusy ? null : _addPeerContact,
+              icon: const Icon(Icons.person_add_alt_1),
+              tooltip: 'Tambah ke kontak',
             ),
-          ] else ...[
-            if (_peerAccountId != null && !_peerIsContact)
-              IconButton(
-                onPressed: _contactBusy ? null : _addPeerContact,
-                icon: const Icon(Icons.person_add_alt_1),
-                tooltip: 'Tambah ke kontak',
-              ),
-            if (peerMap != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 2, right: 6),
-                child: GestureDetector(
-                  onTap: () {
-                    final accountId = peerMap['account_id'];
-                    if (accountId is! int) return;
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => PersonalProfileScreen(
-                          accountId: accountId,
-                          initialName: '${peerMap['display_name'] ?? ''}',
-                        ),
-                      ),
-                    );
-                  },
-                  child: AccountAvatar(
-                    account: peerMap,
-                    radius: 18,
-                    token: auth.api.accessToken,
-                  ),
-                ),
-              ),
-          ],
         ],
       ),
       body: Column(

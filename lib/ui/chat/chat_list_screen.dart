@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
 import '../widgets/account_avatar.dart';
+import '../widgets/group_avatar.dart';
 import 'chat_room_screen.dart';
 import 'new_chat_sheet.dart';
 
@@ -133,16 +134,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         child: ListTile(
                           onTap: () => _openConversation(item),
                           leading: item['type'] == 'group'
-                              ? AccountAvatar(
-                                  account: {
-                                    'avatar_media_id': item['avatar_media_id'],
-                                  },
+                              ? GroupAvatar(
+                                  mediaId: item['avatar_media_id'] as int?,
                                   radius: 20,
                                   token:
                                       context.read<AuthStore>().api.accessToken,
-                                  fallbackIcon: Icons.groups,
-                                  backgroundColor: scheme.tertiaryContainer,
-                                  foregroundColor: scheme.onTertiaryContainer,
                                 )
                               : AccountAvatar(
                                   account: peer,
