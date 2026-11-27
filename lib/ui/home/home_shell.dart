@@ -34,10 +34,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _badgePoll = Timer.periodic(
-      const Duration(seconds: 25),
-      (_) => context.read<AuthStore>().refresh(),
-    );
+    _startBadgePoll();
     PushService.conversationToOpen.addListener(_openPushedConversation);
     if (PushService.conversationToOpen.value != null) {
       WidgetsBinding.instance.addPostFrameCallback(
@@ -73,10 +70,22 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     }
   }
 
+  void _startBadgePoll() {
+    _badgePoll ??= Timer.periodic(
+      const Duration(seconds: 25),
+      (_) => context.read<AuthStore>().refresh(),
+    );
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused) {
+      _badgePoll?.cancel();
+      _badgePoll = null;
+    } else if (state == AppLifecycleState.resumed) {
+      _startBadgePoll();
       chatListRefreshTick.value++;
+      context.read<AuthStore>().refresh();
     }
   }
 

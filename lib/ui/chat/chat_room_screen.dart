@@ -56,6 +56,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
   int _nextLocalId = -1;
   bool _peerIsContact = true;
   bool _contactBusy = false;
+  bool _paused = false;
 
   @override
   void initState() {
@@ -196,16 +197,34 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     } else {
       _loadContactState();
     }
-    _poll = Timer.periodic(const Duration(seconds: 5), (_) {
-      // Poll only as a fallback; WebSocket is the primary transport.
-      if (!_ws.connected) _pollNew();
-    });
+    _startPoll();
   }
 
   void _onInputFocus() {
     if (!_inputFocus.hasFocus) return;
     Future.delayed(const Duration(milliseconds: 120), _scrollToBottom);
     Future.delayed(const Duration(milliseconds: 380), _scrollToBottom);
+  }
+
+  void _startPoll() {
+    if (_paused) return;
+    _poll ??= Timer.periodic(const Duration(seconds: 5), (_) {
+      // Poll only as a fallback; WebSocket is the primary transport.
+      if (!_ws.connected) _pollNew();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _paused = true;
+      _poll?.cancel();
+      _poll = null;
+    } else if (state == AppLifecycleState.resumed) {
+      _paused = false;
+      _pollNew();
+      _startPoll();
+    }
   }
 
   @override

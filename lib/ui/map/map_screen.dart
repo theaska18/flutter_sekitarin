@@ -21,7 +21,7 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   final _mapController = MapController();
   final List<Map<String, dynamic>> _places = [];
   static const double _minDataZoom = 14.5;
@@ -35,13 +35,30 @@ class _MapScreenState extends State<MapScreen> {
   double _radius = 1000;
   Timer? _poll;
   Timer? _moveDebounce;
+  bool _paused = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.active) {
+    WidgetsBinding.instance.addObserver(this);
+    if (widget.active && !_paused) {
       _refresh();
       _startPoll();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _paused = true;
+      _poll?.cancel();
+      _poll = null;
+    } else if (state == AppLifecycleState.resumed) {
+      _paused = false;
+      if (widget.active) {
+        _refresh();
+        _startPoll();
+      }
     }
   }
 
@@ -59,6 +76,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _startPoll() {
+    if (_paused) return;
     _poll ??= Timer.periodic(
       const Duration(seconds: 10),
       (_) => _loadPlaces(showLoading: false),
@@ -67,6 +85,7 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _poll?.cancel();
     _moveDebounce?.cancel();
     super.dispose();

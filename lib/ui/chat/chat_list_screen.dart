@@ -27,7 +27,8 @@ class ChatListScreen extends StatefulWidget {
   State<ChatListScreen> createState() => _ChatListScreenState();
 }
 
-class _ChatListScreenState extends State<ChatListScreen> {
+class _ChatListScreenState extends State<ChatListScreen>
+    with WidgetsBindingObserver {
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
   String? _error;
@@ -37,11 +38,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
   StreamSubscription? _wsSub;
   Timer? _reloadDebounce;
   Timer? _presencePoll;
+  bool _paused = false;
   late final WsClient _ws;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     chatListRefreshTick.addListener(_load);
     _ws = context.read<AuthStore>().ws;
     _wsSub = _ws.events.listen(_onWsEvent);
@@ -63,6 +66,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   void _startPresencePoll() {
+    if (_paused) return;
     _presencePoll ??= Timer.periodic(
       const Duration(seconds: 30),
       (_) => _load(),
@@ -70,7 +74,23 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _paused = true;
+      _presencePoll?.cancel();
+      _presencePoll = null;
+    } else if (state == AppLifecycleState.resumed) {
+      _paused = false;
+      if (widget.active) {
+        _load();
+        _startPresencePoll();
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     chatListRefreshTick.removeListener(_load);
     _wsSub?.cancel();
     _reloadDebounce?.cancel();
@@ -121,6 +141,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final name = '${event['event']}';
     if (name == 'message.created') {
       _clearTyping(conversationId);
+      if (_paused) return;
       if (ChatPresence.activeConversationId != conversationId) {
         MessageSound.play();
       }
@@ -129,7 +150,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       return;
     }
     if (name == 'conversation.updated') {
-      _load();
+      if (!_paused) _load();
       return;
     }
     if (name != 'typing') return;
