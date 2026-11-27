@@ -57,6 +57,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
   bool _peerIsContact = true;
   bool _contactBusy = false;
   bool _paused = false;
+  bool _pinned = false;
+  bool _muted = false;
 
   @override
   void initState() {
@@ -66,6 +68,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     _inputFocus.addListener(_onInputFocus);
     _ws = context.read<AuthStore>().ws;
     _sendAccountId = widget.conversation['my_account_id'] as int?;
+    _pinned = widget.conversation['pinned'] == true;
+    _muted = widget.conversation['muted'] == true;
     _ws.subscribe(_conversationId);
     _wsSubscription = _ws.events.listen((event) {
       if (!mounted || event['conversation_id'] != _conversationId) return;
@@ -297,6 +301,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
         _groupTitle = '${conversation['title'] ?? ''}';
         widget.conversation['avatar_media_id'] =
             conversation['avatar_media_id'];
+        _pinned = conversation['pinned'] == true;
+        _muted = conversation['muted'] == true;
         _memberNames.clear();
         final members = conversation['members'];
         if (members is List) {
@@ -835,6 +841,118 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     }
   }
 
+  Future<void> _togglePin() async {
+    try {
+      final data = await context.read<AuthStore>().api.post(
+        'conversations/$_conversationId/pin',
+        {'pinned': !_pinned},
+      );
+      if (!mounted) return;
+      setState(() => _pinned = data['pinned'] == true);
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    }
+  }
+
+  Future<void> _toggleMute() async {
+    try {
+      final data = await context.read<AuthStore>().api.post(
+        'conversations/$_conversationId/mute',
+        {'muted': !_muted},
+      );
+      if (!mounted) return;
+      setState(() => _muted = data['muted'] == true);
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    }
+  }
+
+  Future<void> _clearAllMessages() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Bersihkan semua pesan?'),
+        content: const Text(
+          'Pesan akan disembunyikan dari tampilan Anda saja. Anggota lain tidak terpengaruh.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Bersihkan'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await context
+          .read<AuthStore>()
+          .api
+          .post('conversations/$_conversationId/clear');
+      ChatCache.clear(_conversationId);
+      if (!mounted) return;
+      setState(() => _messages.clear());
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    }
+  }
+
+  Future<void> _deleteOrLeave() async {
+    final isGroup = widget.conversation['type'] == 'group';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isGroup ? 'Keluar dari grup?' : 'Hapus pesan?'),
+        content: Text(
+          isGroup
+              ? 'Anda akan keluar dari grup ini.'
+              : 'Percakapan akan dihapus dari daftar Anda.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Lanjutkan'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await context
+          .read<AuthStore>()
+          .api
+          .delete('conversations/$_conversationId');
+      ChatCache.clear(_conversationId);
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    }
+  }
+
+  Future<void> _chatMenuAction(String action) async {
+    switch (action) {
+      case 'pin':
+        await _togglePin();
+      case 'mute':
+        await _toggleMute();
+      case 'clear':
+        await _clearAllMessages();
+      case 'add_contact':
+        await _addPeerContact();
+      case 'delete':
+      case 'leave':
+        await _deleteOrLeave();
+    }
+  }
+
   Future<void> _openGroupMap() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -1017,13 +1135,43 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
               icon: const Icon(Icons.videocam_outlined),
               tooltip: 'Panggilan video',
             ),
-            if (_peerAccountId != null && !_peerIsContact)
-              IconButton(
-                onPressed: _contactBusy ? null : _addPeerContact,
-                icon: const Icon(Icons.person_add_alt_1),
-                tooltip: 'Tambah ke kontak',
-              ),
           ],
+          PopupMenuButton<String>(
+            tooltip: 'Menu percakapan',
+            onSelected: _chatMenuAction,
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'pin',
+                child: Text(_pinned ? 'Lepas pin' : 'Pin percakapan'),
+              ),
+              if (isGroup)
+                PopupMenuItem(
+                  value: 'mute',
+                  child: Text(
+                    _muted ? 'Aktifkan notifikasi' : 'Bisukan notifikasi',
+                  ),
+                ),
+              const PopupMenuItem(
+                value: 'clear',
+                child: Text('Bersihkan semua pesan'),
+              ),
+              if (!isGroup && _peerAccountId != null && !_peerIsContact)
+                const PopupMenuItem(
+                  value: 'add_contact',
+                  child: Text('Tambah ke kontak'),
+                ),
+              if (isGroup)
+                const PopupMenuItem(
+                  value: 'leave',
+                  child: Text('Keluar dari grup'),
+                )
+              else
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Hapus pesan'),
+                ),
+            ],
+          ),
         ],
       ),
       body: Column(

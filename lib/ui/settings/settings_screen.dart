@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -391,6 +392,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (confirmed == true && mounted) {
       await context.read<AuthStore>().logout();
+      await SystemNavigator.pop();
     }
   }
 

@@ -35,6 +35,7 @@ class _ChatListScreenState extends State<ChatListScreen>
   final Map<int, Map<int, String>> _typingUsers = {};
   final Map<String, Timer> _typingTimers = {};
   final Set<int> _subscribed = {};
+  final Set<int> _contactAccountIds = {};
   StreamSubscription? _wsSub;
   Timer? _reloadDebounce;
   Timer? _presencePoll;
@@ -178,10 +179,27 @@ class _ChatListScreenState extends State<ChatListScreen>
 
   Future<void> _load() async {
     try {
-      final data = await context.read<AuthStore>().api.get('conversations');
+      final api = context.read<AuthStore>().api;
+      final data = await api.get('conversations');
+      final contacts = <int>{};
+      try {
+        final contactData = await api.get('contacts');
+        if (contactData is Map && contactData['data'] is List) {
+          for (final item in contactData['data'] as List) {
+            if (item is Map && item['account_id'] is int) {
+              contacts.add(item['account_id'] as int);
+            }
+          }
+        }
+      } catch (_) {
+        // Contact status is best-effort.
+      }
       if (!mounted) return;
       setState(() {
         _error = null;
+        _contactAccountIds
+          ..clear()
+          ..addAll(contacts);
         _items = data is Map && data['data'] is List
             ? (data['data'] as List)
                 .whereType<Map>()
@@ -207,6 +225,32 @@ class _ChatListScreenState extends State<ChatListScreen>
           'conversations/$conversationId/pin',
           {'pinned': item['pinned'] != true},
         );
+        await _load();
+      } catch (error) {
+        if (mounted) showErrorSnack(context, error);
+      }
+      return;
+    }
+    if (action == 'mute') {
+      try {
+        await context.read<AuthStore>().api.post(
+          'conversations/$conversationId/mute',
+          {'muted': item['muted'] != true},
+        );
+        await _load();
+      } catch (error) {
+        if (mounted) showErrorSnack(context, error);
+      }
+      return;
+    }
+    if (action == 'add_contact') {
+      final accountId =
+          item['peer'] is Map ? (item['peer'] as Map)['account_id'] : null;
+      if (accountId is! int) return;
+      try {
+        await context.read<AuthStore>().api.post('contacts', {
+          'account_id': accountId,
+        });
         await _load();
       } catch (error) {
         if (mounted) showErrorSnack(context, error);
@@ -420,103 +464,111 @@ class _ChatListScreenState extends State<ChatListScreen>
                                   token: token,
                                   showStatusDot: true,
                                 ),
-                          title: titleWidget,
-                          subtitle: Text(
-                            typingLabel ??
-                                '$senderPrefix${messagePreview(lastMessage)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontWeight: typingLabel != null || hasUnread
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              fontStyle: typingLabel != null
-                                  ? FontStyle.italic
-                                  : FontStyle.normal,
-                              color: typingLabel != null
-                                  ? scheme.primary
-                                  : (hasUnread ? scheme.onSurface : null),
-                            ),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          title: Row(
                             children: [
-                              SizedBox(
-                                height: 44,
-                                child: Column(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    if (unread > 0)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 7, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .primary,
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                        ),
-                                        child: Text(
-                                          '$unread',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      )
-                                    else
-                                      const SizedBox.shrink(),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (item['pinned'] == true) ...[
-                                          const Icon(Icons.push_pin, size: 11),
-                                          const SizedBox(width: 3),
-                                        ],
-                                        Text(
-                                          timeAgo(item['last_message_at']),
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .labelSmall,
-                                        ),
-                                      ],
+                              Expanded(child: titleWidget),
+                              if (item['pinned'] == true)
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 4),
+                                  child: Icon(Icons.push_pin, size: 13),
+                                ),
+                              if (item['muted'] == true)
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 4),
+                                  child:
+                                      Icon(Icons.notifications_off, size: 13),
+                                ),
+                              if (hasUnread)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 6),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: scheme.primary,
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
-                                  ],
+                                    child: Text(
+                                      '$unread',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          subtitle: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  typingLabel ??
+                                      '$senderPrefix${messagePreview(lastMessage)}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight: typingLabel != null || hasUnread
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                    fontStyle: typingLabel != null
+                                        ? FontStyle.italic
+                                        : FontStyle.normal,
+                                    color: typingLabel != null
+                                        ? scheme.primary
+                                        : (hasUnread ? scheme.onSurface : null),
+                                  ),
                                 ),
                               ),
-                              PopupMenuButton<String>(
-                                padding: EdgeInsets.zero,
-                                iconSize: 18,
-                                tooltip: 'Aksi chat',
-                                onSelected: (action) =>
-                                    _chatAction(item, action),
-                                itemBuilder: (_) => [
-                                  PopupMenuItem(
-                                    value: 'pin',
-                                    child: Text(item['pinned'] == true
-                                        ? 'Lepas pin'
-                                        : 'Pin percakapan'),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'clear',
-                                    child: Text('Bersihkan pesan'),
-                                  ),
-                                  if (isGroup)
-                                    const PopupMenuItem(
-                                      value: 'leave',
-                                      child: Text('Keluar grup'),
-                                    )
-                                  else
-                                    const PopupMenuItem(
-                                      value: 'delete',
-                                      child: Text('Hapus percakapan'),
-                                    ),
-                                ],
+                              const SizedBox(width: 6),
+                              Text(
+                                timeAgo(item['last_message_at']),
+                                style: Theme.of(context).textTheme.labelSmall,
                               ),
+                            ],
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            padding: EdgeInsets.zero,
+                            iconSize: 18,
+                            tooltip: 'Aksi chat',
+                            onSelected: (action) => _chatAction(item, action),
+                            itemBuilder: (_) => [
+                              PopupMenuItem(
+                                value: 'pin',
+                                child: Text(item['pinned'] == true
+                                    ? 'Lepas pin'
+                                    : 'Pin percakapan'),
+                              ),
+                              if (isGroup)
+                                PopupMenuItem(
+                                  value: 'mute',
+                                  child: Text(item['muted'] == true
+                                      ? 'Aktifkan notifikasi'
+                                      : 'Bisukan notifikasi'),
+                                ),
+                              const PopupMenuItem(
+                                value: 'clear',
+                                child: Text('Bersihkan semua pesan'),
+                              ),
+                              if (!isGroup &&
+                                  peer?['account_id'] is int &&
+                                  !_contactAccountIds
+                                      .contains(peer?['account_id']))
+                                const PopupMenuItem(
+                                  value: 'add_contact',
+                                  child: Text('Tambah ke kontak'),
+                                ),
+                              if (isGroup)
+                                const PopupMenuItem(
+                                  value: 'leave',
+                                  child: Text('Keluar dari grup'),
+                                )
+                              else
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Hapus pesan'),
+                                ),
                             ],
                           ),
                         ),

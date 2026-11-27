@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _busy = false;
+  bool _showPassword = false;
   String? _error;
 
   @override
@@ -88,11 +89,24 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 14),
                     TextFormField(
                       controller: _password,
-                      obscureText: true,
+                      obscureText: !_showPassword,
                       autofillHints: const [AutofillHints.password],
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock_outline),
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          tooltip: _showPassword
+                              ? 'Sembunyikan password'
+                              : 'Lihat password',
+                          onPressed: () => setState(
+                            () => _showPassword = !_showPassword,
+                          ),
+                          icon: Icon(
+                            _showPassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                        ),
                       ),
                       validator: (value) => (value == null || value.isEmpty)
                           ? 'Password wajib diisi'

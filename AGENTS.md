@@ -138,7 +138,12 @@ the manifest and downloads/installs the APK.
 - **Chat list styling:** full-bleed rows with no card radius or side padding;
   use dividers between rows.
 - **Pin:** personal and group chats can be pinned per user from the three-dot
-  menu (`conversations/{id}/pin`); pinned chats sort first and show a pin icon.
+  menu (`conversations/{id}/pin`); pinned chats sort first and show a pin icon
+  next to the name. Group mute (`/mute`) suppresses chat notifications.
+- **Chat actions:** the three-dot menu exists in both the chat list and chat
+  room (pin, mute for groups, clear all, add contact for unknown personal
+  peers, delete/leave). Logout exits the app instead of showing login; login
+  password has a visibility toggle.
 - **Clear vs delete:** “Bersihkan pesan” is per-user (`cleared_before_message_id`)
   and never deletes for other members. Direct “Hapus percakapan” and group
   “Keluar grup” use the existing conversation DELETE/leave endpoint.
