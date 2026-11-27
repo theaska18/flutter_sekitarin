@@ -465,11 +465,13 @@ class JitsiCallClient implements JitsiSessionView {
         await pc!.addTrack(track, stream);
       }
     }
+    // Jitsi/JVB only routes source maps and receiver constraints on its
+    // well-known bridge channel. A generic "custom" channel completes SCTP
+    // but receives no VideoSourcesMap, leaving video unrequested.
     _dataChannel = await pc!.createDataChannel(
-      'custom',
+      'JVB data channel',
       RTCDataChannelInit()
-        ..ordered = false
-        ..maxRetransmits = 0,
+        ..protocol = 'http://jitsi.org/protocols/colibri',
     );
     pc!.onDataChannel = (channel) {
       _dataChannel = channel;
@@ -716,7 +718,13 @@ class JitsiCallClient implements JitsiSessionView {
   }
 
   void _sendReceiverVideoConstraints({bool force = false}) {
-    final sourceNames = _remoteVideoSources.keys.toList();
+    // Jicofo advertises the bridge's initial mixed video track as jvb-v0.
+    // Explicitly request it while waiting for source-name maps, then request
+    // each mapped participant source as those arrive.
+    final sourceNames = <String>{
+      'jvb-v0',
+      ..._remoteVideoSources.keys,
+    }.toList();
     final constraints = <String, dynamic>{
       for (final source in sourceNames) source: {'maxHeight': 720},
     };
