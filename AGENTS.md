@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.31+47 | Fix call start failing (push queue rejected NULL notification) and blank Jitsi screen (release build now unminified); Jitsi token `sub` matches the working webcasting token (`jitsi.ckamal.com`). |
 | 2026-11-27 | 0.12.30+46 | Call polish: outgoing call notification is marked connected while in Jitsi and cleared when the call ends. |
 | 2026-11-27 | 0.12.29+45 | Voice/video calls via Jitsi (`jitsi.ckamal.com`): 1:1 calls ring through CallKit/full-screen notification, group calls only show an in-chat banner with join, Log Telepon filled with call history and call-back, mic/camera permissions. |
 | 2026-11-27 | 0.12.28+44 | Chat menus in list + room (pin, mute, clear all, add contact, delete/leave), group notification mute, pin/mute icons by the name, wider name layout, logout exits app, login password visibility toggle. |

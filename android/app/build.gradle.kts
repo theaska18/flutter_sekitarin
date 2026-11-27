@@ -42,10 +42,10 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
+            // The Jitsi SDK embeds React Native; R8 breaks its reflection and
+            // leaves the call screen blank. Keep the release build unminified.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

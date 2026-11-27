@@ -27,6 +27,7 @@ class CallService extends ChangeNotifier {
   final Map<int, Map<String, dynamic>> _groupCalls = {};
   Map<String, dynamic>? _pendingAccept;
   bool _joining = false;
+  final Set<int> _acceptedCalls = {};
 
   Map<String, dynamic>? get incomingCall => _incoming;
   Map<String, dynamic>? get outgoingCall => _outgoing;
@@ -316,6 +317,7 @@ class CallService extends ChangeNotifier {
   Future<void> _acceptIncoming(Map<String, dynamic> extra) async {
     final callId = _asInt(extra['call_id']);
     if (callId == null) return;
+    if (_acceptedCalls.contains(callId)) return;
     final auth = _auth;
     if (auth == null || !auth.signedIn) {
       _pendingAccept = extra;
@@ -323,6 +325,7 @@ class CallService extends ChangeNotifier {
     }
     if (_joining) return;
     _joining = true;
+    _acceptedCalls.add(callId);
     try {
       final data = await auth.api.post('calls/$callId/answer');
       final call = data['call'] is Map
@@ -568,7 +571,6 @@ class CallService extends ChangeNotifier {
           'tileview',
           'settings',
         ],
-        'notifications': <String>[],
       },
       featureFlags: {
         'welcomePageEnabled': false,
