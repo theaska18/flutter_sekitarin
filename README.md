@@ -18,7 +18,9 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
   ditolak. Foto grup dapat diganti oleh anggota mana pun; nama grup tetap
   khusus owner.
 - Logo Sekitarin tampil di header beranda (kiri atas) dan layar login.
-- Tambah kontak lewat username dari ikon di topbar samping notifikasi.
+- **Kontak**: ikon kontak di topbar (khusus tab Chat) membuka daftar kontak;
+  tambah kontak lewat username. Di chat personal yang belum tersimpan sebagai
+  kontak, muncul ikon tambah kontak di header.
 - Peta OpenStreetMap: memuat area yang sedang dilihat (pan/zoom, debounce
   400 ms), akun freeze selalu tampil; akun realtime/driver muncul setelah
   “Bagikan lokasi” di Setelan aktif. Di bawah zoom 14.5 data tidak dimuat agar

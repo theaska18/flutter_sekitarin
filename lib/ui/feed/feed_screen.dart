@@ -5,6 +5,7 @@ import '../../config.dart';
 import '../../services/location_service.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../widgets/account_avatar.dart';
 import 'comments_sheet.dart';
 import 'create_post_screen.dart';
 import 'post_detail_screen.dart';
@@ -301,10 +302,13 @@ class _PostCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CircleAvatar(
+                AccountAvatar(
+                  account: account,
                   radius: 17,
+                  token: token,
+                  fallbackIcon: typeIcon(type),
                   backgroundColor: typeColor(type).withValues(alpha: 0.15),
-                  child: Icon(typeIcon(type), size: 18, color: typeColor(type)),
+                  foregroundColor: typeColor(type),
                 ),
                 const SizedBox(width: 8),
                 Expanded(

@@ -123,6 +123,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       final unread = item['unread_count'] ?? 0;
                       final hasUnread = unread is int && unread > 0;
                       final scheme = Theme.of(context).colorScheme;
+                      final peer = item['peer'] is Map
+                          ? Map<String, dynamic>.from(item['peer'] as Map)
+                          : null;
                       return Card(
                         color: hasUnread
                             ? scheme.primaryContainer.withValues(alpha: 0.35)
@@ -141,9 +144,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                   backgroundColor: scheme.tertiaryContainer,
                                   foregroundColor: scheme.onTertiaryContainer,
                                 )
-                              : CircleAvatar(
+                              : AccountAvatar(
+                                  account: peer,
+                                  radius: 20,
+                                  token:
+                                      context.read<AuthStore>().api.accessToken,
                                   backgroundColor: scheme.primaryContainer,
-                                  child: const Icon(Icons.person),
                                 ),
                           title: Text(
                             peerName(item),

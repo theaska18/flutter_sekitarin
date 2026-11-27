@@ -7,6 +7,7 @@ import '../../config.dart';
 import '../../core/ws_client.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../profile/personal_profile_screen.dart';
 import '../widgets/account_avatar.dart';
 import 'group_info_screen.dart';
 import 'group_map_screen.dart';
@@ -38,6 +39,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final Map<int, Timer> _typingTimers = {};
   Timer? _typingStop;
   DateTime? _lastTypingSent;
+  int? _peerAccountId;
+  bool _peerIsContact = true;
+  bool _contactBusy = false;
 
   @override
   void initState() {
@@ -83,6 +87,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     _load();
     if (widget.conversation['type'] == 'group') {
       _loadConversation();
+    } else {
+      _loadContactState();
     }
     _poll = Timer.periodic(const Duration(seconds: 5), (_) => _pollNew());
   }
@@ -282,6 +288,47 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     });
   }
 
+  Future<void> _loadContactState() async {
+    final peer = widget.conversation['peer'];
+    if (peer is! Map) return;
+    final accountId = peer['account_id'];
+    if (accountId is! int) return;
+    try {
+      final data = await context.read<AuthStore>().api.get('contacts');
+      final contacts = data is Map && data['data'] is List
+          ? (data['data'] as List).whereType<Map>()
+          : const <Map>[];
+      final isContact = contacts.any((item) => item['account_id'] == accountId);
+      if (!mounted) return;
+      setState(() {
+        _peerAccountId = accountId;
+        _peerIsContact = isContact;
+      });
+    } catch (_) {
+      // Contact state is best-effort.
+    }
+  }
+
+  Future<void> _addPeerContact() async {
+    final accountId = _peerAccountId;
+    if (accountId == null || _contactBusy) return;
+    setState(() => _contactBusy = true);
+    try {
+      await context.read<AuthStore>().api.post('contacts', {
+        'account_id': accountId,
+      });
+      if (!mounted) return;
+      setState(() => _peerIsContact = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kontak ditambahkan.')),
+      );
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    } finally {
+      if (mounted) setState(() => _contactBusy = false);
+    }
+  }
+
   Future<void> _openGroupMap() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -352,6 +399,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final auth = context.watch<AuthStore>();
     final isGroup = widget.conversation['type'] == 'group';
     final peer = widget.conversation['peer'];
+    final peerMap = peer is Map ? Map<String, dynamic>.from(peer) : null;
     final title = isGroup
         ? (_groupTitle?.isNotEmpty == true
             ? _groupTitle!
@@ -418,6 +466,36 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               icon: const Icon(Icons.map_outlined),
               tooltip: 'Peta anggota',
             ),
+          ] else ...[
+            if (_peerAccountId != null && !_peerIsContact)
+              IconButton(
+                onPressed: _contactBusy ? null : _addPeerContact,
+                icon: const Icon(Icons.person_add_alt_1),
+                tooltip: 'Tambah ke kontak',
+              ),
+            if (peerMap != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 2, right: 6),
+                child: GestureDetector(
+                  onTap: () {
+                    final accountId = peerMap['account_id'];
+                    if (accountId is! int) return;
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => PersonalProfileScreen(
+                          accountId: accountId,
+                          initialName: '${peerMap['display_name'] ?? ''}',
+                        ),
+                      ),
+                    );
+                  },
+                  child: AccountAvatar(
+                    account: peerMap,
+                    radius: 18,
+                    token: auth.api.accessToken,
+                  ),
+                ),
+              ),
           ],
         ],
       ),
@@ -496,6 +574,18 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final bubbleColor = mine
+        ? (dark ? scheme.primaryContainer : scheme.primary)
+        : scheme.surfaceContainerHighest;
+    final bubbleTextColor = mine
+        ? (dark ? scheme.onPrimaryContainer : Colors.white)
+        : scheme.onSurface;
+    final bubbleMetaColor = mine
+        ? (dark
+            ? scheme.onPrimaryContainer.withValues(alpha: 0.7)
+            : Colors.white70)
+        : scheme.onSurfaceVariant;
     final deleted = message['deleted_at'] != null;
     final type = '${message['type'] ?? 'text'}';
     final mediaId = message['media_id'];
@@ -506,8 +596,10 @@ class _MessageBubble extends StatelessWidget {
 
     Widget content;
     if (deleted) {
-      content = const Text('Pesan dihapus',
-          style: TextStyle(fontStyle: FontStyle.italic));
+      content = Text(
+        'Pesan dihapus',
+        style: TextStyle(fontStyle: FontStyle.italic, color: bubbleTextColor),
+      );
     } else if (type == 'image' && mediaId != null) {
       content = ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -535,7 +627,7 @@ class _MessageBubble extends StatelessWidget {
     } else {
       content = Text(
         '${message['body'] ?? ''}',
-        style: TextStyle(color: mine ? Colors.white : scheme.onSurface),
+        style: TextStyle(color: bubbleTextColor),
       );
     }
 
@@ -548,7 +640,7 @@ class _MessageBubble extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.fromLTRB(12, 9, 12, 7),
         decoration: BoxDecoration(
-          color: mine ? scheme.primary : scheme.surfaceContainerHighest,
+          color: bubbleColor,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -577,7 +669,7 @@ class _MessageBubble extends StatelessWidget {
               chatMessageTime(message['created_at']),
               style: TextStyle(
                 fontSize: 10,
-                color: mine ? Colors.white70 : Colors.black45,
+                color: bubbleMetaColor,
               ),
             ),
           ],

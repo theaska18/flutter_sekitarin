@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.4+20 | Feed posts and direct-chat rows now show the poster/peer profile photo (backend peer payload includes handle + avatar); new Contacts list screen replaces the empty search page, with add-contact FAB; direct chat offers “add to contact” when the peer is not saved; sent bubbles use a darker container in dark mode with readable metadata text. |
 | 2026-11-27 | 0.12.3+19 | In-app update shows download progress (percentage, MB downloaded/total, status, cancel/close) before opening the installer; header/login logo now uses the blue app icon (`assets/brand/app_icon.png`) instead of the custom teal mark. |
 | 2026-11-27 | 0.12.2+18 | Per-group location sharing switch in Group Info (profile-level toggle removed); any member can change the group photo; group chat always shows the group avatar at the top-right with the standard back button restored; contacts button only on the Chat tab; chat badge clears server-side when the Chat tab is opened; unread chats highlighted with bold text + badge; Sekitarin logo on the home header and login screen. |
 | 2026-11-27 | 0.12.1+17 | Chat list uses relative “time ago”; chat room adds sticky date headers (day+month, or day+month+year across years) and message timestamps show minutes-ago under 60 minutes, then wall-clock `HH:mm`. |
