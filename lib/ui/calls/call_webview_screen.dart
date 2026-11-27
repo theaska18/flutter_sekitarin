@@ -176,103 +176,142 @@ class _CallWebViewScreenState extends State<CallWebViewScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final topInset = MediaQuery.of(context).padding.top;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _confirmEnd();
       },
       child: Scaffold(
-        appBar: AppBar(
-          title:
-              Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-          actions: [
-            IconButton(
-              onPressed: _confirmEnd,
-              icon: const Icon(Icons.call_end),
-              tooltip: 'Akhiri panggilan',
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: _failed
+                  ? ColoredBox(
+                      color: scheme.surface,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.videocam_off_outlined,
+                                  size: 48, color: scheme.error),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Panggilan tidak dapat dibuka di aplikasi.',
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              FilledButton.icon(
+                                onPressed: _openInBrowser,
+                                icon: const Icon(Icons.open_in_browser),
+                                label: const Text('Buka di browser'),
+                              ),
+                              const SizedBox(height: 8),
+                              TextButton(
+                                onPressed: () => setState(() {
+                                  _failed = false;
+                                }),
+                                child: const Text('Coba lagi'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  : InAppWebView(
+                      initialUrlRequest: URLRequest(url: WebUri(_url)),
+                      initialSettings: InAppWebViewSettings(
+                        mediaPlaybackRequiresUserGesture: false,
+                        javaScriptEnabled: true,
+                        domStorageEnabled: true,
+                        databaseEnabled: true,
+                        allowsInlineMediaPlayback: true,
+                        useHybridComposition: true,
+                        supportMultipleWindows: false,
+                        thirdPartyCookiesEnabled: true,
+                        isInspectable: false,
+                        clearCache: false,
+                      ),
+                      onWebViewCreated: (controller) {
+                        _controller = controller;
+                      },
+                      onLoadStop: (controller, url) {
+                        if (!_watched) {
+                          _watched = true;
+                          _joinedAt = DateTime.now();
+                          _startWatch();
+                        }
+                      },
+                      onPermissionRequest: (controller, request) async {
+                        final statuses = await [
+                          Permission.microphone,
+                          Permission.camera,
+                        ].request();
+                        final granted = <PermissionResourceType>[];
+                        if (statuses[Permission.microphone]?.isGranted ==
+                            true) {
+                          granted.add(PermissionResourceType.MICROPHONE);
+                        }
+                        if (statuses[Permission.camera]?.isGranted == true) {
+                          granted.add(PermissionResourceType.CAMERA);
+                        }
+                        return PermissionResponse(
+                          resources: granted,
+                          action: granted.isEmpty
+                              ? PermissionResponseAction.DENY
+                              : PermissionResponseAction.GRANT,
+                        );
+                      },
+                      onReceivedError: (controller, request, error) {
+                        if (request.isForMainFrame == true) {
+                          setState(() => _failed = true);
+                        }
+                      },
+                    ),
             ),
+            if (!_failed)
+              Positioned(
+                top: topInset + 6,
+                left: 6,
+                child: _OverlayIconButton(
+                  icon: Icons.arrow_back,
+                  tooltip: 'Akhiri panggilan',
+                  onPressed: _confirmEnd,
+                ),
+              ),
           ],
         ),
-        body: _failed
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.videocam_off_outlined,
-                          size: 48, color: scheme.error),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Panggilan tidak dapat dibuka di aplikasi.',
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        onPressed: _openInBrowser,
-                        icon: const Icon(Icons.open_in_browser),
-                        label: const Text('Buka di browser'),
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: () => setState(() {
-                          _failed = false;
-                        }),
-                        child: const Text('Coba lagi'),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            : InAppWebView(
-                initialUrlRequest: URLRequest(url: WebUri(_url)),
-                initialSettings: InAppWebViewSettings(
-                  mediaPlaybackRequiresUserGesture: false,
-                  javaScriptEnabled: true,
-                  domStorageEnabled: true,
-                  databaseEnabled: true,
-                  allowsInlineMediaPlayback: true,
-                  useHybridComposition: true,
-                  supportMultipleWindows: false,
-                  thirdPartyCookiesEnabled: true,
-                  isInspectable: false,
-                  clearCache: false,
-                ),
-                onWebViewCreated: (controller) {
-                  _controller = controller;
-                },
-                onLoadStop: (controller, url) {
-                  if (!_watched) {
-                    _watched = true;
-                    _joinedAt = DateTime.now();
-                    _startWatch();
-                  }
-                },
-                onPermissionRequest: (controller, request) async {
-                  final statuses = await [
-                    Permission.microphone,
-                    Permission.camera,
-                  ].request();
-                  final granted = <PermissionResourceType>[];
-                  if (statuses[Permission.microphone]?.isGranted == true) {
-                    granted.add(PermissionResourceType.MICROPHONE);
-                  }
-                  if (statuses[Permission.camera]?.isGranted == true) {
-                    granted.add(PermissionResourceType.CAMERA);
-                  }
-                  return PermissionResponse(
-                    resources: granted,
-                    action: granted.isEmpty
-                        ? PermissionResponseAction.DENY
-                        : PermissionResponseAction.GRANT,
-                  );
-                },
-                onReceivedError: (controller, request, error) {
-                  if (request.isForMainFrame == true) {
-                    setState(() => _failed = true);
-                  }
-                },
-              ),
+      ),
+    );
+  }
+}
+
+class _OverlayIconButton extends StatelessWidget {
+  const _OverlayIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.35),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(icon, color: Colors.white, size: 20),
+        ),
       ),
     );
   }
