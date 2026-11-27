@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.26+42 | Opening a chat marks that conversation read (incl. cached messages) and clears only its notification; chat list reloads on app resume; personal online dots derive from recent location/presence (2 min); business status dots reflect `is_active`. |
 | 2026-11-27 | 0.12.25+41 | Reactions/copy on long-press, per-user/full message delete, group last-sender preview, compact bubble timestamps, faded deleted text, online/active dots for personal+business accounts in chat/contacts, login/settings cleanup, and chat badge suppression while on Chat tab. |
 | 2026-11-27 | 0.12.24+40 | Release build: notification channel with sound/high priority; direct typing shows no name; chat scrolls above keyboard; touch sound + bubble fade/slide animation; full-bleed chat list; message status ticks (clock/sent/delivered/read); optimistic sending; long-press delete for me/everyone. Signed with debug key for internal testing. |
 | 2026-11-27 | 0.12.23+39 | Fix login/register payload: `_devicePayload` is async and must be awaited, otherwise JSON encoding fails with “Instance of Future<Map>” and login never reaches the server. |
