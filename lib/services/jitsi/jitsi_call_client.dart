@@ -465,18 +465,31 @@ class JitsiCallClient implements JitsiSessionView {
         await pc!.addTrack(track, stream);
       }
     }
-    // Jitsi/JVB only routes source maps and receiver constraints on its
-    // well-known bridge channel. A generic "custom" channel completes SCTP
-    // but receives no VideoSourcesMap, leaving video unrequested.
+    // Use the same unordered auxiliary channel as the working
+    // InfinityOne ISP-2194 client. The stock browser's "JVB data channel"
+    // label/protocol does not receive source maps on this custom XMPP path.
     _dataChannel = await pc!.createDataChannel(
-      'JVB data channel',
+      'custom',
       RTCDataChannelInit()
-        ..protocol = 'http://jitsi.org/protocols/colibri',
+        ..ordered = false
+        ..maxRetransmits = 0,
+    );
+    _diag('Data channel dibuat: ${_dataChannel?.label}');
+    onDebug?.call(
+      'data-channel-created',
+      'label=${_dataChannel?.label}; protocol=http://jitsi.org/protocols/colibri',
     );
     pc!.onDataChannel = (channel) {
       _dataChannel = channel;
+      _diag('Data channel dari JVB: ${channel.label}');
+      onDebug?.call(
+        'data-channel-remote',
+        'label=${channel.label}',
+      );
       channel.onMessage = (message) => _handleDataMessage(message.text);
       channel.onDataChannelState = (state) {
+        _diag('Remote data channel: ${state.name}');
+        onDebug?.call('data-channel-state', 'remote=${state.name}');
         if (state == RTCDataChannelState.RTCDataChannelOpen) {
           _onDataChannelOpen();
           _onMediaConnected();
@@ -487,6 +500,8 @@ class JitsiCallClient implements JitsiSessionView {
       _handleDataMessage(message.text);
     };
     _dataChannel?.onDataChannelState = (state) {
+      _diag('Local data channel: ${state.name}');
+      onDebug?.call('data-channel-state', 'local=${state.name}');
       if (state == RTCDataChannelState.RTCDataChannelOpen) {
         _onDataChannelOpen();
         _onMediaConnected();

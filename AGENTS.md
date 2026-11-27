@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.54+70 | Use the exact unordered `custom` Colibri auxiliary data channel from ISP-2194 (the browser-only JVB label produced no source-map events in our native client); request bridge + participant sources and upload data-channel state diagnostics. |
 | 2026-11-27 | 0.12.53+69 | Use Jitsi's required `JVB data channel` label and Colibri protocol; explicitly request the bridge video source (`jvb-v0`) while also requesting mapped participant sources. |
 | 2026-11-27 | 0.12.52+68 | Keep receive-only video in the Jingle answer and map it to `senders=initiator`; fix CallKit end-event race that could decline an answered call, dedupe active CallKit IDs, and mark CallKit connected only after media opens. |
 | 2026-11-27 | 0.12.51+67 | Keep recvonly video in Jingle session-accept (without requiring local video SSRC), mark it `senders=initiator`, and retain per-m-line audio/video/data ICE credentials. Added regression test. |
