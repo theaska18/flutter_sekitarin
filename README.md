@@ -8,6 +8,9 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
 - Chat direct/grup, buat grup, kelola anggota, ganti nama/foto grup, kirim teks,
   read receipt, penanda **sedang mengetik** (direct & grup), WebSocket + polling
   fallback. Nama pengirim grup diambil dari anggota asli, bukan judul grup.
+  Daftar chat memakai waktu relatif (“time ago”); di dalam chat ada header
+  tanggal *sticky* (tanggal + bulan, atau + tahun bila beda tahun) dan jam pesan
+  memakai “x menit lalu” hingga 60 menit lalu `HH:mm`.
 - Ketuk nama grup untuk membuka **Info grup**; ikon peta di kanan atas membuka
   **peta anggota** yang hanya menampilkan anggota yang menyetujui share lokasi,
   lengkap dengan tombol bagikan lokasi 10 menit.

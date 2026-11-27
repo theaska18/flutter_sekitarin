@@ -294,6 +294,59 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     if (mounted) _loadConversation();
   }
 
+  List<Widget> _buildMessageSlivers(
+    BuildContext context,
+    dynamic myId,
+    String? token,
+  ) {
+    final groups = <DateTime, List<Map<String, dynamic>>>{};
+    for (final message in _messages) {
+      final created = DateTime.tryParse('${message['created_at']}')?.toLocal();
+      final day = created == null
+          ? DateTime.now()
+          : DateTime(created.year, created.month, created.day);
+      groups.putIfAbsent(day, () => <Map<String, dynamic>>[]).add(message);
+    }
+    final scheme = Theme.of(context).colorScheme;
+    final slivers = <Widget>[];
+    groups.forEach((day, messages) {
+      slivers.add(
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _ChatDayHeaderDelegate(
+            label: chatDateLabel(day.toIso8601String()),
+            background: Theme.of(context).scaffoldBackgroundColor,
+            foreground: scheme.onSurfaceVariant,
+            chip: scheme.surfaceContainerHighest,
+          ),
+        ),
+      );
+      slivers.add(
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final message = messages[index];
+                final mine = message['sender_user_id'] == myId;
+                return _MessageBubble(
+                  message: message,
+                  mine: mine,
+                  token: token,
+                  senderName: mine
+                      ? null
+                      : _memberNames[message['sender_user_id'] as int?],
+                );
+              },
+              childCount: messages.length,
+            ),
+          ),
+        ),
+      );
+    });
+    return slivers;
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStore>();
@@ -371,23 +424,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    controller: _scroll,
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final message = _messages[index];
-                      final mine = message['sender_user_id'] == myId;
-                      return _MessageBubble(
-                        message: message,
-                        mine: mine,
-                        token: auth.api.accessToken,
-                        senderName: mine
-                            ? null
-                            : _memberNames[message['sender_user_id'] as int?],
-                      );
-                    },
-                  ),
+                : _messages.isEmpty
+                    ? const Center(child: Text('Belum ada pesan'))
+                    : CustomScrollView(
+                        controller: _scroll,
+                        slivers: _buildMessageSlivers(
+                          context,
+                          myId,
+                          auth.api.accessToken,
+                        ),
+                      ),
           ),
           SafeArea(
             top: false,
@@ -526,7 +572,7 @@ class _MessageBubble extends StatelessWidget {
             content,
             const SizedBox(height: 3),
             Text(
-              formatWhen(message['created_at']),
+              chatMessageTime(message['created_at']),
               style: TextStyle(
                 fontSize: 10,
                 color: mine ? Colors.white70 : Colors.black45,
@@ -536,5 +582,60 @@ class _MessageBubble extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _ChatDayHeaderDelegate extends SliverPersistentHeaderDelegate {
+  _ChatDayHeaderDelegate({
+    required this.label,
+    required this.background,
+    required this.foreground,
+    required this.chip,
+  });
+
+  final String label;
+  final Color background;
+  final Color foreground;
+  final Color chip;
+
+  @override
+  double get minExtent => 38;
+
+  @override
+  double get maxExtent => 38;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(
+      color: background,
+      alignment: Alignment.center,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+        decoration: BoxDecoration(
+          color: chip,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: foreground,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _ChatDayHeaderDelegate oldDelegate) {
+    return oldDelegate.label != label ||
+        oldDelegate.background != background ||
+        oldDelegate.foreground != foreground ||
+        oldDelegate.chip != chip;
   }
 }

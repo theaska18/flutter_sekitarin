@@ -145,7 +145,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                formatWhen(item['last_message_at']),
+                                timeAgo(item['last_message_at']),
                                 style: Theme.of(context).textTheme.labelSmall,
                               ),
                               if (unread > 0) ...[

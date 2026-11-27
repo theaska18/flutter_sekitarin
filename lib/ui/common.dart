@@ -88,6 +88,42 @@ String timeAgo(dynamic iso) {
   return '${diff.inDays ~/ 365} tahun lalu';
 }
 
+const _indonesianMonths = [
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
+];
+
+/// Sticky chat date label: "27 November", or "27 November 2025" when the
+/// date is not in the current year.
+String chatDateLabel(dynamic iso) {
+  final parsed = DateTime.tryParse('$iso')?.toLocal();
+  if (parsed == null) return '';
+  final month = _indonesianMonths[parsed.month - 1];
+  final label = '${parsed.day} $month';
+  return parsed.year == DateTime.now().year ? label : '$label ${parsed.year}';
+}
+
+/// Message time: relative while under 60 minutes, then the wall clock
+/// ("02:30"). The date is provided by the sticky day header.
+String chatMessageTime(dynamic iso) {
+  if (iso == null) return '';
+  final parsed = DateTime.tryParse('$iso')?.toLocal();
+  if (parsed == null) return '';
+  final diff = DateTime.now().difference(parsed);
+  if (!diff.isNegative && diff.inMinutes < 60) return timeAgo(iso);
+  return DateFormat('HH:mm').format(parsed);
+}
+
 String formatWhen(dynamic iso) {
   if (iso == null) return '';
   final parsed = DateTime.tryParse('$iso')?.toLocal();
