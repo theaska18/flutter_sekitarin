@@ -49,7 +49,7 @@ class AppConfig {
       String.fromEnvironment('FIREBASE_STORAGE_BUCKET');
   static const String firebaseIosBundleId = String.fromEnvironment(
     'FIREBASE_IOS_BUNDLE_ID',
-    defaultValue: 'net.emetrotel.sekitarApp',
+    defaultValue: 'com.kamal.sekitarin',
   );
 
   static bool get firebaseConfigured =>

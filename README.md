@@ -153,9 +153,11 @@ tidak diberikan** (aplikasi tetap berjalan normal).
 4. Setelah login, aplikasi otomatis meminta izin notifikasi dan mengirim FCM
    token ke `/me/push-token`. Tap notifikasi chat membuka percakapan terkait.
 
-Tanpa `google-services.json`/`GoogleService-Info.plist`, aplikasi memakai
-`FirebaseOptions` dari `--dart-define` di atas. iOS tetap memerlukan capability
-**Push Notifications** dan APNs key di Firebase.
+Repo sudah menyiapkan iOS: bundle `com.kamal.sekitarin`,
+`ios/Runner/GoogleService-Info.plist` (di-ignore Git), entitlements
+`aps-environment`, dan Background Mode **remote-notification**. Yang masih wajib
+dilakukan di sisi Apple/Firebase: upload **APNs Auth Key (.p8)** ke Firebase,
+set Development Team di Xcode, lalu build & signing di macOS.
 
 ## Update aplikasi
 
