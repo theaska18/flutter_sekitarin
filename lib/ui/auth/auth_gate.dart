@@ -33,6 +33,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       auth.retryBootstrap();
     } else if (auth.signedIn) {
       auth.reconnectRealtime();
+      auth.registerPushToken();
       auth.refresh();
     }
   }

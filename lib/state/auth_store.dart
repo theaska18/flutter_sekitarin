@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../core/api_client.dart';
 import '../core/api_exception.dart';
@@ -39,6 +40,8 @@ class AuthStore extends ChangeNotifier {
   StreamSubscription? _pushForegroundSub;
   StreamSubscription? _pushTokenSub;
   Timer? _badgeRefreshDebounce;
+  Timer? _pushRetryTimer;
+  int _pushRetryCount = 0;
   Timer? _realtimeTimer;
   bool _realtimeBusy = false;
   bool _locationConsent = false;
@@ -62,10 +65,29 @@ class AuthStore extends ChangeNotifier {
     });
   }
 
-  Future<void> _registerPushToken() async {
-    if (!signedIn) return;
+  Future<bool> registerPushToken() async {
+    if (!signedIn) return false;
     final token = await PushService.getToken();
-    if (token != null) await _savePushToken(token);
+    if (token == null || token.isEmpty) return false;
+    try {
+      await api.post('me/push-token', {'push_token': token});
+      _pushRetryCount = 0;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _registerPushToken() async {
+    final registered = await registerPushToken();
+    if (registered || !signedIn) return;
+    // Firebase may not be ready on the first frame; retry briefly.
+    _pushRetryTimer?.cancel();
+    if (_pushRetryCount >= 5) return;
+    _pushRetryCount++;
+    _pushRetryTimer = Timer(const Duration(seconds: 10), () {
+      _registerPushToken();
+    });
   }
 
   Future<void> _savePushToken(String token) async {
@@ -273,6 +295,7 @@ class AuthStore extends ChangeNotifier {
     _pushForegroundSub?.cancel();
     _pushTokenSub?.cancel();
     _badgeRefreshDebounce?.cancel();
+    _pushRetryTimer?.cancel();
     _realtimeTimer?.cancel();
     super.dispose();
   }
@@ -386,11 +409,19 @@ class AuthStore extends ChangeNotifier {
     await ws.disconnect();
   }
 
-  Map<String, dynamic> _devicePayload() => {
-        'device_uuid': store.deviceUuid,
-        'platform': devicePlatform,
-        'app_version': '0.11.3',
-      };
+  Future<Map<String, dynamic>> _devicePayload() async {
+    String version = '';
+    try {
+      version = (await PackageInfo.fromPlatform()).version;
+    } catch (_) {
+      // Keep an empty version when package info is unavailable.
+    }
+    return {
+      'device_uuid': store.deviceUuid,
+      'platform': devicePlatform,
+      'app_version': version,
+    };
+  }
 
   List<Map<String, dynamic>> _accountList(dynamic raw) {
     if (raw is! List) return [];

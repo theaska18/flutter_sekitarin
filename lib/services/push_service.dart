@@ -31,6 +31,8 @@ class PushService {
 
   static bool get configured => AppConfig.firebaseConfigured;
 
+  static bool get ready => _initialized;
+
   static Future<void> _initializeFirebase() async {
     if (AppConfig.firebaseConfigured) {
       await Firebase.initializeApp(options: options);
