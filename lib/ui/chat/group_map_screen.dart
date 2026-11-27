@@ -35,8 +35,19 @@ class _GroupMapScreenState extends State<GroupMapScreen> {
   @override
   void initState() {
     super.initState();
+    _centerOnMe();
     _load();
     _poll = Timer.periodic(const Duration(seconds: 10), (_) => _load());
+  }
+
+  Future<void> _centerOnMe() async {
+    final position = await LocationService.current();
+    if (!mounted || position == null) return;
+    final target = LatLng(position.latitude, position.longitude);
+    setState(() => _center = target);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _mapController.move(target, 15);
+    });
   }
 
   @override
@@ -62,12 +73,6 @@ class _GroupMapScreenState extends State<GroupMapScreen> {
       setState(() {
         _locations = items;
         _sharing = mine.isNotEmpty;
-        if (items.isNotEmpty) {
-          _center = LatLng(
-            (items.first['lat'] as num).toDouble(),
-            (items.first['lng'] as num).toDouble(),
-          );
-        }
       });
     } catch (error) {
       if (mounted) showErrorSnack(context, error);
@@ -79,13 +84,6 @@ class _GroupMapScreenState extends State<GroupMapScreen> {
   Future<void> _toggleShare() async {
     if (_busy) return;
     final auth = context.read<AuthStore>();
-    if (!auth.locationConsent) {
-      showErrorSnack(
-        context,
-        'Aktifkan “Bagikan lokasi” di Profil/Setelan terlebih dahulu.',
-      );
-      return;
-    }
     setState(() => _busy = true);
     try {
       if (_sharing) {
@@ -93,6 +91,10 @@ class _GroupMapScreenState extends State<GroupMapScreen> {
           'conversations/${widget.conversationId}/live-location',
         );
       } else {
+        await auth.api.put('me/consents/location', {
+          'granted': true,
+          'policy_version': '1.0',
+        });
         final position = await LocationService.current();
         if (position == null) {
           throw Exception('Lokasi GPS tidak tersedia.');
@@ -102,9 +104,11 @@ class _GroupMapScreenState extends State<GroupMapScreen> {
           {
             'lat': position.latitude,
             'lng': position.longitude,
-            'expires_in': 600,
+            'expires_in': 3600,
           },
         );
+        await auth.refresh();
+        await _centerOnMe();
       }
       await _load();
     } catch (error) {
@@ -210,6 +214,16 @@ class _GroupMapScreenState extends State<GroupMapScreen> {
                   ),
                 ),
                 Positioned(
+                  right: 16,
+                  bottom: 82,
+                  child: FloatingActionButton.small(
+                    heroTag: 'group-map-my-location',
+                    onPressed: _centerOnMe,
+                    tooltip: 'Kembali ke lokasi saya',
+                    child: const Icon(Icons.my_location),
+                  ),
+                ),
+                Positioned(
                   left: 16,
                   right: 16,
                   bottom: 20,
@@ -221,7 +235,7 @@ class _GroupMapScreenState extends State<GroupMapScreen> {
                     label: Text(
                       _sharing
                           ? 'Berhenti bagikan lokasi'
-                          : 'Bagikan lokasi saya (10 menit)',
+                          : 'Bagikan lokasi saya (1 jam)',
                     ),
                   ),
                 ),

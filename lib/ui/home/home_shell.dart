@@ -69,7 +69,7 @@ class _HomeShellState extends State<HomeShell> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SekitarinLogo(height: 24),
+            const SekitarinLogo(height: 24, showWordmark: false),
             const SizedBox(width: 10),
             Container(
               width: 1,

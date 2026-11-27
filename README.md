@@ -16,7 +16,8 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
   anggota** yang hanya menampilkan anggota yang menyetujui share lokasi.
 - **Bagikan lokasi diatur per grup** dari Info grup, jadi grup lain bisa
   ditolak. Foto grup dapat diganti oleh anggota mana pun; nama grup tetap
-  khusus owner.
+  khusus owner. Peta grup terbuka di posisi Anda sendiri dan punya tombol
+  kembali ke lokasi saya.
 - Logo Sekitarin tampil di header beranda (kiri atas) dan layar login.
 - **Kontak**: ikon kontak di topbar (khusus tab Chat) membuka daftar kontak;
   tambah kontak lewat username. Di chat personal yang belum tersimpan sebagai
