@@ -334,6 +334,7 @@ class JitsiCallClient implements JitsiSessionView {
       '<c hash="sha-1" node="https://jitsi.org/jitsi-meet" ver="$caps" xmlns="http://jabber.org/protocol/caps"/>'
       '<features><feature var="https://jitsi.org/meet/e2ee"/></features>'
       '<jitsi_participant_codecList>vp9,h264,vp8,av1</jitsi_participant_codecList>'
+      '<SourceInfo>{"$nick-a0":{"muted":$audioMuted},"$nick-v0":{"muted":$videoMuted}}</SourceInfo>'
       '<nick xmlns="http://jabber.org/protocol/nick">$displayName</nick>'
       '<p2p xmlns="http://jitsi.org/protocol/p2p"><enabled>false</enabled><stun>false</stun><turn>false</turn><backToP2PDelay>0</backToP2PDelay></p2p>'
       '<videomuted>$videoMuted</videomuted>'
