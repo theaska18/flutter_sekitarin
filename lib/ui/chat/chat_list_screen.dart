@@ -19,7 +19,9 @@ import 'new_chat_sheet.dart';
 final ValueNotifier<int> chatListRefreshTick = ValueNotifier<int>(0);
 
 class ChatListScreen extends StatefulWidget {
-  const ChatListScreen({super.key});
+  const ChatListScreen({super.key, this.active = true});
+
+  final bool active;
 
   @override
   State<ChatListScreen> createState() => _ChatListScreenState();
@@ -43,11 +45,28 @@ class _ChatListScreenState extends State<ChatListScreen> {
     chatListRefreshTick.addListener(_load);
     _ws = context.read<AuthStore>().ws;
     _wsSub = _ws.events.listen(_onWsEvent);
-    _presencePoll = Timer.periodic(
+    if (widget.active) _startPresencePoll();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active == oldWidget.active) return;
+    if (widget.active) {
+      _load();
+      _startPresencePoll();
+    } else {
+      _presencePoll?.cancel();
+      _presencePoll = null;
+    }
+  }
+
+  void _startPresencePoll() {
+    _presencePoll ??= Timer.periodic(
       const Duration(seconds: 30),
       (_) => _load(),
     );
-    _load();
   }
 
   @override

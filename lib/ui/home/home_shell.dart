@@ -213,11 +213,11 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       ),
       body: IndexedStack(
         index: _index,
-        children: const [
-          ChatListScreen(),
-          MapScreen(),
-          FeedScreen(),
-          CallLogScreen(),
+        children: [
+          ChatListScreen(active: _index == 0),
+          MapScreen(active: _index == 1),
+          const FeedScreen(),
+          const CallLogScreen(),
         ],
       ),
       bottomNavigationBar: NavigationBar(

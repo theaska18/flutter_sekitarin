@@ -13,7 +13,9 @@ import '../orders/provider_screen.dart';
 import '../widgets/theme_map_tile_layer.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  const MapScreen({super.key, this.active = true});
+
+  final bool active;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -37,8 +39,27 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    _refresh();
-    _poll = Timer.periodic(
+    if (widget.active) {
+      _refresh();
+      _startPoll();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant MapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active == oldWidget.active) return;
+    if (widget.active) {
+      _refresh();
+      _startPoll();
+    } else {
+      _poll?.cancel();
+      _poll = null;
+    }
+  }
+
+  void _startPoll() {
+    _poll ??= Timer.periodic(
       const Duration(seconds: 10),
       (_) => _loadPlaces(showLoading: false),
     );

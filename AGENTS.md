@@ -105,6 +105,8 @@ the manifest and downloads/installs the APK.
 - **Connection retry:** when a stored session cannot reach the server (e.g. right
   after the screen wakes up), the retry screen auto-retries every 3 seconds; do
   not log the user out for network errors.
+- **Battery:** map and chat-list polling run only while their tab is active;
+  chat rooms poll only when the WebSocket is disconnected (WS is primary).
 - **Chat badge:** never show the bottom Chat badge while the Chat tab is
   selected; chat notifications received while the Chat tab is active are marked
   read (also when leaving the tab). Opening a conversation marks only that

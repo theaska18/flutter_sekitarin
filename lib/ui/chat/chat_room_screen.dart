@@ -196,7 +196,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     } else {
       _loadContactState();
     }
-    _poll = Timer.periodic(const Duration(seconds: 5), (_) => _pollNew());
+    _poll = Timer.periodic(const Duration(seconds: 5), (_) {
+      // Poll only as a fallback; WebSocket is the primary transport.
+      if (!_ws.connected) _pollNew();
+    });
   }
 
   void _onInputFocus() {
