@@ -15,7 +15,7 @@ import 'push_service.dart';
 
 /// Voice/video calls: direct calls ring through CallKit, group calls are only
 /// advertised inside their conversation.
-class CallService extends ChangeNotifier {
+class CallService extends ChangeNotifier with WidgetsBindingObserver {
   CallService._();
 
   static final CallService instance = CallService._();
@@ -34,6 +34,8 @@ class CallService extends ChangeNotifier {
   int? _activeMeetCallId;
   Timer? _heartbeat;
   bool _clearedStaleCallkit = false;
+  bool _foreground = true;
+  final Set<int> _seenIncoming = {};
 
   /// Navigation handle so calls can be opened from background events.
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -58,6 +60,7 @@ class CallService extends ChangeNotifier {
     _auth = auth;
     if (_attached) return;
     _attached = true;
+    WidgetsBinding.instance.addObserver(this);
     _subscriptions.add(auth.ws.events.listen(_onWsEvent));
     _subscriptions.add(PushService.foregroundMessages.listen(_onPushMessage));
     _subscriptions.add(FlutterCallkitIncoming.onEvent.listen(_onCallKitEvent));
@@ -67,6 +70,11 @@ class CallService extends ChangeNotifier {
       _pendingAccept = null;
       _acceptIncoming(pending);
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
   }
 
   Future<void> _prepareCallKit() async {
@@ -216,12 +224,25 @@ class CallService extends ChangeNotifier {
   Future<void> _presentFromData(Map<String, dynamic> data) async {
     final call = _callFromPushData(data);
     if (call == null) return;
+    final callId = _asInt(call['call_id']);
+    if (callId != null &&
+        (_seenIncoming.contains(callId) || _acceptedCalls.contains(callId))) {
+      return;
+    }
+    if (callId != null) _seenIncoming.add(callId);
     _incoming = call;
     notifyListeners();
     await _showCallKit(call);
   }
 
   Future<void> _presentIncoming(Map<String, dynamic> call) async {
+    if (!_foreground) return; // The FCM background handler rings instead.
+    final callId = _asInt(call['call_id']);
+    if (callId != null &&
+        (_seenIncoming.contains(callId) || _acceptedCalls.contains(callId))) {
+      return;
+    }
+    if (callId != null) _seenIncoming.add(callId);
     if (_incoming?['call_id'] == call['call_id']) return;
     _incoming = call;
     notifyListeners();
@@ -362,6 +383,10 @@ class CallService extends ChangeNotifier {
     if (_joining) return;
     _joining = true;
     _acceptedCalls.add(callId);
+    _seenIncoming.add(callId);
+    _incoming = null;
+    await _endCallKit(callId);
+    notifyListeners();
     try {
       final data = await auth.api.post('calls/$callId/answer');
       final call = data['call'] is Map
