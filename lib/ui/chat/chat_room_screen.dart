@@ -44,6 +44,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Timer? _typingStop;
   DateTime? _lastTypingSent;
   int? _peerAccountId;
+  int? _sendAccountId;
   bool _peerIsContact = true;
   bool _contactBusy = false;
 
@@ -51,6 +52,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   void initState() {
     super.initState();
     _ws = context.read<AuthStore>().ws;
+    _sendAccountId = widget.conversation['my_account_id'] as int?;
     _ws.subscribe(_conversationId);
     _wsSubscription = _ws.events.listen((event) {
       if (!mounted || event['conversation_id'] != _conversationId) return;
@@ -272,9 +274,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     setState(() => _sending = true);
     try {
       final data = await context.read<AuthStore>().api.post(
-        'conversations/$_conversationId/messages',
-        {'type': 'text', 'body': text},
-      );
+            'conversations/$_conversationId/messages',
+            {'type': 'text', 'body': text},
+            _sendAccountId?.toString(),
+          );
       if (data['message'] is Map) {
         final message = Map<String, dynamic>.from(data['message'] as Map);
         _upsert(message);
@@ -386,6 +389,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           'media_id': payload['media_id'],
           'body': name,
         },
+        _sendAccountId?.toString(),
       );
       if (data['message'] is Map) {
         final message = Map<String, dynamic>.from(data['message'] as Map);

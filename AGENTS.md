@@ -94,9 +94,15 @@ the manifest and downloads/installs the APK.
   icons) together when a final brand icon is ready.
 - Chat list timestamps use time-ago; never show absolute dates there.
 - **Direct chats are account-scoped.** Each pair of accounts has its own
-  conversation; the Chat tab shows threads for the active account (groups stay
-  user-level). Reply identity follows the active account, so never merge a
-  business account chat into the personal thread.
+  conversation, but the Chat tab shows **all threads in one list** (groups stay
+  user-level). Do not add an active-account filter or a “Chat sebagai …” chip.
+  Direct rows are rendered from `my_account` + `peer`:
+  - message received by my business account → my business avatar/name `<` sender
+    avatar/name;
+  - chat I started with a business account → that business avatar/name;
+  - personal-to-personal → the other person.
+  Reply identity uses the conversation's `my_account_id`, never the globally
+  active account.
 - **Navigation:** the bottom bar has exactly four tabs — Chat, Peta, Post, Log
   Telepon. Profil is opened from the top-right header icon; Setelan is opened
   from the Profil AppBar. Do not add Profil/Setelan back to the bottom bar.

@@ -15,7 +15,7 @@ class ApiClient {
   int? activeAccountId;
   Future<bool> Function()? onUnauthorized;
 
-  Map<String, String> _headers({bool json = true}) {
+  Map<String, String> _headers({bool json = true, String? accountId}) {
     final headers = <String, String>{'Accept': 'application/json'};
     if (json) {
       headers['Content-Type'] = 'application/json';
@@ -23,33 +23,50 @@ class ApiClient {
     if (accessToken != null && accessToken!.isNotEmpty) {
       headers['Authorization'] = 'Bearer $accessToken';
     }
-    if (activeAccountId != null) {
-      headers['X-Account-Id'] = activeAccountId.toString();
+    final account = int.tryParse('${accountId ?? ''}') ?? activeAccountId;
+    if (account != null) {
+      headers['X-Account-Id'] = account.toString();
     }
     return headers;
   }
 
-  Future<dynamic> get(String path, {Map<String, String>? query}) {
-    return _send('GET', path, query: query);
+  Future<dynamic> get(
+    String path, {
+    Map<String, String>? query,
+    String? accountId,
+  }) {
+    return _send('GET', path, query: query, accountId: accountId);
   }
 
-  Future<Map<String, dynamic>> post(String path, [Object? body]) async {
-    final result = await _send('POST', path, body: body);
+  Future<Map<String, dynamic>> post(
+    String path, [
+    Object? body,
+    String? accountId,
+  ]) async {
+    final result = await _send('POST', path, body: body, accountId: accountId);
     return _asMap(result);
   }
 
-  Future<Map<String, dynamic>> patch(String path, [Object? body]) async {
-    final result = await _send('PATCH', path, body: body);
+  Future<Map<String, dynamic>> patch(
+    String path, [
+    Object? body,
+    String? accountId,
+  ]) async {
+    final result = await _send('PATCH', path, body: body, accountId: accountId);
     return _asMap(result);
   }
 
-  Future<Map<String, dynamic>> put(String path, [Object? body]) async {
-    final result = await _send('PUT', path, body: body);
+  Future<Map<String, dynamic>> put(
+    String path, [
+    Object? body,
+    String? accountId,
+  ]) async {
+    final result = await _send('PUT', path, body: body, accountId: accountId);
     return _asMap(result);
   }
 
-  Future<Map<String, dynamic>> delete(String path) async {
-    final result = await _send('DELETE', path);
+  Future<Map<String, dynamic>> delete(String path, {String? accountId}) async {
+    final result = await _send('DELETE', path, accountId: accountId);
     return _asMap(result);
   }
 
@@ -59,37 +76,44 @@ class ApiClient {
     Object? body,
     Map<String, String>? query,
     bool retried = false,
+    String? accountId,
   }) async {
     final uri = AppConfig.apiUri(path, query);
     late http.Response response;
     try {
       switch (method) {
         case 'GET':
-          response = await _http.get(uri, headers: _headers(json: false));
+          response = await _http.get(
+            uri,
+            headers: _headers(json: false, accountId: accountId),
+          );
           break;
         case 'POST':
           response = await _http.post(
             uri,
-            headers: _headers(),
+            headers: _headers(accountId: accountId),
             body: body == null ? null : jsonEncode(body),
           );
           break;
         case 'PATCH':
           response = await _http.patch(
             uri,
-            headers: _headers(),
+            headers: _headers(accountId: accountId),
             body: body == null ? null : jsonEncode(body),
           );
           break;
         case 'PUT':
           response = await _http.put(
             uri,
-            headers: _headers(),
+            headers: _headers(accountId: accountId),
             body: body == null ? null : jsonEncode(body),
           );
           break;
         case 'DELETE':
-          response = await _http.delete(uri, headers: _headers(json: false));
+          response = await _http.delete(
+            uri,
+            headers: _headers(json: false, accountId: accountId),
+          );
           break;
         default:
           throw ApiException(0, 'method_not_allowed', 'Metode tidak didukung.');
@@ -117,7 +141,14 @@ class ApiClient {
         onUnauthorized != null) {
       final refreshed = await onUnauthorized!();
       if (refreshed) {
-        return _send(method, path, body: body, query: query, retried: true);
+        return _send(
+          method,
+          path,
+          body: body,
+          query: query,
+          retried: true,
+          accountId: accountId,
+        );
       }
     }
     if (response.statusCode >= 400) {
