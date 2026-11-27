@@ -178,7 +178,7 @@ class AuthStore extends ChangeNotifier {
       final data = await api.post('auth/login', {
         'email': email.trim(),
         'password': password,
-        'device': _devicePayload(),
+        'device': await _devicePayload(),
       });
       await _applySession(data);
     } on ApiException catch (error) {
@@ -207,7 +207,7 @@ class AuthStore extends ChangeNotifier {
         'password_confirmation': passwordConfirmation,
         'display_name': displayName.trim(),
         'username': username.trim().toLowerCase(),
-        'device': _devicePayload(),
+        'device': await _devicePayload(),
       });
       await _applySession(data);
     } on ApiException catch (error) {
