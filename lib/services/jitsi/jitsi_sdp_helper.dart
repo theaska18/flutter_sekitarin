@@ -860,11 +860,29 @@ class JitsiSdpHelper {
         xmlBuffer.write('</group>');
       }
       for (final content in validContents) xmlBuffer.write(content);
-      if (session.sdpApplication != '')
-        xmlBuffer.write(await sdpToJingleXMLSimple(
+      if (session.sdpApplication != '') {
+        var dataXml = await sdpToJingleXMLSimple(
           session.sdpApplication,
           contentName: dataContentName,
-        ));
+        );
+        // The data section was built from Jicofo's offer, so its transport
+        // still carries the bridge's ICE credentials. Replace them with our
+        // own local ufrag/pwd/fingerprint, otherwise JVB authenticates its
+        // connectivity checks against the wrong credentials (401).
+        if (iceUfrag != null && icePwd != null && fingerprint != null) {
+          dataXml = dataXml
+              .replaceAll(RegExp(r'pwd="[^"]*"'), 'pwd="${_xmlAttr(icePwd)}"')
+              .replaceAll(
+                  RegExp(r'ufrag="[^"]*"'), 'ufrag="${_xmlAttr(iceUfrag)}"')
+              .replaceAll(
+                RegExp(r'<fingerprint[^>]*>[^<]*</fingerprint>'),
+                '<fingerprint hash="sha-256" setup="${_xmlAttr(finalSetup)}" '
+                'xmlns="urn:xmpp:jingle:apps:dtls:0">'
+                '${_xmlAttr(fingerprint)}</fingerprint>',
+              );
+        }
+        xmlBuffer.write(dataXml);
+      }
       xmlBuffer.write('</jingle></iq>');
       return xmlBuffer.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
     } catch (e) {

@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.48+64 | Use our local ICE credentials/fingerprint for the data content in the Jingle session-accept (it previously carried JVB's credentials from the offer, causing 401 connectivity checks and DTLS timeouts). |
 | 2026-11-27 | 0.12.47+63 | Fix duplicate incoming-call notifications: dedupe by call id across WS/FCM, suppress WS ringing while backgrounded, and dismiss the CallKit incoming UI immediately on accept. |
 | 2026-11-27 | 0.12.46+62 | Use the applied local description (not the raw createAnswer SDP) for the Jingle session-accept and escape transport attributes; fixes ICE 401/DTLS timeout when the answer credentials were not yet final. |
 | 2026-11-27 | 0.12.45+61 | Temporary call diagnostics: the client uploads the Jingle offer, remote SDP, local SDP and session-accept to `/me/call-debug` so the DTLS/media failure can be inspected server-side. |
