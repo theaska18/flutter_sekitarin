@@ -99,6 +99,14 @@ the manifest and downloads/installs the APK.
   icon at `assets/brand/app_icon.png`; replace that asset (and the launcher
   icons) together when a final brand icon is ready.
 - Chat list timestamps use time-ago; never show absolute dates there.
+- **Chat badge:** never show the bottom Chat badge while the Chat tab is
+  selected; only badge when the user is on another tab.
+- **Chat cache:** messages are cached per conversation in `ChatCache`; opening a
+  chat uses the cache and only fetches messages after the last cached id. Clear
+  the cache on logout, clear-chat, and delete/leave.
+- **Clear vs delete:** “Bersihkan pesan” is per-user (`cleared_before_message_id`)
+  and never deletes for other members. Direct “Hapus percakapan” and group
+  “Keluar grup” use the existing conversation DELETE/leave endpoint.
 - **Profile edit:** show the Edit button only for the personal account. Business
   accounts change name/photo/location from the business settings screen, not
   from the Profile edit sheet.

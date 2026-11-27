@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/ws_client.dart';
 import '../../state/auth_store.dart';
+import '../../state/chat_cache.dart';
 import '../common.dart';
 import '../widgets/account_avatar.dart';
 import '../widgets/account_type_avatar.dart';
@@ -143,6 +144,53 @@ class _ChatListScreenState extends State<ChatListScreen> {
       if (mounted) setState(() => _error = '$error');
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _chatAction(Map<String, dynamic> item, String action) async {
+    final conversationId = item['conversation_id'] as int?;
+    if (conversationId == null) return;
+    final isGroup = item['type'] == 'group';
+    final title = action == 'clear'
+        ? 'Bersihkan pesan?'
+        : isGroup
+            ? 'Keluar dari grup?'
+            : 'Hapus percakapan?';
+    final message = action == 'clear'
+        ? 'Pesan akan disembunyikan dari tampilan Anda saja. Anggota lain tidak terpengaruh.'
+        : isGroup
+            ? 'Anda akan keluar dari grup ini.'
+            : 'Percakapan akan dihapus dari daftar Anda.';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Lanjutkan'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final api = context.read<AuthStore>().api;
+    try {
+      if (action == 'clear') {
+        await api.post('conversations/$conversationId/clear');
+      } else {
+        await api.delete('conversations/$conversationId');
+      }
+      ChatCache.clear(conversationId);
+      _typingUsers.remove(conversationId);
+      await _load();
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
     }
   }
 
@@ -320,34 +368,64 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                   : (hasUnread ? scheme.onSurface : null),
                             ),
                           ),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                timeAgo(item['last_message_at']),
-                                style: Theme.of(context).textTheme.labelSmall,
-                              ),
-                              if (unread > 0) ...[
-                                const SizedBox(height: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 7, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                    borderRadius: BorderRadius.circular(10),
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    timeAgo(item['last_message_at']),
+                                    style:
+                                        Theme.of(context).textTheme.labelSmall,
                                   ),
-                                  child: Text(
-                                    '$unread',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
+                                  if (unread > 0) ...[
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '$unread',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
                                     ),
+                                  ],
+                                ],
+                              ),
+                              PopupMenuButton<String>(
+                                padding: EdgeInsets.zero,
+                                iconSize: 18,
+                                tooltip: 'Aksi chat',
+                                onSelected: (action) =>
+                                    _chatAction(item, action),
+                                itemBuilder: (_) => [
+                                  const PopupMenuItem(
+                                    value: 'clear',
+                                    child: Text('Bersihkan pesan'),
                                   ),
-                                ),
-                              ],
+                                  if (isGroup)
+                                    const PopupMenuItem(
+                                      value: 'leave',
+                                      child: Text('Keluar grup'),
+                                    )
+                                  else
+                                    const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text('Hapus percakapan'),
+                                    ),
+                                ],
+                              ),
                             ],
                           ),
                         ),

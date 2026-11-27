@@ -9,6 +9,7 @@ import '../../config.dart';
 import '../../core/ws_client.dart';
 import '../../services/media_opener.dart';
 import '../../state/auth_store.dart';
+import '../../state/chat_cache.dart';
 import '../common.dart';
 import '../profile/account_profile_route.dart';
 import '../widgets/account_avatar.dart';
@@ -95,9 +96,18 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             _messages[index]['media_id'] = null;
           });
         }
+        ChatCache.markDeleted(_conversationId, message);
       }
     });
-    _load();
+    if (ChatCache.has(_conversationId)) {
+      _messages.addAll(ChatCache.messages(_conversationId));
+      _lastId = ChatCache.lastId(_conversationId);
+      _loading = false;
+      _scrollToBottom();
+      _pollNew();
+    } else {
+      _load();
+    }
     if (widget.conversation['type'] == 'group') {
       _loadConversation();
     } else {
@@ -139,6 +149,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           ..addAll(items);
         _lastId = items.isEmpty ? 0 : items.last['message_id'] as int;
       });
+      ChatCache.save(_conversationId, _messages);
       if (items.isNotEmpty) _markRead(items.last);
       _scrollToBottom();
     } catch (error) {
@@ -250,6 +261,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       }
       if (id is int && id > _lastId) _lastId = id;
     });
+    ChatCache.upsert(_conversationId, message);
     _scrollToBottom();
   }
 

@@ -221,11 +221,11 @@ class _HomeShellState extends State<HomeShell> {
           NavigationDestination(
             icon: _badgedIcon(
               Icons.chat_bubble_outline,
-              auth.unreadChatNotifications,
+              _index == 0 ? 0 : auth.unreadChatNotifications,
             ),
             selectedIcon: _badgedIcon(
               Icons.chat_bubble,
-              auth.unreadChatNotifications,
+              _index == 0 ? 0 : auth.unreadChatNotifications,
             ),
             label: 'Chat',
           ),

@@ -10,6 +10,7 @@ import '../core/token_store.dart';
 import '../core/ws_client.dart';
 import '../services/location_service.dart';
 import '../services/push_service.dart';
+import 'chat_cache.dart';
 
 class AuthStore extends ChangeNotifier {
   AuthStore(this.api, this.store, this.ws) {
@@ -406,6 +407,7 @@ class AuthStore extends ChangeNotifier {
   }
 
   Future<void> _clearSession() async {
+    ChatCache.clearAll();
     _accessToken = null;
     _refreshToken = null;
     api.accessToken = null;
