@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.22+38 | Login diagnostics: detailed network/TLS/timeout errors and a “Tes koneksi ke server” button on the login screen showing API URL/status. |
 | 2026-11-27 | 0.12.21+37 | Force-reset FCM token from Settings to replace stale/invalid tokens (`deleteToken` + new token registration). |
 | 2026-11-27 | 0.12.20+36 | Push diagnostics: device login now reports the real app version; FCM token registration retries after login/resume; Settings shows “Notifikasi push” status and a manual re-register action. |
 | 2026-11-27 | 0.12.19+35 | Android relaunch as **Sekitarin** with package `com.kamal.sekitarin`; Firebase client config + FCM push (token registration, background notifications, notification-tap to chat), Android 13 permission; WebSocket auto-reconnect and live chat-list/badge refresh. Installing this build replaces the old `net.emetrotel` package, so the old app must be uninstalled first. |

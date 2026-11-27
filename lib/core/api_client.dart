@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -119,11 +120,30 @@ class ApiClient {
           throw ApiException(0, 'method_not_allowed', 'Metode tidak didukung.');
       }
     } on TimeoutException {
-      throw ApiException(0, 'timeout', 'Koneksi ke server timeout.');
+      throw ApiException(
+        0,
+        'timeout',
+        'Server tidak merespons (timeout). Periksa koneksi lalu coba lagi.',
+      );
+    } on HandshakeException {
+      throw ApiException(
+        0,
+        'tls_error',
+        'Koneksi HTTPS gagal. Periksa tanggal & jam HP, lalu coba lagi.',
+      );
+    } on SocketException {
+      throw ApiException(
+        0,
+        'network_error',
+        'Tidak dapat terhubung ke server (jaringan/DNS). Periksa koneksi internet.',
+      );
     } catch (error) {
       if (error is ApiException) rethrow;
       throw ApiException(
-          0, 'network_error', 'Tidak dapat terhubung ke server.');
+        0,
+        'network_error',
+        'Tidak dapat terhubung ke server: $error',
+      );
     }
 
     final text = response.body.trim();
