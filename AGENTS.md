@@ -110,6 +110,9 @@ the manifest and downloads/installs the APK.
 - **Message feedback:** play `MessageSound` for new incoming/sent messages and
   animate newly added bubbles once (fade + slide). Suppress the chat-list sound
   when that conversation is already open (`ChatPresence`).
+- **Message delete:** long-press an own message → “Hapus untuk saya”
+  (`sek_message_hidden`, per user) or “Hapus untuk semua” (soft delete + WS
+  `message.deleted`, bubble becomes “Pesan ini dihapus”).
 - **Message status:** outgoing bubbles show clock (pending), one check (sent),
   double check (delivered), double check blue (read). Sending inserts an
   optimistic pending bubble immediately; replace it with the server message.

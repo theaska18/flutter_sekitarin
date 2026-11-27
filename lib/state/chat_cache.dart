@@ -46,6 +46,12 @@ class ChatCache {
     _present.add(conversationId);
   }
 
+  static void removeMessage(int conversationId, int messageId) {
+    final list = _messages[conversationId];
+    if (list == null) return;
+    list.removeWhere((item) => item['message_id'] == messageId);
+  }
+
   static void markDeleted(int conversationId, Map<String, dynamic> message) {
     final id = message['message_id'];
     if (id is! int) return;

@@ -66,8 +66,13 @@ class ApiClient {
     return _asMap(result);
   }
 
-  Future<Map<String, dynamic>> delete(String path, {String? accountId}) async {
-    final result = await _send('DELETE', path, accountId: accountId);
+  Future<Map<String, dynamic>> delete(
+    String path, {
+    String? accountId,
+    Map<String, String>? query,
+  }) async {
+    final result =
+        await _send('DELETE', path, accountId: accountId, query: query);
     return _asMap(result);
   }
 

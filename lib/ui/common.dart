@@ -143,7 +143,7 @@ String formatWhen(dynamic iso) {
 
 String messagePreview(Map<String, dynamic>? message) {
   if (message == null) return 'Belum ada pesan';
-  if (message['deleted_at'] != null) return 'Pesan dihapus';
+  if (message['deleted_at'] != null) return 'Pesan ini dihapus';
   final type = '${message['type'] ?? 'text'}';
   switch (type) {
     case 'image':

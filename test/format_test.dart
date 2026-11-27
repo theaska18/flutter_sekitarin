@@ -12,7 +12,7 @@ void main() {
   test('messagePreview handles media and deleted messages', () {
     expect(messagePreview({'type': 'image'}), '📷 Foto');
     expect(messagePreview({'type': 'text', 'body': 'Halo'}), 'Halo');
-    expect(messagePreview({'deleted_at': '2026-01-01'}), 'Pesan dihapus');
+    expect(messagePreview({'deleted_at': '2026-01-01'}), 'Pesan ini dihapus');
   });
 
   test('timeRemaining formats countdown and expiry', () {

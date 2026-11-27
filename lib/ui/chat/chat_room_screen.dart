@@ -433,6 +433,99 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     }
   }
 
+  Future<void> _showMessageMenu(Map<String, dynamic> message) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(
+                Icons.delete_outline,
+                color: Theme.of(sheetContext).colorScheme.error,
+              ),
+              title: Text(
+                'Hapus pesan',
+                style: TextStyle(
+                  color: Theme.of(sheetContext).colorScheme.error,
+                ),
+              ),
+              onTap: () => Navigator.of(sheetContext).pop('delete'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (action != 'delete' || !mounted) return;
+    final scope = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hapus pesan ini?'),
+        content: const Text(
+          'Pilih “Hapus untuk semua” agar semua orang melihat “Pesan ini dihapus”. '
+          '“Hapus untuk saya” hanya menyembunyikan pesan dari tampilan Anda.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop('me'),
+            child: const Text('Hapus untuk saya'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop('all'),
+            child: const Text('Hapus untuk semua'),
+          ),
+        ],
+      ),
+    );
+    if (scope == null || !mounted) return;
+    await _deleteMessage(message, forEveryone: scope == 'all');
+  }
+
+  Future<void> _deleteMessage(
+    Map<String, dynamic> message, {
+    required bool forEveryone,
+  }) async {
+    final id = message['message_id'];
+    if (id is! int || id <= 0) return;
+    try {
+      await context.read<AuthStore>().api.delete(
+        'messages/$id',
+        query: {'for_everyone': forEveryone ? '1' : '0'},
+      );
+      if (!mounted) return;
+      if (forEveryone) {
+        final deletedAt = DateTime.now().toUtc().toIso8601String();
+        setState(() {
+          final index =
+              _messages.indexWhere((item) => item['message_id'] == id);
+          if (index >= 0) {
+            _messages[index]['deleted_at'] = deletedAt;
+            _messages[index]['body'] = null;
+            _messages[index]['media_id'] = null;
+          }
+        });
+        ChatCache.markDeleted(_conversationId, {
+          'message_id': id,
+          'deleted_at': deletedAt,
+        });
+      } else {
+        setState(() {
+          _messages.removeWhere((item) => item['message_id'] == id);
+        });
+        ChatCache.removeMessage(_conversationId, id);
+      }
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    }
+  }
+
   Future<void> _pickAttachment() async {
     final choice = await showModalBottomSheet<String>(
       context: context,
@@ -651,12 +744,19 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
                 final message = messages[index];
                 final mine = message['sender_user_id'] == myId;
                 final id = message['message_id'] as int?;
+                final canDelete = mine &&
+                    id != null &&
+                    id > 0 &&
+                    message['deleted_at'] == null &&
+                    message['pending'] != true;
                 return _MessageBubble(
                   key: ValueKey(id),
                   message: message,
                   mine: mine,
                   token: token,
                   animate: id != null && _incomingIds.contains(id),
+                  onLongPress:
+                      canDelete ? () => _showMessageMenu(message) : null,
                   senderName: mine
                       ? null
                       : _memberNames[message['sender_user_id'] as int?],
@@ -857,6 +957,7 @@ class _MessageBubble extends StatelessWidget {
     required this.token,
     this.senderName,
     this.animate = false,
+    this.onLongPress,
   });
 
   final Map<String, dynamic> message;
@@ -864,6 +965,7 @@ class _MessageBubble extends StatelessWidget {
   final String? token;
   final String? senderName;
   final bool animate;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -895,7 +997,7 @@ class _MessageBubble extends StatelessWidget {
     Widget content;
     if (deleted) {
       content = Text(
-        'Pesan dihapus',
+        'Pesan ini dihapus',
         style: TextStyle(fontStyle: FontStyle.italic, color: bubbleTextColor),
       );
     } else if (type == 'image' && mediaId != null) {
@@ -1027,12 +1129,15 @@ class _MessageBubble extends StatelessWidget {
         ),
       ),
     );
-    if (!animate) return body;
+    final interactive = onLongPress == null
+        ? body
+        : GestureDetector(onLongPress: onLongPress, child: body);
+    if (!animate) return interactive;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 240),
       curve: Curves.easeOut,
-      child: body,
+      child: interactive,
       builder: (context, value, child) => Opacity(
         opacity: value,
         child: Transform.translate(
