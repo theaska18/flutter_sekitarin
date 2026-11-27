@@ -5,6 +5,7 @@ import '../../config.dart';
 import '../../services/location_service.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../profile/account_profile_route.dart';
 import '../widgets/account_avatar.dart';
 import 'comments_sheet.dart';
 import 'create_post_screen.dart';
@@ -254,6 +255,19 @@ class _FeedScreenState extends State<FeedScreen> {
                     onLike: () => _toggleLike(post),
                     onComments: () => _openComments(post),
                     onOpen: () => _openDetail(post),
+                    onProfile: () {
+                      final accountId = post['account'] is Map
+                          ? (post['account'] as Map)['account_id']
+                          : null;
+                      if (accountId is int) {
+                        openAccountProfile(
+                          context,
+                          accountId,
+                          initialName: (post['account'] as Map)['display_name']
+                              as String?,
+                        );
+                      }
+                    },
                     onEdit: own ? () => _editPost(post) : null,
                     onDelete: own ? () => _deletePost(post) : null,
                   );
@@ -270,6 +284,7 @@ class _PostCard extends StatelessWidget {
     required this.onLike,
     required this.onComments,
     required this.onOpen,
+    required this.onProfile,
     this.onEdit,
     this.onDelete,
   });
@@ -278,6 +293,7 @@ class _PostCard extends StatelessWidget {
   final VoidCallback onLike;
   final VoidCallback onComments;
   final VoidCallback onOpen;
+  final VoidCallback onProfile;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
@@ -303,40 +319,48 @@ class _PostCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                AccountAvatar(
-                  account: account,
-                  radius: 17,
-                  token: token,
-                  fallbackIcon: typeIcon(type),
-                  backgroundColor: typeColor(type).withValues(alpha: 0.15),
-                  foregroundColor: typeColor(type),
+                GestureDetector(
+                  onTap: onProfile,
+                  child: AccountAvatar(
+                    account: account,
+                    radius: 17,
+                    token: token,
+                    fallbackIcon: typeIcon(type),
+                    backgroundColor: typeColor(type).withValues(alpha: 0.15),
+                    foregroundColor: typeColor(type),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${account['display_name'] ?? ''}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                  child: GestureDetector(
+                    onTap: onProfile,
+                    behavior: HitTestBehavior.opaque,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${account['display_name'] ?? ''}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      Text(
-                        '@${account['handle'] ?? ''}'
-                        '${source == 'nearby' && formatDistance(distance).isNotEmpty ? ' · ${formatDistance(distance)} dari kamu' : ''}'
-                        ' · ${timeAgo(post['created_at'])}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        Text(
+                          '@${account['handle'] ?? ''}'
+                          '${source == 'nearby' && formatDistance(distance).isNotEmpty ? ' · ${formatDistance(distance)} dari kamu' : ''}'
+                          ' · ${timeAgo(post['created_at'])}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 if (source != null)

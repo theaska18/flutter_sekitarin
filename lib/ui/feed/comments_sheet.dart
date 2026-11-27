@@ -3,8 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../state/auth_store.dart';
 import '../common.dart';
-import '../orders/provider_screen.dart';
-import '../profile/personal_profile_screen.dart';
+import '../profile/account_profile_route.dart';
 import '../widgets/account_avatar.dart';
 
 class CommentsSheet extends StatefulWidget {
@@ -102,25 +101,14 @@ class _CommentsSheetState extends State<CommentsSheet> {
                             final mine = comment['user_id'] ==
                                 context.read<AuthStore>().user?['user_id'];
                             final accountId = comment['account_id'];
-                            final isPersonal =
-                                comment['handle_scope'] != 'business';
                             return ListTile(
                               contentPadding: EdgeInsets.zero,
                               onTap: accountId is int
-                                  ? () => Navigator.of(context).push(
-                                        MaterialPageRoute<void>(
-                                          builder: (_) => isPersonal
-                                              ? PersonalProfileScreen(
-                                                  accountId: accountId,
-                                                  initialName:
-                                                      '${comment['display_name'] ?? ''}',
-                                                )
-                                              : ProviderScreen(
-                                                  accountId: accountId,
-                                                  initialName:
-                                                      '${comment['display_name'] ?? ''}',
-                                                ),
-                                        ),
+                                  ? () => openAccountProfile(
+                                        context,
+                                        accountId,
+                                        initialName:
+                                            '${comment['display_name'] ?? ''}',
                                       )
                                   : null,
                               leading: AccountAvatar(

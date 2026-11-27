@@ -7,7 +7,7 @@ import '../../config.dart';
 import '../../core/ws_client.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
-import '../profile/personal_profile_screen.dart';
+import '../profile/account_profile_route.dart';
 import '../widgets/account_avatar.dart';
 import '../widgets/group_avatar.dart';
 import 'group_info_screen.dart';
@@ -428,13 +428,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             }
             final accountId = peerMap?['account_id'];
             if (accountId is! int) return;
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => PersonalProfileScreen(
-                  accountId: accountId,
-                  initialName: '${peerMap?['display_name'] ?? ''}',
-                ),
-              ),
+            openAccountProfile(
+              context,
+              accountId,
+              initialName: '${peerMap?['display_name'] ?? ''}',
             );
           },
           child: Row(
@@ -478,18 +475,35 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           ),
         ),
         actions: [
-          if (isGroup)
+          if (isGroup) ...[
             IconButton(
               onPressed: _openGroupMap,
               icon: const Icon(Icons.map_outlined),
               tooltip: 'Peta anggota',
-            )
-          else if (_peerAccountId != null && !_peerIsContact)
-            IconButton(
-              onPressed: _contactBusy ? null : _addPeerContact,
-              icon: const Icon(Icons.person_add_alt_1),
-              tooltip: 'Tambah ke kontak',
             ),
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.videocam_outlined),
+              tooltip: 'Panggilan video',
+            ),
+          ] else ...[
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.call_outlined),
+              tooltip: 'Panggilan suara',
+            ),
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(Icons.videocam_outlined),
+              tooltip: 'Panggilan video',
+            ),
+            if (_peerAccountId != null && !_peerIsContact)
+              IconButton(
+                onPressed: _contactBusy ? null : _addPeerContact,
+                icon: const Icon(Icons.person_add_alt_1),
+                tooltip: 'Tambah ke kontak',
+              ),
+          ],
         ],
       ),
       body: Column(

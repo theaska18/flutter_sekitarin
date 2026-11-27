@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
 import '../orders/provider_screen.dart';
-import '../profile/personal_profile_screen.dart';
+import '../profile/account_profile_route.dart';
 import '../widgets/account_avatar.dart';
 import 'add_contact_screen.dart';
 
@@ -58,20 +58,22 @@ class _ContactsScreenState extends State<ContactsScreen> {
   Future<void> _open(Map<String, dynamic> account) async {
     final accountId = account['account_id'];
     if (accountId is! int) return;
-    final isPersonal = account['type_code'] == 'personal';
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => isPersonal
-            ? PersonalProfileScreen(
-                accountId: accountId,
-                initialName: '${account['display_name'] ?? ''}',
-              )
-            : ProviderScreen(
-                accountId: accountId,
-                initialName: '${account['display_name'] ?? ''}',
-              ),
-      ),
-    );
+    if (account['type_code'] == 'personal') {
+      await openAccountProfile(
+        context,
+        accountId,
+        initialName: '${account['display_name'] ?? ''}',
+      );
+    } else {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ProviderScreen(
+            accountId: accountId,
+            initialName: '${account['display_name'] ?? ''}',
+          ),
+        ),
+      );
+    }
     if (mounted) await _load();
   }
 

@@ -4,8 +4,7 @@ import 'package:provider/provider.dart';
 import '../../config.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
-import '../orders/provider_screen.dart';
-import '../profile/personal_profile_screen.dart';
+import '../profile/account_profile_route.dart';
 import '../widgets/account_avatar.dart';
 
 class PostDetailScreen extends StatefulWidget {
@@ -269,31 +268,41 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               children: [
-                Row(
-                  children: [
-                    AccountAvatar(
-                      account: account,
-                      radius: 17,
-                      token: token,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('${account['display_name'] ?? ''}',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w700)),
-                          Text(
-                            '@${account['handle'] ?? ''}'
-                            '${distance.isNotEmpty ? ' · $distance dari kamu' : ''}'
-                            ' · ${timeAgo(post['created_at'])}',
-                            style: Theme.of(context).textTheme.labelSmall,
-                          ),
-                        ],
+                GestureDetector(
+                  onTap: account['account_id'] is int
+                      ? () => openAccountProfile(
+                            context,
+                            account['account_id'] as int,
+                            initialName: '${account['display_name'] ?? ''}',
+                          )
+                      : null,
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    children: [
+                      AccountAvatar(
+                        account: account,
+                        radius: 17,
+                        token: token,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${account['display_name'] ?? ''}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700)),
+                            Text(
+                              '@${account['handle'] ?? ''}'
+                              '${distance.isNotEmpty ? ' · $distance dari kamu' : ''}'
+                              ' · ${timeAgo(post['created_at'])}',
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 if ('${post['caption'] ?? ''}'.isNotEmpty) ...[
                   const SizedBox(height: 8),
@@ -356,26 +365,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       dense: true,
                       contentPadding: EdgeInsets.zero,
                       onTap: comment['account_id'] is int
-                          ? () {
-                              final accountId = comment['account_id'] as int;
-                              final isPersonal =
-                                  comment['handle_scope'] != 'business';
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => isPersonal
-                                      ? PersonalProfileScreen(
-                                          accountId: accountId,
-                                          initialName:
-                                              '${comment['display_name'] ?? ''}',
-                                        )
-                                      : ProviderScreen(
-                                          accountId: accountId,
-                                          initialName:
-                                              '${comment['display_name'] ?? ''}',
-                                        ),
-                                ),
-                              );
-                            }
+                          ? () => openAccountProfile(
+                                context,
+                                comment['account_id'] as int,
+                                initialName: '${comment['display_name'] ?? ''}',
+                              )
                           : null,
                       leading: AccountAvatar(
                         account: {

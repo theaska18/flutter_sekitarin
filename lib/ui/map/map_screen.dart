@@ -329,35 +329,17 @@ class _MapScreenState extends State<MapScreen> {
                 if (consent && _userLocation != null)
                   Marker(
                     point: _userLocation!,
-                    width: 116,
-                    height: 34,
+                    width: 44,
+                    height: 44,
                     alignment: Alignment.center,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1D4ED8),
-                        borderRadius: BorderRadius.circular(17),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black26, blurRadius: 6),
-                        ],
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.my_location,
-                              size: 13, color: Colors.white),
-                          SizedBox(width: 4),
-                          Text(
-                            'Kamu di sini',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: const Icon(
+                      Icons.location_on,
+                      size: 42,
+                      color: Color(0xFF1D4ED8),
+                      shadows: [
+                        Shadow(color: Colors.white, blurRadius: 3),
+                        Shadow(color: Colors.black38, blurRadius: 6),
+                      ],
                     ),
                   ),
                 for (final place in _places)

@@ -11,7 +11,8 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
   read receipt, penanda **sedang mengetik** (direct & grup), WebSocket + polling
   fallback. Nama pengirim grup diambil dari anggota asli, bukan judul grup.
   Daftar chat juga menampilkan “sedang mengetik…” per percakapan (langsung
-  maupun grup).
+  maupun grup). Header chat punya tombol panggilan suara + video (personal)
+  dan video saja (grup); fungsinya belum aktif.
   Daftar chat memakai waktu relatif (“time ago”); di dalam chat ada header
   tanggal *sticky* (tanggal + bulan, atau + tahun bila beda tahun) dan jam pesan
   memakai “x menit lalu” hingga 60 menit lalu `HH:mm`.
@@ -47,7 +48,10 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
   menampilkan jarak, mis. **Sekitar 850 m** atau **Sekitar 1,2 km dari kamu**.
 - Profil/grid post, edit nama/username, **ganti foto profil** (galeri/kamera),
   ganti password, dan **Pengaturan usaha** (aktif/tutup, realtime/freeze,
-  titik peta). Tambah akun usaha ada di Setelan.
+  titik peta). Tambah akun usaha ada di Setelan. Foto/nama pembuat post dan
+  komentator bisa diketuk untuk membuka profil akun tersebut beserta grid
+  post-nya; jika akun itu akun aktif sendiri, yang terbuka adalah halaman
+  Profil yang sudah ada.
 - Setelan (dibuka dari **Profil → ikon setelan**) menampilkan daftar akun
   dengan badge **Aktif/Nonaktif**, ikon GPS
   untuk akun live GPS, waktu berlaku aktif, tombol pengaturan usaha, dan aksi
