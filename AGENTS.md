@@ -110,6 +110,12 @@ the manifest and downloads/installs the APK.
 - **Message feedback:** play `MessageSound` for new incoming/sent messages and
   animate newly added bubbles once (fade + slide). Suppress the chat-list sound
   when that conversation is already open (`ChatPresence`).
+- **Message status:** outgoing bubbles show clock (pending), one check (sent),
+  double check (delivered), double check blue (read). Sending inserts an
+  optimistic pending bubble immediately; replace it with the server message.
+  `messages.delivered` and `read.updated` WS events update counts.
+- **Chat list styling:** full-bleed rows with no card radius or side padding;
+  use dividers between rows.
 - **Clear vs delete:** “Bersihkan pesan” is per-user (`cleared_before_message_id`)
   and never deletes for other members. Direct “Hapus percakapan” and group
   “Keluar grup” use the existing conversation DELETE/leave endpoint.

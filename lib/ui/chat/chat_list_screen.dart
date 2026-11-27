@@ -258,9 +258,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     ],
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
+                    padding: const EdgeInsets.only(bottom: 96),
                     itemCount: _items.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, thickness: 0.5),
                     itemBuilder: (context, index) {
                       final item = _items[index];
                       final unread = item['unread_count'] ?? 0;
@@ -329,12 +330,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         // chat): show the target account.
                         titleWidget = Text(peerName(item), style: titleStyle);
                       }
-                      return Card(
+                      return Container(
                         color: hasUnread
-                            ? scheme.primaryContainer.withValues(alpha: 0.35)
+                            ? scheme.primaryContainer.withValues(alpha: 0.25)
                             : null,
                         child: ListTile(
                           onTap: () => _openConversation(item),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 2,
+                          ),
                           leading: isGroup
                               ? GroupAvatar(
                                   mediaId: item['avatar_media_id'] as int?,

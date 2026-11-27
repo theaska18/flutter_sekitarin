@@ -52,6 +52,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
   DateTime? _lastTypingSent;
   int? _peerAccountId;
   int? _sendAccountId;
+  int _nextLocalId = -1;
   bool _peerIsContact = true;
   bool _contactBusy = false;
 
@@ -95,6 +96,45 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
           }
           widget.conversation['avatar_media_id'] = payload['avatar_media_id'];
         });
+      } else if (name == 'messages.delivered') {
+        final ids = payload['message_ids'];
+        final myId = context.read<AuthStore>().user?['user_id'];
+        if (ids is List) {
+          setState(() {
+            for (final item in _messages) {
+              if (item['sender_user_id'] != myId) continue;
+              if (!ids.contains(item['message_id'])) continue;
+              item['delivered_count'] =
+                  ((item['delivered_count'] as int? ?? 0) < 1)
+                      ? 1
+                      : item['delivered_count'];
+            }
+          });
+          for (final item in _messages) {
+            if (item['sender_user_id'] == myId) {
+              ChatCache.upsert(_conversationId, item);
+            }
+          }
+        }
+      } else if (name == 'read.updated') {
+        final readId = payload['message_id'];
+        final myId = context.read<AuthStore>().user?['user_id'];
+        if (readId is int) {
+          setState(() {
+            for (final item in _messages) {
+              if (item['sender_user_id'] != myId) continue;
+              final id = item['message_id'];
+              if (id is! int || id > readId) continue;
+              item['delivered_count'] = 1;
+              item['read_count'] = 1;
+            }
+          });
+          for (final item in _messages) {
+            if (item['sender_user_id'] == myId) {
+              ChatCache.upsert(_conversationId, item);
+            }
+          }
+        }
       } else if (name == 'message.deleted') {
         final index = _messages
             .indexWhere((item) => item['message_id'] == message['message_id']);
@@ -276,7 +316,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     }
   }
 
-  void _upsert(Map<String, dynamic> message) {
+  void _upsert(Map<String, dynamic> message, {bool playSound = true}) {
     final id = message['message_id'];
     if (id == null || !mounted) return;
     var isNew = false;
@@ -299,7 +339,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
       _incomingTimers[id] = Timer(const Duration(milliseconds: 600), () {
         _incomingIds.remove(id);
       });
-      MessageSound.play();
+      final myId = context.read<AuthStore>().user?['user_id'];
+      if (playSound && message['sender_user_id'] != myId) {
+        MessageSound.play();
+      }
     }
     _scrollToBottom();
   }
@@ -317,11 +360,58 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     }
   }
 
+  void _addPending(Map<String, dynamic> pending) {
+    setState(() => _messages.add(pending));
+    MessageSound.play();
+    _scrollToBottom();
+  }
+
+  void _removePending(int localId) {
+    if (!mounted) return;
+    setState(() {
+      _messages.removeWhere((item) => item['message_id'] == localId);
+    });
+  }
+
+  void _markPendingFailed(int localId) {
+    if (!mounted) return;
+    setState(() {
+      final index =
+          _messages.indexWhere((item) => item['message_id'] == localId);
+      if (index >= 0) _messages[index]['failed'] = true;
+    });
+  }
+
+  Map<String, dynamic> _pendingMessage({
+    required String type,
+    required String body,
+    int? mediaId,
+  }) {
+    final myId = context.read<AuthStore>().user?['user_id'];
+    return {
+      'message_id': _nextLocalId--,
+      'conversation_id': _conversationId,
+      'sender_user_id': myId,
+      'sender_account_id': _sendAccountId,
+      'type': type,
+      'body': body,
+      'media_id': mediaId,
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+      'pending': true,
+      'delivered_count': 0,
+      'read_count': 0,
+    };
+  }
+
   Future<void> _send() async {
     final text = _message.text.trim();
     if (text.isEmpty || _sending) return;
     _typingStop?.cancel();
     _sendTyping(false);
+    final pending = _pendingMessage(type: 'text', body: text);
+    final localId = pending['message_id'] as int;
+    _addPending(pending);
+    _message.clear();
     setState(() => _sending = true);
     try {
       final data = await context.read<AuthStore>().api.post(
@@ -329,13 +419,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
             {'type': 'text', 'body': text},
             _sendAccountId?.toString(),
           );
+      _removePending(localId);
       if (data['message'] is Map) {
         final message = Map<String, dynamic>.from(data['message'] as Map);
-        _upsert(message);
+        _upsert(message, playSound: false);
         await _markRead(message);
       }
-      _message.clear();
     } catch (error) {
+      _markPendingFailed(localId);
       if (mounted) showErrorSnack(context, error);
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -422,6 +513,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     _typingStop?.cancel();
     _sendTyping(false);
     final api = context.read<AuthStore>().api;
+    final pending = _pendingMessage(type: type, body: name);
+    final localId = pending['message_id'] as int;
+    _addPending(pending);
     setState(() => _sending = true);
     try {
       final media = await api.uploadFile(
@@ -442,13 +536,15 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
         },
         _sendAccountId?.toString(),
       );
+      _removePending(localId);
       if (data['message'] is Map) {
         final message = Map<String, dynamic>.from(data['message'] as Map);
-        _upsert(message);
+        _upsert(message, playSound: false);
         await _markRead(message);
       }
       _scrollToBottom();
     } catch (error) {
+      _markPendingFailed(localId);
       if (mounted) showErrorSnack(context, error);
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -791,6 +887,10 @@ class _MessageBubble extends StatelessWidget {
     final headers = token == null || token!.isEmpty
         ? null
         : {'Authorization': 'Bearer $token'};
+    final pending = message['pending'] == true;
+    final failed = message['failed'] == true;
+    final delivered = (message['delivered_count'] as int? ?? 0) > 0;
+    final read = (message['read_count'] as int? ?? 0) > 0;
 
     Widget content;
     if (deleted) {
@@ -893,12 +993,35 @@ class _MessageBubble extends StatelessWidget {
             ],
             content,
             const SizedBox(height: 3),
-            Text(
-              chatMessageTime(message['created_at']),
-              style: TextStyle(
-                fontSize: 10,
-                color: bubbleMetaColor,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  chatMessageTime(message['created_at']),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: bubbleMetaColor,
+                  ),
+                ),
+                if (mine) ...[
+                  const SizedBox(width: 3),
+                  Icon(
+                    failed
+                        ? Icons.error_outline
+                        : pending
+                            ? Icons.schedule
+                            : read || delivered
+                                ? Icons.done_all
+                                : Icons.done,
+                    size: 12,
+                    color: failed
+                        ? Theme.of(context).colorScheme.error
+                        : read
+                            ? const Color(0xFF38BDF8)
+                            : bubbleMetaColor,
+                  ),
+                ],
+              ],
             ),
           ],
         ),
