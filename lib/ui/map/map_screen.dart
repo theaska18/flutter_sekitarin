@@ -157,7 +157,11 @@ class _MapScreenState extends State<MapScreen> {
         type == 'kurir_makanan';
   }
 
-  Widget _placeMarkerIcon(Map<String, dynamic> place) {
+  /// Icons shrink as the map zooms out so they do not cover the map or pile up
+  /// on top of each other.
+  double get _markerScale => (0.5 + (_zoom - 14.5) * 0.16).clamp(0.5, 1.0);
+
+  Widget _placeMarkerIcon(Map<String, dynamic> place, double scale) {
     final type = place['type_code'] as String?;
     final color =
         place['is_active'] == false ? Colors.blueGrey : typeColor(type);
@@ -165,7 +169,7 @@ class _MapScreenState extends State<MapScreen> {
       // Drivers use a bare vehicle icon instead of a circular badge.
       return Icon(
         typeIcon(type),
-        size: 38,
+        size: (38 * scale).clamp(16, 38),
         color: color,
         shadows: const [
           Shadow(color: Colors.white, blurRadius: 4),
@@ -173,9 +177,10 @@ class _MapScreenState extends State<MapScreen> {
         ],
       );
     }
+    final size = (42 * scale).clamp(20, 42).toDouble();
     return Container(
-      width: 42,
-      height: 42,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
@@ -188,7 +193,86 @@ class _MapScreenState extends State<MapScreen> {
           BoxShadow(color: Colors.black26, blurRadius: 6),
         ],
       ),
-      child: Icon(typeIcon(type), color: Colors.white, size: 21),
+      child: Icon(
+        typeIcon(type),
+        color: Colors.white,
+        size: (21 * scale).clamp(11, 21),
+      ),
+    );
+  }
+
+  Marker _placeMarker(Map<String, dynamic> place) {
+    final scale = _markerScale;
+    final showLabel = _zoom >= 16;
+    final iconSize = (42 * scale).clamp(20, 42).toDouble();
+    final width = showLabel
+        ? (80 * scale).clamp(56, 80).toDouble()
+        : (iconSize + 12).clamp(28, 52).toDouble();
+    final height = showLabel
+        ? (70 * scale).clamp(48, 70).toDouble()
+        : (iconSize + 10).clamp(28, 50).toDouble();
+    return Marker(
+      point: LatLng(
+        (place['lat'] as num).toDouble(),
+        (place['lng'] as num).toDouble(),
+      ),
+      width: width,
+      height: height,
+      alignment: Alignment.topCenter,
+      child: GestureDetector(
+        onTap: () => _openPlace(place),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (showLabel)
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: (7 * scale).clamp(4, 7).toDouble(),
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 4),
+                  ],
+                ),
+                child: Text(
+                  _distanceLabel(_distanceTo(place)),
+                  style: TextStyle(
+                    fontSize: (9.5 * scale).clamp(7.5, 9.5),
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            if (showLabel) const SizedBox(height: 2),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                _placeMarkerIcon(place, scale),
+                if (place['is_own'] == true)
+                  Positioned(
+                    right: -3,
+                    top: -3,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF59E0B),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.star,
+                        size: (12 * scale).clamp(8, 12),
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -345,6 +429,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final consent = context.watch<AuthStore>().locationConsent;
+    final selfMarkerSize = (42 * _markerScale).clamp(24, 42).toDouble();
     if (_lastConsent != consent) {
       _lastConsent = consent;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -370,77 +455,20 @@ class _MapScreenState extends State<MapScreen> {
                 if (consent && _userLocation != null)
                   Marker(
                     point: _userLocation!,
-                    width: 44,
-                    height: 44,
+                    width: selfMarkerSize,
+                    height: selfMarkerSize,
                     alignment: Alignment.center,
-                    child: const Icon(
+                    child: Icon(
                       Icons.location_on,
-                      size: 42,
-                      color: Color(0xFF1D4ED8),
-                      shadows: [
+                      size: selfMarkerSize,
+                      color: const Color(0xFF1D4ED8),
+                      shadows: const [
                         Shadow(color: Colors.white, blurRadius: 3),
                         Shadow(color: Colors.black38, blurRadius: 6),
                       ],
                     ),
                   ),
-                for (final place in _places)
-                  Marker(
-                    point: LatLng(
-                      (place['lat'] as num).toDouble(),
-                      (place['lng'] as num).toDouble(),
-                    ),
-                    width: 80,
-                    height: 70,
-                    alignment: Alignment.topCenter,
-                    child: GestureDetector(
-                      onTap: () => _openPlace(place),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 7, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: const [
-                                BoxShadow(color: Colors.black26, blurRadius: 4),
-                              ],
-                            ),
-                            child: Text(
-                              _distanceLabel(_distanceTo(place)),
-                              style: const TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              _placeMarkerIcon(place),
-                              if (place['is_own'] == true)
-                                Positioned(
-                                  right: -3,
-                                  top: -3,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFF59E0B),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(Icons.star,
-                                        size: 12, color: Colors.white),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                for (final place in _places) _placeMarker(place),
               ],
             ),
           ],
