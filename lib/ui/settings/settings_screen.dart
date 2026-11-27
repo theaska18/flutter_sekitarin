@@ -33,6 +33,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Timer? _timer;
   bool _expiryRefresh = false;
 
+  // Inline update state, shown on the "Cek update" row.
+  bool _updateChecking = false;
+  bool _updateDownloading = false;
+  bool _updateReady = false;
+  bool _updateCancelled = false;
+  String? _updateError;
+  String? _updateVersion;
+  double? _updateProgress;
+  int _updateReceived = 0;
+  int _updateTotal = 0;
+  String _updateStatus = '';
+  File? _updateFile;
+  http.Client? _updateClient;
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +77,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _updateCancelled = true;
+    _updateClient?.close();
     super.dispose();
   }
 
@@ -100,6 +116,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  String get _updateSizeLabel {
+    final received = (_updateReceived / (1024 * 1024)).toStringAsFixed(1);
+    if (_updateTotal <= 0) return '$received MB terunduh';
+    final total = (_updateTotal / (1024 * 1024)).toStringAsFixed(1);
+    final percent = ((_updateProgress ?? 0) * 100).round();
+    return '$percent% • $received / $total MB';
+  }
+
+  String get _updateSubtitle {
+    if (_updateDownloading) return 'Mengunduh ${_updateSizeLabel.trim()}';
+    if (_updateError != null) return _updateError!;
+    if (_updateReady) {
+      final version = _updateVersion == null ? '' : ' • v$_updateVersion';
+      return '${_updateStatus.isEmpty ? 'Siap dipasang' : _updateStatus}$version';
+    }
+    if (_updateChecking) return 'Memeriksa update…';
+    return 'Unduh dan pasang APK terbaru';
+  }
+
+  Widget? _updateTrailing() {
+    if (_updateDownloading) {
+      return TextButton(
+        onPressed: _cancelUpdateDownload,
+        child: const Text('Batal'),
+      );
+    }
+    if (_updateReady) {
+      return FilledButton.tonal(
+        onPressed: _openInstaller,
+        child: const Text('Pasang'),
+      );
+    }
+    if (_updateError != null) {
+      return TextButton(
+        onPressed: _checkUpdate,
+        child: const Text('Coba lagi'),
+      );
+    }
+    if (_updateChecking) {
+      return const SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+    return const Icon(Icons.chevron_right, size: 18);
+  }
+
   bool _isNewer(String remote, String current) {
     final a = remote.split('.').map(int.tryParse).toList();
     final b = current.split('.').map(int.tryParse).toList();
@@ -112,6 +176,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _checkUpdate() async {
+    if (_updateChecking || _updateDownloading) return;
+    // A finished download stays on disk, so retrying the install (for example
+    // after accidentally dismissing the installer) never downloads again.
+    if (_updateReady && _updateFile != null) {
+      await _openInstaller();
+      return;
+    }
+    setState(() {
+      _updateChecking = true;
+      _updateError = null;
+      _updateStatus = 'Memeriksa update…';
+    });
     try {
       final data = await context.read<AuthStore>().api.get('app/latest');
       final app = data is Map ? data['app'] : null;
@@ -119,12 +195,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final info = await PackageInfo.fromPlatform();
       final remoteVersion = '${app['version'] ?? '0.0.0'}';
       if (!_isNewer(remoteVersion, info.version)) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('Aplikasi sudah terbaru (${info.version}).')),
-          );
-        }
+        if (!mounted) return;
+        setState(() {
+          _updateChecking = false;
+          _updateStatus = '';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Aplikasi sudah terbaru (${info.version}).'),
+          ),
+        );
+        return;
+      }
+      if (!mounted) return;
+      if (!Platform.isAndroid) {
+        setState(() => _updateChecking = false);
+        showErrorSnack(context, 'Update APK hanya tersedia di Android.');
+        return;
+      }
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/sekitar-update-$remoteVersion.apk');
+      final cached = await file.exists() && (await file.length()) > 100000;
+      setState(() {
+        _updateChecking = false;
+        _updateVersion = remoteVersion;
+        _updateFile = file;
+      });
+      if (cached) {
+        setState(() {
+          _updateReady = true;
+          _updateProgress = 1;
+          _updateStatus = 'File update sudah terunduh.';
+        });
+        await _openInstaller();
         return;
       }
       final confirmed = await showDialog<bool>(
@@ -148,24 +251,124 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
       if (confirmed != true || !mounted) return;
-      if (!Platform.isAndroid) {
-        showErrorSnack(
-          context,
-          'Update APK hanya tersedia di Android.',
-        );
-        return;
-      }
       final url = AppConfig.absoluteUrl(
         '${app['url'] ?? '/api/v1/app/download'}',
       );
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => _UpdateProgressDialog(url: url),
-      );
+      await _downloadUpdate(url, file);
     } catch (error) {
-      if (mounted) showErrorSnack(context, error);
+      if (!mounted) return;
+      setState(() {
+        _updateChecking = false;
+        _updateDownloading = false;
+        _updateError = 'Gagal memeriksa update: $error';
+      });
     }
+  }
+
+  Future<void> _downloadUpdate(String url, File file) async {
+    final client = http.Client();
+    _updateClient = client;
+    _updateCancelled = false;
+    setState(() {
+      _updateDownloading = true;
+      _updateReady = false;
+      _updateError = null;
+      _updateProgress = null;
+      _updateReceived = 0;
+      _updateTotal = 0;
+      _updateStatus = 'Mengunduh update…';
+    });
+    try {
+      final request = http.Request('GET', Uri.parse(url));
+      final response = await client.send(request);
+      if (response.statusCode != 200) {
+        throw Exception('Server membalas ${response.statusCode}.');
+      }
+      if (!mounted) return;
+      setState(() => _updateTotal = response.contentLength ?? 0);
+      final sink = file.openWrite();
+      await for (final chunk in response.stream) {
+        if (_updateCancelled) break;
+        sink.add(chunk);
+        _updateReceived += chunk.length;
+        if (mounted) {
+          setState(() {
+            _updateProgress =
+                _updateTotal > 0 ? _updateReceived / _updateTotal : null;
+          });
+        }
+      }
+      await sink.flush();
+      await sink.close();
+      if (_updateCancelled) {
+        if (await file.exists()) await file.delete();
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _updateDownloading = false;
+        _updateReady = true;
+        _updateProgress = 1;
+        _updateStatus = 'Selesai diunduh.';
+      });
+      await _openInstaller();
+    } catch (error) {
+      try {
+        if (await file.exists()) await file.delete();
+      } catch (_) {
+        // Ignore cleanup failures.
+      }
+      if (_updateCancelled) return;
+      if (!mounted) return;
+      setState(() {
+        _updateDownloading = false;
+        _updateReady = false;
+        _updateError = 'Unduhan gagal. Periksa koneksi lalu coba lagi.';
+      });
+    } finally {
+      client.close();
+      _updateClient = null;
+    }
+  }
+
+  void _cancelUpdateDownload() {
+    if (!_updateDownloading) return;
+    _updateCancelled = true;
+    _updateClient?.close();
+    setState(() {
+      _updateDownloading = false;
+      _updateProgress = null;
+      _updateStatus = 'Unduhan dibatalkan.';
+    });
+  }
+
+  Future<void> _openInstaller() async {
+    final file = _updateFile;
+    if (file == null) return;
+    if (!await file.exists()) {
+      if (!mounted) return;
+      setState(() {
+        _updateReady = false;
+        _updateError = 'File update sudah tidak ada. Unduh ulang.';
+      });
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _updateStatus = 'Membuka installer…';
+      _updateError = null;
+    });
+    final result = await OpenFilex.open(file.path);
+    if (!mounted) return;
+    setState(() {
+      _updateReady = true;
+      _updateStatus = result.type == ResultType.done
+          ? 'Installer dibuka. Jika terlewat, tekan Pasang lagi.'
+          : 'File siap dipasang. Tekan Pasang untuk membuka installer.';
+      if (result.type != ResultType.done) {
+        _updateError = 'Installer tidak dapat dibuka otomatis.';
+      }
+    });
   }
 
   Future<void> _logout() async {
@@ -444,12 +647,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                 dense: true,
-                leading: const Icon(Icons.system_update_alt, size: 20),
+                leading: _updateDownloading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          value: _updateProgress,
+                        ),
+                      )
+                    : const Icon(Icons.system_update_alt, size: 20),
                 title: const Text('Cek update', style: TextStyle(fontSize: 13)),
-                subtitle: const Text('Unduh dan pasang APK terbaru',
-                    style: TextStyle(fontSize: 11)),
-                onTap: _checkUpdate,
+                subtitle: Text(
+                  _updateSubtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: _updateError != null
+                        ? Theme.of(context).colorScheme.error
+                        : null,
+                  ),
+                ),
+                trailing: _updateTrailing(),
+                onTap:
+                    _updateDownloading || _updateChecking ? null : _checkUpdate,
               ),
+              if (_updateDownloading)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                  child: LinearProgressIndicator(value: _updateProgress),
+                ),
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                 dense: true,
@@ -529,163 +757,6 @@ class _ActiveBadge extends StatelessWidget {
           fontWeight: FontWeight.w700,
           color: color,
         ),
-      ),
-    );
-  }
-}
-
-class _UpdateProgressDialog extends StatefulWidget {
-  const _UpdateProgressDialog({required this.url});
-
-  final String url;
-
-  @override
-  State<_UpdateProgressDialog> createState() => _UpdateProgressDialogState();
-}
-
-class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
-  http.Client? _client;
-  double? _progress;
-  int _received = 0;
-  int _total = 0;
-  String _status = 'Menyiapkan unduhan…';
-  String? _error;
-  bool _finished = false;
-  bool _cancelled = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _download();
-  }
-
-  @override
-  void dispose() {
-    _cancelled = true;
-    _client?.close();
-    super.dispose();
-  }
-
-  Future<void> _download() async {
-    try {
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/sekitar-update.apk');
-      if (await file.exists()) await file.delete();
-      final client = http.Client();
-      _client = client;
-      final request = http.Request('GET', Uri.parse(widget.url));
-      final response = await client.send(request);
-      if (response.statusCode != 200) {
-        throw Exception('Server membalas ${response.statusCode}.');
-      }
-      if (!mounted) return;
-      setState(() {
-        _total = response.contentLength ?? 0;
-        _status = 'Mengunduh update…';
-      });
-      final sink = file.openWrite();
-      await for (final chunk in response.stream) {
-        if (_cancelled) break;
-        sink.add(chunk);
-        _received += chunk.length;
-        if (mounted) {
-          setState(() {
-            _progress = _total > 0 ? _received / _total : null;
-          });
-        }
-      }
-      await sink.flush();
-      await sink.close();
-      if (_cancelled) {
-        if (await file.exists()) await file.delete();
-        return;
-      }
-      if (!mounted) return;
-      setState(() {
-        _progress = 1;
-        _status = 'Membuka installer…';
-      });
-      final result = await OpenFilex.open(file.path);
-      if (!mounted) return;
-      setState(() {
-        _finished = true;
-        _status = result.type == ResultType.done
-            ? 'Installer dibuka. Ikuti instruksi di layar untuk memasang.'
-            : 'Unduhan selesai, tetapi installer tidak dapat dibuka. '
-                'File tersimpan di ${file.path}';
-      });
-    } catch (error) {
-      if (!mounted || _cancelled) return;
-      setState(() {
-        _error = 'Unduhan gagal. Periksa koneksi lalu coba lagi.\n($error)';
-        _finished = true;
-      });
-    } finally {
-      _client?.close();
-    }
-  }
-
-  String get _sizeLabel {
-    final received = (_received / (1024 * 1024)).toStringAsFixed(1);
-    if (_total <= 0) return '$received MB terunduh';
-    final total = (_total / (1024 * 1024)).toStringAsFixed(1);
-    final percent = (_progress == null ? 0 : _progress! * 100).round();
-    return '$percent% • $received MB / $total MB';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final done = _finished || _error != null;
-    return PopScope(
-      canPop: done,
-      child: AlertDialog(
-        title: Text(
-          _error != null
-              ? 'Update gagal'
-              : _finished
-                  ? 'Update siap'
-                  : 'Memperbarui aplikasi',
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_error != null)
-              Text(_error!)
-            else ...[
-              LinearProgressIndicator(value: _progress),
-              const SizedBox(height: 12),
-              Text(_status),
-              const SizedBox(height: 4),
-              Text(_sizeLabel),
-              if (!done) ...[
-                const SizedBox(height: 12),
-                Text(
-                  'Jangan tutup aplikasi saat pengunduhan berlangsung.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ],
-          ],
-        ),
-        actions: [
-          if (done)
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Tutup'),
-            )
-          else
-            TextButton(
-              onPressed: _cancelled
-                  ? null
-                  : () {
-                      _cancelled = true;
-                      _client?.close();
-                      Navigator.of(context).pop();
-                    },
-              child: const Text('Batal'),
-            ),
-        ],
       ),
     );
   }

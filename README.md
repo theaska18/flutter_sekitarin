@@ -4,7 +4,9 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
 
 - Registrasi/login email + password, username publik (mis. `@aska.development`),
   dan konfirmasi password saat daftar.
-- Beranda 5 tab: **Chat**, **Peta**, **Post**, **Profil**, **Setelan**.
+- Beranda 4 tab: **Chat**, **Peta**, **Post**, **Log Telepon** (placeholder).
+  Profil dibuka dari ikon profil di kanan atas header; Setelan dibuka dari
+  ikon setelan di halaman Profil.
 - Chat direct/grup, buat grup, kelola anggota, ganti nama/foto grup, kirim teks,
   read receipt, penanda **sedang mengetik** (direct & grup), WebSocket + polling
   fallback. Nama pengirim grup diambil dari anggota asli, bukan judul grup.
@@ -45,7 +47,8 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
 - Profil/grid post, edit nama/username, **ganti foto profil** (galeri/kamera),
   ganti password, dan **Pengaturan usaha** (aktif/tutup, realtime/freeze,
   titik peta). Tambah akun usaha ada di Setelan.
-- Setelan menampilkan daftar akun dengan badge **Aktif/Nonaktif**, ikon GPS
+- Setelan (dibuka dari **Profil → ikon setelan**) menampilkan daftar akun
+  dengan badge **Aktif/Nonaktif**, ikon GPS
   untuk akun live GPS, waktu berlaku aktif, tombol pengaturan usaha, dan aksi
   dalam layout ringkas. Akun bisnis aktif otomatis berakhir setelah 24 jam dan
   harus diaktifkan ulang dari Setelan.
@@ -115,11 +118,13 @@ Aplikasi memakai HTTP/cleartext untuk development. Sebelum rilis produksi:
 
 ## Update aplikasi
 
-Buka **Setelan → Cek update**. Aplikasi membandingkan versi terpasang dengan
-`GET /api/v1/app/latest`; jika lebih baru, APK diunduh dari
-`/api/v1/app/download` dengan dialog progres (persentase, MB terunduh/total,
-status, dan tombol batal), lalu installer Android dibuka (izin
-`REQUEST_INSTALL_PACKAGES` sudah diminta di manifest).
+Buka **Profil → Setelan → Cek update**. Aplikasi membandingkan versi terpasang
+dengan `GET /api/v1/app/latest`; jika lebih baru, APK diunduh dari
+`/api/v1/app/download` dengan progres langsung di baris **Cek update**
+(persentase, MB terunduh/total, tombol Batal). Setelah selesai, installer
+Android dibuka (izin `REQUEST_INSTALL_PACKAGES` sudah diminta di manifest).
+APK yang sudah terunduh disimpan per versi; jika installer gagal/tidak sengaja
+ditutup, tombol **Pasang** membuka ulang installer tanpa mengunduh lagi.
 
 Proses rilis (wajib untuk setiap perubahan): lihat `AGENTS.md` dan
 `../cms_sekitarin/AGENTS.md`.

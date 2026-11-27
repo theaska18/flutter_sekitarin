@@ -6,6 +6,7 @@ import '../../state/auth_store.dart';
 import '../common.dart';
 import '../feed/post_detail_screen.dart';
 import '../orders/orders_screen.dart';
+import '../settings/settings_screen.dart';
 import '../widgets/account_avatar.dart';
 import 'business_location_screen.dart';
 import 'edit_profile_screen.dart';
@@ -138,6 +139,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? null
         : <String, String>{'Authorization': 'Bearer $token'};
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Profil'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Setelan',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => Scaffold(
+                  appBar: AppBar(title: const Text('Setelan')),
+                  body: const SettingsScreen(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         onRefresh: () async {
@@ -145,7 +163,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           await _load(auth.activeAccount?['account_id'] as int?);
         },
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
           children: [
             Card(
               child: Padding(

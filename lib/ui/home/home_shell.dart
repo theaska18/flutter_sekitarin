@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../state/auth_store.dart';
+import '../calls/call_log_screen.dart';
 import '../chat/chat_list_screen.dart';
 import '../contacts/contacts_screen.dart';
 import '../feed/feed_screen.dart';
 import '../map/map_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/profile_screen.dart';
-import '../settings/settings_screen.dart';
 import '../widgets/sekitarin_logo.dart';
 
 class HomeShell extends StatefulWidget {
@@ -24,7 +24,7 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
   Timer? _badgePoll;
 
-  static const _titles = ['Chat', 'Sekitar', 'Post', 'Profil', 'Setelan'];
+  static const _titles = ['Chat', 'Sekitar', 'Post', 'Log Telepon'];
 
   @override
   void initState() {
@@ -136,6 +136,15 @@ class _HomeShellState extends State<HomeShell> {
                 ),
             ],
           ),
+          IconButton(
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: 'Profil',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ProfileScreen(),
+              ),
+            ),
+          ),
           const SizedBox(width: 6),
         ],
       ),
@@ -145,8 +154,7 @@ class _HomeShellState extends State<HomeShell> {
           ChatListScreen(),
           MapScreen(),
           FeedScreen(),
-          ProfileScreen(),
-          SettingsScreen(),
+          CallLogScreen(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -178,14 +186,9 @@ class _HomeShellState extends State<HomeShell> {
             label: 'Post',
           ),
           const NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profil',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Setelan',
+            icon: Icon(Icons.phone_in_talk_outlined),
+            selectedIcon: Icon(Icons.phone_in_talk),
+            label: 'Log Telepon',
           ),
         ],
       ),
