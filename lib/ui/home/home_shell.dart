@@ -24,6 +24,7 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+  int? _lastActiveAccountId;
   Timer? _badgePoll;
 
   static const _titles = ['Chat', 'Sekitar', 'Post', 'Log Telepon'];
@@ -66,6 +67,12 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStore>();
+    if (_lastActiveAccountId != auth.activeAccountId) {
+      _lastActiveAccountId = auth.activeAccountId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        chatListRefreshTick.value++;
+      });
+    }
     return Scaffold(
       appBar: AppBar(
         title: Row(

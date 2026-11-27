@@ -92,6 +92,10 @@ the manifest and downloads/installs the APK.
   icon at `assets/brand/app_icon.png`; replace that asset (and the launcher
   icons) together when a final brand icon is ready.
 - Chat list timestamps use time-ago; never show absolute dates there.
+- **Direct chats are account-scoped.** Each pair of accounts has its own
+  conversation; the Chat tab shows threads for the active account (groups stay
+  user-level). Reply identity follows the active account, so never merge a
+  business account chat into the personal thread.
 - **Navigation:** the bottom bar has exactly four tabs — Chat, Peta, Post, Log
   Telepon. Profil is opened from the top-right header icon; Setelan is opened
   from the Profil AppBar. Do not add Profil/Setelan back to the bottom bar.

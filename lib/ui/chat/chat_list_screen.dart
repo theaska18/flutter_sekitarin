@@ -164,9 +164,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthStore>();
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
+    final account = auth.activeAccount;
+    final type = account?['type_code'] as String?;
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton(
@@ -174,133 +177,188 @@ class _ChatListScreenState extends State<ChatListScreen> {
         tooltip: 'Chat baru',
         child: const Icon(Icons.add_comment_outlined),
       ),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: _error != null
-            ? ListView(
+      body: Column(
+        children: [
+          if (account != null)
+            Container(
+              margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
                 children: [
-                  const SizedBox(height: 120),
-                  Center(child: Text(_error!)),
-                ],
-              )
-            : _items.isEmpty
-                ? ListView(
-                    children: const [
-                      SizedBox(height: 140),
-                      Icon(Icons.chat_bubble_outline, size: 48),
-                      SizedBox(height: 12),
-                      Center(child: Text('Belum ada percakapan')),
-                      SizedBox(height: 4),
-                      Center(
-                        child: Text(
-                          'Mulai chat dari kontak atau peta.',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
-                    itemCount: _items.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 6),
-                    itemBuilder: (context, index) {
-                      final item = _items[index];
-                      final unread = item['unread_count'] ?? 0;
-                      final hasUnread = unread is int && unread > 0;
-                      final scheme = Theme.of(context).colorScheme;
-                      final peer = item['peer'] is Map
-                          ? Map<String, dynamic>.from(item['peer'] as Map)
-                          : null;
-                      final conversationId = item['conversation_id'] as int?;
-                      final typing = conversationId == null
-                          ? null
-                          : _typingUsers[conversationId];
-                      final typingLabel = typing == null || typing.isEmpty
-                          ? null
-                          : '${typing.values.join(', ')} sedang mengetik…';
-                      return Card(
-                        color: hasUnread
-                            ? scheme.primaryContainer.withValues(alpha: 0.35)
-                            : null,
-                        child: ListTile(
-                          onTap: () => _openConversation(item),
-                          leading: item['type'] == 'group'
-                              ? GroupAvatar(
-                                  mediaId: item['avatar_media_id'] as int?,
-                                  radius: 20,
-                                  token:
-                                      context.read<AuthStore>().api.accessToken,
-                                )
-                              : AccountAvatar(
-                                  account: peer,
-                                  radius: 20,
-                                  token:
-                                      context.read<AuthStore>().api.accessToken,
-                                  backgroundColor: scheme.primaryContainer,
-                                ),
-                          title: Text(
-                            peerName(item),
-                            style: TextStyle(
-                              fontWeight:
-                                  hasUnread ? FontWeight.w800 : FontWeight.w600,
-                            ),
-                          ),
-                          subtitle: Text(
-                            typingLabel ??
-                                messagePreview(
-                                  item['last_message'] is Map
-                                      ? Map<String, dynamic>.from(
-                                          item['last_message'] as Map)
-                                      : null,
-                                ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontWeight: typingLabel != null || hasUnread
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              fontStyle: typingLabel != null
-                                  ? FontStyle.italic
-                                  : FontStyle.normal,
-                              color: typingLabel != null
-                                  ? scheme.primary
-                                  : (hasUnread ? scheme.onSurface : null),
-                            ),
-                          ),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                timeAgo(item['last_message_at']),
-                                style: Theme.of(context).textTheme.labelSmall,
-                              ),
-                              if (unread > 0) ...[
-                                const SizedBox(height: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 7, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    '$unread',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                  AccountAvatar(
+                    account: account,
+                    radius: 11,
+                    token: auth.api.accessToken,
+                    fallbackIcon: typeIcon(type),
                   ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'Chat sebagai ${accountName(account)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (type != null && type != 'personal') ...[
+                    const SizedBox(width: 6),
+                    Icon(typeIcon(type), size: 13, color: typeColor(type)),
+                  ],
+                ],
+              ),
+            ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _load,
+              child: _error != null
+                  ? ListView(
+                      children: [
+                        const SizedBox(height: 120),
+                        Center(child: Text(_error!)),
+                      ],
+                    )
+                  : _items.isEmpty
+                      ? ListView(
+                          children: const [
+                            SizedBox(height: 140),
+                            Icon(Icons.chat_bubble_outline, size: 48),
+                            SizedBox(height: 12),
+                            Center(child: Text('Belum ada percakapan')),
+                            SizedBox(height: 4),
+                            Center(
+                              child: Text(
+                                'Mulai chat dari kontak atau peta.',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
+                          itemCount: _items.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 6),
+                          itemBuilder: (context, index) {
+                            final item = _items[index];
+                            final unread = item['unread_count'] ?? 0;
+                            final hasUnread = unread is int && unread > 0;
+                            final scheme = Theme.of(context).colorScheme;
+                            final peer = item['peer'] is Map
+                                ? Map<String, dynamic>.from(item['peer'] as Map)
+                                : null;
+                            final conversationId =
+                                item['conversation_id'] as int?;
+                            final typing = conversationId == null
+                                ? null
+                                : _typingUsers[conversationId];
+                            final typingLabel = typing == null || typing.isEmpty
+                                ? null
+                                : '${typing.values.join(', ')} sedang mengetik…';
+                            return Card(
+                              color: hasUnread
+                                  ? scheme.primaryContainer
+                                      .withValues(alpha: 0.35)
+                                  : null,
+                              child: ListTile(
+                                onTap: () => _openConversation(item),
+                                leading: item['type'] == 'group'
+                                    ? GroupAvatar(
+                                        mediaId:
+                                            item['avatar_media_id'] as int?,
+                                        radius: 20,
+                                        token: context
+                                            .read<AuthStore>()
+                                            .api
+                                            .accessToken,
+                                      )
+                                    : AccountAvatar(
+                                        account: peer,
+                                        radius: 20,
+                                        token: context
+                                            .read<AuthStore>()
+                                            .api
+                                            .accessToken,
+                                        backgroundColor:
+                                            scheme.primaryContainer,
+                                      ),
+                                title: Text(
+                                  peerName(item),
+                                  style: TextStyle(
+                                    fontWeight: hasUnread
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  typingLabel ??
+                                      messagePreview(
+                                        item['last_message'] is Map
+                                            ? Map<String, dynamic>.from(
+                                                item['last_message'] as Map)
+                                            : null,
+                                      ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight: typingLabel != null || hasUnread
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                    fontStyle: typingLabel != null
+                                        ? FontStyle.italic
+                                        : FontStyle.normal,
+                                    color: typingLabel != null
+                                        ? scheme.primary
+                                        : (hasUnread ? scheme.onSurface : null),
+                                  ),
+                                ),
+                                trailing: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      timeAgo(item['last_message_at']),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall,
+                                    ),
+                                    if (unread > 0) ...[
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 7, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                        child: Text(
+                                          '$unread',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ),
+        ],
       ),
     );
   }
