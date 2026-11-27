@@ -631,12 +631,11 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
     }
     if (callId != null) {
       try {
-        await FlutterCallkitIncoming.setCallConnected('call-$callId');
+        await FlutterCallkitIncoming.endCall('call-$callId');
       } catch (_) {}
     }
+    await _waitForForeground();
     try {
-      // The native SDK starts a microphone foreground service, so the runtime
-      // permissions must be granted before joining.
       await [Permission.microphone, Permission.camera].request();
       // Prefer the official Jitsi SDK (same UI as the Jitsi app). Fall back to
       // the in-app web view when this server/SDK combination cannot connect.
@@ -688,6 +687,15 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
       }
       notifyListeners();
     }
+  }
+
+  Future<void> _waitForForeground() async {
+    var waited = 0;
+    while (!_foreground && waited < 10000) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      waited += 200;
+    }
+    await Future.delayed(const Duration(milliseconds: 350));
   }
 
   /// Opens the custom WebRTC call screen. Returns false when the connection
