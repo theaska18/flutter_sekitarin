@@ -79,7 +79,11 @@ class _CallWebViewScreenState extends State<CallWebViewScreen> {
     final hash = params.entries
         .map((entry) => '${entry.key}=${Uri.encodeComponent(entry.value)}')
         .join('&');
-    return '$base/${widget.room}#$hash';
+    // Some WebViews drop the URL fragment before the Jitsi app reads it.
+    // Jitsi accepts the JWT from the query string too, so send it twice.
+    final tokenQuery =
+        widget.token.isEmpty ? '' : '?jwt=${Uri.encodeComponent(widget.token)}';
+    return '$base/${widget.room}$tokenQuery#$hash';
   }
 
   Future<void> _endCall() async {
