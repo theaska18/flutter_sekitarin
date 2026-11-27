@@ -101,7 +101,10 @@ the manifest and downloads/installs the APK.
   icons) together when a final brand icon is ready.
 - Chat list timestamps use time-ago; never show absolute dates there.
 - **Chat badge:** never show the bottom Chat badge while the Chat tab is
-  selected; only badge when the user is on another tab.
+  selected; chat notifications received while the Chat tab is active are marked
+  read (also when leaving the tab) so the badge does not appear on other tabs.
+- **Business rows:** show a green dot at the avatar's top-right when the
+  business account is active, grey when closed/inactive.
 - **Chat cache:** messages are cached per conversation in `ChatCache`; opening a
   chat uses the cache and only fetches messages after the last cached id. Clear
   the cache on logout, clear-chat, and delete/leave.

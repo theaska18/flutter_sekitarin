@@ -81,13 +81,8 @@ class _HomeShellState extends State<HomeShell> {
 
   Future<void> _openChatTab() async {
     final auth = context.read<AuthStore>();
-    auth.clearChatBadge();
+    await auth.markChatNotificationsRead(force: true);
     chatListRefreshTick.value++;
-    try {
-      await auth.api.post('notifications/read-chat');
-    } catch (_) {
-      // Clearing the badge locally is enough when offline.
-    }
     await auth.refresh();
   }
 
@@ -102,6 +97,11 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStore>();
+    if (_index == 0 && auth.unreadChatNotifications > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) auth.markChatNotificationsRead();
+      });
+    }
     if (_lastActiveAccountId != auth.activeAccountId) {
       _lastActiveAccountId = auth.activeAccountId;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -214,6 +214,9 @@ class _HomeShellState extends State<HomeShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (value) {
+          if (_index == 0 && value != 0) {
+            context.read<AuthStore>().markChatNotificationsRead(force: true);
+          }
           setState(() => _index = value);
           if (value == 0) _openChatTab();
         },

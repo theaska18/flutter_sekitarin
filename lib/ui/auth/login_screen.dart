@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../config.dart';
 import '../../core/api_exception.dart';
 import '../../state/auth_store.dart';
 import '../widgets/sekitarin_logo.dart';
@@ -38,55 +37,6 @@ class _LoginScreenState extends State<LoginScreen> {
       await context.read<AuthStore>().login(_email.text, _password.text);
     } on ApiException catch (error) {
       setState(() => _error = error.message);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _testConnection() async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      final data = await context.read<AuthStore>().api.get('app/latest');
-      final app = data is Map ? data['app'] : null;
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Server terhubung'),
-          content: Text(
-            'URL: ${AppConfig.apiBaseUrl}\n'
-            'Versi server: ${app is Map ? app['version'] : '-'}',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Tutup'),
-            ),
-          ],
-        ),
-      );
-    } on ApiException catch (error) {
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Tidak dapat terhubung'),
-          content: Text(
-            '${error.message}\n\n'
-            'Kode: ${error.code} (${error.statusCode})\n'
-            'URL: ${AppConfig.apiBaseUrl}',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Tutup'),
-            ),
-          ],
-        ),
-      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -175,11 +125,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                       child: const Text('Belum punya akun? Daftar'),
-                    ),
-                    TextButton.icon(
-                      onPressed: _busy ? null : _testConnection,
-                      icon: const Icon(Icons.wifi_tethering, size: 18),
-                      label: const Text('Tes koneksi ke server'),
                     ),
                   ],
                 ),

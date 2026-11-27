@@ -9,7 +9,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../config.dart';
-import '../../services/push_service.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
 import '../notifications/notifications_screen.dart';
@@ -608,32 +607,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Pesan, like, komentar, dan update order.',
                   style: TextStyle(fontSize: 11),
                 ),
-              ),
-              ListTile(
-                dense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                leading:
-                    const Icon(Icons.notifications_active_outlined, size: 20),
-                title: const Text('Notifikasi push',
-                    style: TextStyle(fontSize: 13)),
-                subtitle: Text(
-                  PushService.ready
-                      ? 'Ketuk untuk reset token FCM dan daftarkan ulang.'
-                      : 'Firebase belum aktif di build ini.',
-                  style: const TextStyle(fontSize: 11),
-                ),
-                onTap: () async {
-                  final registered =
-                      await context.read<AuthStore>().resetPushToken();
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(registered
-                          ? 'Token push berhasil didaftarkan.'
-                          : 'Token push belum tersedia. Periksa izin notifikasi/Firebase.'),
-                    ),
-                  );
-                },
               ),
             ],
           ),

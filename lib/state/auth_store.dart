@@ -126,6 +126,18 @@ class AuthStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> markChatNotificationsRead({bool force = false}) async {
+    if (!signedIn) return;
+    if (unreadChatNotifications == 0 && !force) return;
+    unreadChatNotifications = 0;
+    notifyListeners();
+    try {
+      await api.post('notifications/read-chat');
+    } catch (_) {
+      // Next refresh may restore the count; try again when leaving the tab.
+    }
+  }
+
   Map<String, dynamic>? get activeAccount {
     for (final account in accounts) {
       if (account['account_id'] == activeAccountId) return account;
