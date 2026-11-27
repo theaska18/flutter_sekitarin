@@ -12,6 +12,7 @@ class SekitarApp extends StatelessWidget {
     return MaterialApp(
       title: 'Sekitarin',
       navigatorKey: CallService.navigatorKey,
+      scaffoldMessengerKey: CallService.messengerKey,
       debugShowCheckedModeBanner: false,
       theme: buildSekitarTheme(Brightness.light),
       darkTheme: buildSekitarTheme(Brightness.dark),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
+import '../../services/call_service.dart';
 import '../../services/jitsi/jitsi_call_client.dart';
 
 /// Custom in-call screen backed by flutter_webrtc + Jitsi XMPP signaling.
@@ -86,11 +87,22 @@ class _WebrtcCallScreenState extends State<WebrtcCallScreen> {
         });
       },
     );
+    CallService.instance.endSignal.addListener(_onRemoteEnd);
     _client.connect();
+  }
+
+  void _onRemoteEnd() {
+    if (!mounted || _closing) return;
+    if (CallService.instance.endSignal.value != widget.callId) return;
+    CallService.instance.endSignal.value = null;
+    _closing = true;
+    _client.hangUp();
+    Navigator.of(context).pop(true);
   }
 
   @override
   void dispose() {
+    CallService.instance.endSignal.removeListener(_onRemoteEnd);
     _client.hangUp();
     super.dispose();
   }

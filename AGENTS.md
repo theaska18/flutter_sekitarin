@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.40+56 | Removed the Jitsi WebView fallback and `flutter_inappwebview`: calls use only the custom WebRTC screen; a failed connection now ends the call with a message. |
 | 2026-11-27 | 0.12.39+55 | Custom WebRTC call screen (flutter_webrtc + Jitsi XMPP/Jingle, ported from InfinityOne ISP-2194) with mute/camera/speaker/switch controls; falls back to the Jitsi web view if the connection cannot be established. |
 | 2026-11-27 | 0.12.38+54 | Request microphone/camera permissions before the native Jitsi join (the SDK starts a mic foreground service) and fall back to the WebView when the native conference drops with an error within 45s. |
 | 2026-11-27 | 0.12.37+53 | Pin `jitsi_meet_flutter_sdk` 12.1.5 (matching the 2.0.11031 server) for the native Jitsi call UI, with automatic WebView fallback when the SDK cannot connect. |
@@ -153,12 +154,11 @@ the manifest and downloads/installs the APK.
   menu (`conversations/{id}/pin`); pinned chats sort first and show a pin icon
   next to the name. Group mute (`/mute`) suppresses chat notifications.
 - **Calls:** 1:1 voice/video calls ring through CallKit (`flutter_callkit_incoming`)
-  and open the Jitsi SDK; group calls never ring, they only publish an
+  and open the custom WebRTC call screen; group calls never ring, they only publish an
   `active_call` marker on the group. Join uses a short-lived JWT minted by the
   backend; never commit the Jitsi secret. Primary call path is the custom
-  WebRTC screen (`lib/services/jitsi/`, flutter_webrtc + Jitsi XMPP/Jingle);
-  `lib/ui/calls/call_webview_screen.dart` is the fallback. `flutter_inappwebview_android`
-  is vendored under `packages/` to drop the AGP 9-incompatible ProGuard file.
+  WebRTC screen (`lib/services/jitsi/`, flutter_webrtc + Jitsi XMPP/Jingle).
+  There is no WebView fallback.
 - **Chat actions:** the three-dot menu exists in both the chat list and chat
   room (pin, mute for groups, clear all, add contact for unknown personal
   peers, delete/leave). Logout exits the app instead of showing login; login

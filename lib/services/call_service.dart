@@ -10,7 +10,6 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../config.dart';
 import '../state/auth_store.dart';
-import '../ui/calls/call_webview_screen.dart';
 import '../ui/calls/webrtc_call_screen.dart';
 import 'push_service.dart';
 
@@ -39,6 +38,8 @@ class CallService extends ChangeNotifier {
   /// Navigation handle so calls can be opened from background events.
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
+  static final GlobalKey<ScaffoldMessengerState> messengerKey =
+      GlobalKey<ScaffoldMessengerState>();
 
   /// Signals the open call screen that the remote side ended the call.
   final ValueNotifier<int?> endSignal = ValueNotifier(null);
@@ -624,13 +625,9 @@ class CallService extends ChangeNotifier {
         callId: callId,
       );
       if (!handled) {
-        await _openWebViewCall(
-          serverUrl: serverUrl,
-          room: room,
-          token: token,
-          kind: kind,
-          group: group,
-          callId: callId,
+        messengerKey.currentState?.showSnackBar(
+          const SnackBar(
+              content: Text('Panggilan gagal tersambung ke server.')),
         );
       }
     } finally {
@@ -700,32 +697,6 @@ class CallService extends ChangeNotifier {
       ),
     );
     return result ?? false;
-  }
-
-  Future<void> _openWebViewCall({
-    required String serverUrl,
-    required String room,
-    required String token,
-    required String kind,
-    required bool group,
-    int? callId,
-  }) async {
-    final nav = navigatorKey.currentState;
-    if (nav == null) return;
-    await nav.push(
-      MaterialPageRoute<void>(
-        builder: (_) => CallWebViewScreen(
-          serverUrl: serverUrl,
-          room: room,
-          token: token,
-          title: group
-              ? 'Panggilan grup'
-              : (kind == 'video' ? 'Panggilan video' : 'Panggilan suara'),
-          video: kind == 'video',
-          callId: callId,
-        ),
-      ),
-    );
   }
 
   static int? _asInt(dynamic value) {
