@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../config.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
 
@@ -22,6 +24,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   Map<String, dynamic>? _conversation;
   bool _loading = true;
   bool _busy = false;
+  bool _avatarBusy = false;
 
   @override
   void initState() {
@@ -63,6 +66,38 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     final myId = auth.user?['user_id'];
     return _members.any(
         (member) => member['user_id'] == myId && member['role'] == 'owner');
+  }
+
+  Future<void> _pickAvatar() async {
+    if (!_isOwner || _avatarBusy) return;
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1200,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _avatarBusy = true);
+    final auth = context.read<AuthStore>();
+    try {
+      final media = await auth.api.uploadFile(
+        'media',
+        filePath: picked.path,
+        purpose: 'avatar',
+      );
+      final payload = media['media'];
+      if (payload is! Map || payload['media_id'] is! int) {
+        throw Exception('Upload foto grup gagal.');
+      }
+      await auth.api.patch(
+        'conversations/${widget.conversationId}',
+        {'avatar_media_id': payload['media_id']},
+      );
+      await _load();
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    } finally {
+      if (mounted) setState(() => _avatarBusy = false);
+    }
   }
 
   Future<void> _rename() async {
@@ -196,11 +231,40 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        CircleAvatar(
-                          radius: 34,
-                          backgroundColor:
-                              Theme.of(context).colorScheme.primaryContainer,
-                          child: const Icon(Icons.groups, size: 34),
+                        GestureDetector(
+                          onTap: _pickAvatar,
+                          child: Stack(
+                            alignment: Alignment.bottomRight,
+                            children: [
+                              _GroupAvatar(
+                                mediaId:
+                                    _conversation?['avatar_media_id'] as int?,
+                                token:
+                                    context.read<AuthStore>().api.accessToken,
+                                radius: 36,
+                              ),
+                              if (_isOwner)
+                                Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color: Colors.white, width: 2),
+                                  ),
+                                  child: _avatarBusy
+                                      ? const SizedBox(
+                                          width: 12,
+                                          height: 12,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2),
+                                        )
+                                      : const Icon(Icons.photo_camera,
+                                          size: 14, color: Colors.white),
+                                ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 10),
                         Text(title,
@@ -276,6 +340,41 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                 ),
               ],
             ),
+    );
+  }
+}
+
+class _GroupAvatar extends StatelessWidget {
+  const _GroupAvatar({
+    required this.mediaId,
+    required this.token,
+    this.radius = 24,
+  });
+
+  final int? mediaId;
+  final String? token;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = CircleAvatar(
+      radius: radius,
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+      child: Icon(Icons.groups, size: radius),
+    );
+    if (mediaId == null) return fallback;
+    final headers = token == null || token!.isEmpty
+        ? null
+        : <String, String>{'Authorization': 'Bearer $token'};
+    return ClipOval(
+      child: Image.network(
+        AppConfig.absoluteUrl('/api/v1/media/$mediaId'),
+        headers: headers,
+        width: radius * 2,
+        height: radius * 2,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
+      ),
     );
   }
 }

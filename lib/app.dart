@@ -11,7 +11,9 @@ class SekitarApp extends StatelessWidget {
     return MaterialApp(
       title: 'Sekitar',
       debugShowCheckedModeBanner: false,
-      theme: buildSekitarTheme(),
+      theme: buildSekitarTheme(Brightness.light),
+      darkTheme: buildSekitarTheme(Brightness.dark),
+      themeMode: ThemeMode.system,
       home: const AuthGate(),
     );
   }

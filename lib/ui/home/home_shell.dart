@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -19,8 +21,32 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+  Timer? _badgePoll;
 
   static const _titles = ['Chat', 'Sekitar', 'Post', 'Profil', 'Setelan'];
+
+  @override
+  void initState() {
+    super.initState();
+    _badgePoll = Timer.periodic(
+      const Duration(seconds: 25),
+      (_) => context.read<AuthStore>().refresh(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _badgePoll?.cancel();
+    super.dispose();
+  }
+
+  Widget _badgedIcon(IconData icon, int count) {
+    if (count <= 0) return Icon(icon);
+    return Badge(
+      label: Text(count > 9 ? '9+' : '$count'),
+      child: Icon(icon),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,29 +121,42 @@ class _HomeShellState extends State<HomeShell> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (value) => setState(() => _index = value),
-        destinations: const [
+        onDestinationSelected: (value) {
+          setState(() => _index = value);
+          if (value == 0) {
+            final auth = context.read<AuthStore>();
+            auth.clearChatBadge();
+            auth.refresh();
+          }
+        },
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
+            icon: _badgedIcon(
+              Icons.chat_bubble_outline,
+              auth.unreadChatNotifications,
+            ),
+            selectedIcon: _badgedIcon(
+              Icons.chat_bubble,
+              auth.unreadChatNotifications,
+            ),
             label: 'Chat',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.public_outlined),
             selectedIcon: Icon(Icons.public),
             label: 'Peta',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.photo_library_outlined),
             selectedIcon: Icon(Icons.photo_library),
             label: 'Post',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
             label: 'Profil',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
             label: 'Setelan',

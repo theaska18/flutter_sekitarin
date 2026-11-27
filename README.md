@@ -5,8 +5,12 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
 - Registrasi/login email + password, username publik (mis. `@aska.development`),
   dan konfirmasi password saat daftar.
 - Beranda 5 tab: **Chat**, **Peta**, **Post**, **Profil**, **Setelan**.
-- Chat direct/grup, buat grup, kelola anggota, ganti nama grup, kirim teks,
-  read receipt, WebSocket + polling fallback.
+- Chat direct/grup, buat grup, kelola anggota, ganti nama/foto grup, kirim teks,
+  read receipt, penanda **sedang mengetik** (direct & grup), WebSocket + polling
+  fallback. Nama pengirim grup diambil dari anggota asli, bukan judul grup.
+- Ketuk nama grup untuk membuka **Info grup**; ikon peta di kanan atas membuka
+  **peta anggota** yang hanya menampilkan anggota yang menyetujui share lokasi,
+  lengkap dengan tombol bagikan lokasi 10 menit.
 - Tambah kontak lewat username dari ikon di topbar samping notifikasi.
 - Peta OpenStreetMap: memuat area yang sedang dilihat (pan/zoom, debounce
   400 ms), akun freeze selalu tampil; akun realtime/driver muncul setelah
@@ -16,6 +20,8 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
 - Akun usaha: pilih **Realtime GPS** (lokasi diperbarui tiap 15 detik selama app
   aktif) atau **freeze** dengan titik yang dipilih di peta. Status
   **Aktif/Tutup** juga diatur di layar Pengaturan usaha dan tampil di peta.
+  Foto, nama, dan username bisnis dapat diubah; username bisnis terpisah dari
+  username personal dan tidak bisa dipakai untuk login.
 - Feed post dari kontak + radius 500 m, label **Kontak / Sekitar (jarak) /
   Akunmu**, like, komentar, buat post, serta menu tiga titik untuk edit/hapus
   post milik sendiri. Detail post bisa dibuka dari feed atau grid profil, dengan
@@ -91,6 +97,16 @@ Aplikasi memakai HTTP/cleartext untuk development. Sebelum rilis produksi:
   AndroidManifest/Info.plist,
 - ganti tile OSM publik dengan tile server/penyedia yang sesuai kebijakan.
 
+## Update aplikasi
+
+Buka **Setelan → Cek update**. Aplikasi membandingkan versi terpasang dengan
+`GET /api/v1/app/latest`; jika lebih baru, APK diunduh dari
+`/api/v1/app/download` lalu installer Android dibuka (izin
+`REQUEST_INSTALL_PACKAGES` sudah diminta di manifest).
+
+Proses rilis (wajib untuk setiap perubahan): lihat `AGENTS.md` dan
+`../cms_sekitarin/AGENTS.md`.
+
 ## Struktur
 
 ```text
@@ -122,7 +138,7 @@ Token akses disimpan di `flutter_secure_storage`; device UUID dan akun aktif di
 - Push notification belum dihubungkan ke Firebase (backend sudah punya
   `/me/push-token` dan worker FCM). Diperlukan `google-services.json`,
   `GoogleService-Info.plist`, dan paket `firebase_messaging`.
-- Belum ada unggah avatar/grup dan pengaturan foto profil dari app.
+- Tema terang/gelap mengikuti sistem; tidak ada pilihan tema manual.
 - Realtime GPS berjalan saat aplikasi aktif (foreground); background location
   perlu foreground service/plugin tambahan.
 - Tarif ride memakai harga layanan dari backend (belum dihitung per jarak).

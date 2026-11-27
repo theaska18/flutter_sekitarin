@@ -15,7 +15,7 @@ class AddContactScreen extends StatefulWidget {
 
 class _AddContactScreenState extends State<AddContactScreen> {
   final _username = TextEditingController();
-  Map<String, dynamic>? _result;
+  List<Map<String, dynamic>> _results = [];
   bool _searching = false;
   bool _adding = false;
   String? _error;
@@ -31,14 +31,14 @@ class _AddContactScreenState extends State<AddContactScreen> {
     if (!validUsername(handle)) {
       setState(() {
         _error = 'Username tidak valid.';
-        _result = null;
+        _results = [];
       });
       return;
     }
     setState(() {
       _searching = true;
       _error = null;
-      _result = null;
+      _results = [];
     });
     try {
       final data = await context.read<AuthStore>().api.get(
@@ -46,10 +46,16 @@ class _AddContactScreenState extends State<AddContactScreen> {
         query: {'handle': handle},
       );
       if (!mounted) return;
-      final account = data is Map ? data['account'] : null;
+      final raw = data is Map ? data['accounts'] : null;
+      final results = raw is List
+          ? raw
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList()
+          : <Map<String, dynamic>>[];
       setState(() {
-        _result = account is Map ? Map<String, dynamic>.from(account) : null;
-        if (_result == null) _error = 'Akun tidak ditemukan.';
+        _results = results;
+        if (_results.isEmpty) _error = 'Akun tidak ditemukan.';
       });
     } on ApiException catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -60,9 +66,8 @@ class _AddContactScreenState extends State<AddContactScreen> {
     }
   }
 
-  Future<void> _add() async {
-    final account = _result;
-    if (account == null || _adding) return;
+  Future<void> _add(Map<String, dynamic> account) async {
+    if (_adding) return;
     setState(() => _adding = true);
     try {
       await context.read<AuthStore>().api.post('contacts', {
@@ -83,8 +88,6 @@ class _AddContactScreenState extends State<AddContactScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final account = _result;
-    final type = account?['type_code'] as String?;
     return Scaffold(
       appBar: AppBar(title: const Text('Tambah kontak')),
       body: ListView(
@@ -123,33 +126,43 @@ class _AddContactScreenState extends State<AddContactScreen> {
             Text(_error!,
                 style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ],
-          if (account != null) ...[
-            const SizedBox(height: 20),
+          for (final account in _results) ...[
+            const SizedBox(height: 12),
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
+                padding: const EdgeInsets.all(14),
+                child: Row(
                   children: [
                     AccountAvatar(
                       account: account,
-                      radius: 32,
+                      radius: 24,
                       token: context.read<AuthStore>().api.accessToken,
-                      fallbackIcon: typeIcon(type),
-                      backgroundColor: typeColor(type).withValues(alpha: 0.15),
-                      foregroundColor: typeColor(type),
+                      fallbackIcon: typeIcon(account['type_code'] as String?),
+                      backgroundColor:
+                          typeColor(account['type_code'] as String?)
+                              .withValues(alpha: 0.15),
+                      foregroundColor:
+                          typeColor(account['type_code'] as String?),
                     ),
-                    const SizedBox(height: 10),
-                    Text('${account['display_name'] ?? ''}',
-                        style: const TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.w700)),
-                    Text('@${account['handle'] ?? ''}'),
-                    Text('${account['type_label'] ?? ''}',
-                        style: Theme.of(context).textTheme.bodySmall),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: _adding ? null : _add,
-                      icon: const Icon(Icons.person_add_alt_1),
-                      label: Text(_adding ? 'Menambahkan…' : 'Tambah kontak'),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${account['display_name'] ?? ''}',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700)),
+                          Text(
+                            '@${account['handle'] ?? ''} • ${account['type_label'] ?? ''}',
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    FilledButton(
+                      onPressed: _adding ? null : () => _add(account),
+                      child: const Text('Tambah'),
                     ),
                   ],
                 ),

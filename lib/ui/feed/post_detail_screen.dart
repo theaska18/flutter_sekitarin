@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../config.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../orders/provider_screen.dart';
+import '../profile/personal_profile_screen.dart';
 import '../widgets/account_avatar.dart';
 
 class PostDetailScreen extends StatefulWidget {
@@ -340,9 +342,34 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ListTile(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
-                      leading: const CircleAvatar(
-                        radius: 14,
-                        child: Icon(Icons.person, size: 15),
+                      onTap: comment['account_id'] is int
+                          ? () {
+                              final accountId = comment['account_id'] as int;
+                              final isPersonal =
+                                  comment['handle_scope'] != 'business';
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => isPersonal
+                                      ? PersonalProfileScreen(
+                                          accountId: accountId,
+                                          initialName:
+                                              '${comment['display_name'] ?? ''}',
+                                        )
+                                      : ProviderScreen(
+                                          accountId: accountId,
+                                          initialName:
+                                              '${comment['display_name'] ?? ''}',
+                                        ),
+                                ),
+                              );
+                            }
+                          : null,
+                      leading: AccountAvatar(
+                        account: {
+                          'avatar_media_id': comment['avatar_media_id'],
+                        },
+                        radius: 15,
+                        token: token,
                       ),
                       title: Text(
                         '${comment['display_name'] ?? ''}',
@@ -353,11 +380,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       ),
                       subtitle: Text('${comment['body'] ?? ''}',
                           style: const TextStyle(fontSize: 13)),
-                      trailing: (comment['user_id'] == myUserId || _isOwner)
-                          ? IconButton(
-                              visualDensity: VisualDensity.compact,
-                              onPressed: () => _deleteComment(comment),
-                              icon: const Icon(Icons.delete_outline, size: 17),
+                      trailing: comment['user_id'] == myUserId
+                          ? PopupMenuButton<String>(
+                              iconSize: 17,
+                              onSelected: (_) => _deleteComment(comment),
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Hapus komentar'),
+                                ),
+                              ],
                             )
                           : null,
                     ),

@@ -1,6 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:open_filex/open_filex.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../config.dart';
@@ -92,6 +97,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
         setState(() => _consents[scope] = !value);
         showErrorSnack(context, error);
       }
+    }
+  }
+
+  bool _isNewer(String remote, String current) {
+    final a = remote.split('.').map(int.tryParse).toList();
+    final b = current.split('.').map(int.tryParse).toList();
+    for (var i = 0; i < 3; i++) {
+      final left = i < a.length ? (a[i] ?? 0) : 0;
+      final right = i < b.length ? (b[i] ?? 0) : 0;
+      if (left != right) return left > right;
+    }
+    return false;
+  }
+
+  Future<void> _checkUpdate() async {
+    try {
+      final data = await context.read<AuthStore>().api.get('app/latest');
+      final app = data is Map ? data['app'] : null;
+      if (app is! Map) throw Exception('Informasi update tidak tersedia.');
+      final info = await PackageInfo.fromPlatform();
+      final remoteVersion = '${app['version'] ?? '0.0.0'}';
+      if (!_isNewer(remoteVersion, info.version)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Aplikasi sudah terbaru (${info.version}).')),
+          );
+        }
+        return;
+      }
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Update $remoteVersion tersedia'),
+          content: Text(
+            '${app['notes'] ?? 'Perbaikan dan fitur baru.'}\n\n'
+            'Versi terpasang: ${info.version}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Nanti'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Update'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      if (!Platform.isAndroid) {
+        showErrorSnack(
+          context,
+          'Update APK hanya tersedia di Android.',
+        );
+        return;
+      }
+      final url = AppConfig.absoluteUrl(
+        '${app['url'] ?? '/api/v1/app/download'}',
+      );
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/sekitar-update.apk');
+      final request = http.Request('GET', Uri.parse(url));
+      final response = await request.send();
+      if (response.statusCode != 200) {
+        throw Exception('Download update gagal (${response.statusCode}).');
+      }
+      final sink = file.openWrite();
+      await response.stream.pipe(sink);
+      await sink.flush();
+      await sink.close();
+      await OpenFilex.open(file.path);
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
     }
   }
 
@@ -367,6 +447,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     builder: (_) => const NotificationsScreen(),
                   ),
                 ),
+              ),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                dense: true,
+                leading: const Icon(Icons.system_update_alt, size: 20),
+                title: const Text('Cek update', style: TextStyle(fontSize: 13)),
+                subtitle: const Text('Unduh dan pasang APK terbaru',
+                    style: TextStyle(fontSize: 11)),
+                onTap: _checkUpdate,
               ),
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12),

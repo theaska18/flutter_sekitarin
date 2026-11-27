@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../orders/provider_screen.dart';
+import '../profile/personal_profile_screen.dart';
+import '../widgets/account_avatar.dart';
 
 class CommentsSheet extends StatefulWidget {
   const CommentsSheet({super.key, required this.post});
@@ -96,15 +99,62 @@ class _CommentsSheetState extends State<CommentsSheet> {
                           itemCount: _comments.length,
                           itemBuilder: (context, index) {
                             final comment = _comments[index];
+                            final mine = comment['user_id'] ==
+                                context.read<AuthStore>().user?['user_id'];
+                            final accountId = comment['account_id'];
+                            final isPersonal =
+                                comment['handle_scope'] != 'business';
                             return ListTile(
                               contentPadding: EdgeInsets.zero,
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.person, size: 18),
+                              onTap: accountId is int
+                                  ? () => Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => isPersonal
+                                              ? PersonalProfileScreen(
+                                                  accountId: accountId,
+                                                  initialName:
+                                                      '${comment['display_name'] ?? ''}',
+                                                )
+                                              : ProviderScreen(
+                                                  accountId: accountId,
+                                                  initialName:
+                                                      '${comment['display_name'] ?? ''}',
+                                                ),
+                                        ),
+                                      )
+                                  : null,
+                              leading: AccountAvatar(
+                                account: {
+                                  'avatar_media_id': comment['avatar_media_id'],
+                                },
+                                radius: 16,
+                                token:
+                                    context.read<AuthStore>().api.accessToken,
                               ),
                               title: Text('${comment['display_name'] ?? ''}',
                                   style: const TextStyle(
                                       fontWeight: FontWeight.w600)),
                               subtitle: Text('${comment['body'] ?? ''}'),
+                              trailing: mine
+                                  ? PopupMenuButton<String>(
+                                      iconSize: 18,
+                                      onSelected: (_) async {
+                                        await context
+                                            .read<AuthStore>()
+                                            .api
+                                            .delete(
+                                              'comments/${comment['comment_id']}',
+                                            );
+                                        await _load();
+                                      },
+                                      itemBuilder: (_) => const [
+                                        PopupMenuItem(
+                                          value: 'delete',
+                                          child: Text('Hapus komentar'),
+                                        ),
+                                      ],
+                                    )
+                                  : null,
                             );
                           },
                         ),

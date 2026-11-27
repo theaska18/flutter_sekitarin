@@ -7,11 +7,14 @@ String accountName(Map<String, dynamic>? account) {
 }
 
 String peerName(Map<String, dynamic> conversation) {
+  final title = conversation['title'];
+  if (conversation['type'] == 'group' && title != null && '$title'.isNotEmpty) {
+    return '$title';
+  }
   final peer = conversation['peer'];
   if (peer is Map && peer['display_name'] != null) {
     return '${peer['display_name']}';
   }
-  final title = conversation['title'];
   if (title != null && '$title'.isNotEmpty) return '$title';
   return 'Percakapan';
 }

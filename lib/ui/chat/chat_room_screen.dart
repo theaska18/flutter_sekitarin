@@ -7,7 +7,9 @@ import '../../config.dart';
 import '../../core/ws_client.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../widgets/account_avatar.dart';
 import 'group_info_screen.dart';
+import 'group_map_screen.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   const ChatRoomScreen({super.key, required this.conversation});
@@ -32,6 +34,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   int _lastId = 0;
   String? _groupTitle;
   final Map<int, String> _memberNames = {};
+  final Map<int, String> _typingNames = {};
+  final Map<int, Timer> _typingTimers = {};
+  Timer? _typingStop;
+  DateTime? _lastTypingSent;
 
   @override
   void initState() {
@@ -39,7 +45,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     _ws = context.read<AuthStore>().ws;
     _ws.subscribe(_conversationId);
     _wsSubscription = _ws.events.listen((event) {
-      if (event['conversation_id'] != _conversationId) return;
+      if (!mounted || event['conversation_id'] != _conversationId) return;
       final payload = event['payload'];
       if (payload is! Map) return;
       final message = Map<String, dynamic>.from(payload);
@@ -47,6 +53,21 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       if (name == 'message.created' || name == 'message.updated') {
         _upsert(message);
         if (name == 'message.created') _markRead(message);
+      } else if (name == 'typing') {
+        final userId = payload['user_id'] as int?;
+        if (userId != null &&
+            userId != context.read<AuthStore>().user?['user_id']) {
+          final typingName = '${payload['display_name'] ?? 'Seseorang'}';
+          _typingTimers[userId]?.cancel();
+          if (payload['is_typing'] == true) {
+            setState(() => _typingNames[userId] = typingName);
+            _typingTimers[userId] = Timer(const Duration(seconds: 4), () {
+              if (mounted) setState(() => _typingNames.remove(userId));
+            });
+          } else {
+            setState(() => _typingNames.remove(userId));
+          }
+        }
       } else if (name == 'message.deleted') {
         final index = _messages
             .indexWhere((item) => item['message_id'] == message['message_id']);
@@ -71,6 +92,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     _ws.unsubscribe(_conversationId);
     _wsSubscription?.cancel();
     _poll?.cancel();
+    _typingStop?.cancel();
+    for (final timer in _typingTimers.values) {
+      timer.cancel();
+    }
     _message.dispose();
     _scroll.dispose();
     super.dispose();
@@ -115,6 +140,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       );
       setState(() {
         _groupTitle = '${conversation['title'] ?? ''}';
+        widget.conversation['avatar_media_id'] =
+            conversation['avatar_media_id'];
         _memberNames.clear();
         final members = conversation['members'];
         if (members is List) {
@@ -146,6 +173,32 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       return;
     }
     await _loadConversation();
+  }
+
+  void _onTypingChanged(String value) {
+    _typingStop?.cancel();
+    if (value.trim().isEmpty) {
+      _sendTyping(false);
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastTypingSent == null ||
+        now.difference(_lastTypingSent!) > const Duration(seconds: 2)) {
+      _lastTypingSent = now;
+      _sendTyping(true);
+    }
+    _typingStop = Timer(const Duration(seconds: 3), () => _sendTyping(false));
+  }
+
+  Future<void> _sendTyping(bool isTyping) async {
+    try {
+      await context.read<AuthStore>().api.post(
+        'conversations/$_conversationId/typing',
+        {'is_typing': isTyping},
+      );
+    } catch (_) {
+      // Typing is best-effort.
+    }
   }
 
   Future<void> _pollNew() async {
@@ -197,6 +250,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Future<void> _send() async {
     final text = _message.text.trim();
     if (text.isEmpty || _sending) return;
+    _typingStop?.cancel();
+    _sendTyping(false);
     setState(() => _sending = true);
     try {
       final data = await context.read<AuthStore>().api.post(
@@ -227,31 +282,87 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     });
   }
 
+  Future<void> _openGroupMap() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => GroupMapScreen(
+          conversationId: _conversationId,
+          title: _groupTitle ?? 'Peta grup',
+        ),
+      ),
+    );
+    if (mounted) _loadConversation();
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStore>();
+    final isGroup = widget.conversation['type'] == 'group';
     final peer = widget.conversation['peer'];
-    final title = peer is Map
-        ? '${peer['display_name'] ?? ''}'
-        : '${widget.conversation['title'] ?? 'Percakapan'}';
+    final title = isGroup
+        ? (_groupTitle?.isNotEmpty == true
+            ? _groupTitle!
+            : '${widget.conversation['title'] ?? 'Grup'}')
+        : (peer is Map
+            ? '${peer['display_name'] ?? ''}'
+            : '${widget.conversation['title'] ?? 'Percakapan'}');
     final myId = auth.user?['user_id'];
+    final typingLabel = _typingNames.isEmpty
+        ? null
+        : '${_typingNames.values.join(', ')} sedang mengetik…';
+    final subtitle = typingLabel ??
+        (isGroup
+            ? '${widget.conversation['member_count'] ?? ''} anggota'
+            : null);
+    final groupAvatarId = widget.conversation['avatar_media_id'];
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_groupTitle?.isNotEmpty == true ? _groupTitle! : title),
-            if (widget.conversation['type'] == 'group')
-              Text('${widget.conversation['member_count'] ?? ''} anggota',
-                  style: Theme.of(context).textTheme.labelSmall),
-          ],
+        leading: isGroup
+            ? Padding(
+                padding: const EdgeInsets.all(8),
+                child: AccountAvatar(
+                  account: {'avatar_media_id': groupAvatarId},
+                  radius: 18,
+                  token: auth.api.accessToken,
+                  fallbackIcon: Icons.groups,
+                ),
+              )
+            : null,
+        title: GestureDetector(
+          onTap: isGroup ? _openGroupInfo : null,
+          child: Row(
+            children: [
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    if (subtitle != null)
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: typingLabel != null
+                                  ? Theme.of(context).colorScheme.primary
+                                  : null,
+                            ),
+                      ),
+                  ],
+                ),
+              ),
+              if (isGroup)
+                const Padding(
+                  padding: EdgeInsets.only(left: 4),
+                  child: Icon(Icons.chevron_right, size: 18),
+                ),
+            ],
+          ),
         ),
         actions: [
-          if (widget.conversation['type'] == 'group')
+          if (isGroup)
             IconButton(
-              onPressed: _openGroupInfo,
-              icon: const Icon(Icons.info_outline),
-              tooltip: 'Info grup',
+              onPressed: _openGroupMap,
+              icon: const Icon(Icons.map_outlined),
+              tooltip: 'Peta anggota',
             ),
         ],
       ),
@@ -296,6 +407,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                         contentPadding:
                             EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
+                      onChanged: _onTypingChanged,
                       onSubmitted: (_) => _send(),
                     ),
                   ),
@@ -388,7 +500,7 @@ class _MessageBubble extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.fromLTRB(12, 9, 12, 7),
         decoration: BoxDecoration(
-          color: mine ? scheme.primary : Colors.white,
+          color: mine ? scheme.primary : scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),

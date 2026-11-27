@@ -24,7 +24,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _load() async {
     final api = context.read<AuthStore>().api;
     try {
-      final data = await api.get('notifications');
+      final data = await api.get(
+        'notifications',
+        query: {'include_chat': 'false'},
+      );
       if (!mounted) return;
       setState(() {
         _items = data is Map && data['data'] is List

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
@@ -6,6 +7,7 @@ import '../../services/location_service.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
 import '../orders/location_picker_screen.dart';
+import '../widgets/account_avatar.dart';
 
 class BusinessLocationScreen extends StatefulWidget {
   const BusinessLocationScreen({
@@ -21,6 +23,11 @@ class BusinessLocationScreen extends StatefulWidget {
 
 class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
   final _addressController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _handleController = TextEditingController();
+  int? _avatarMediaId;
+  bool _avatarBusy = false;
+  String _typeCode = 'warung';
   String _mode = 'fixed';
   LatLng? _location;
   bool _allowsPresence = false;
@@ -38,6 +45,8 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
   @override
   void dispose() {
     _addressController.dispose();
+    _nameController.dispose();
+    _handleController.dispose();
     super.dispose();
   }
 
@@ -54,6 +63,10 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
           _allowsPresence = account['allows_presence'] == true;
           _active = account['is_active'] != false;
           _activeUntil = account['active_until'] as String?;
+          _typeCode = '${account['type_code'] ?? 'warung'}';
+          _avatarMediaId = account['avatar_media_id'] as int?;
+          _nameController.text = '${account['display_name'] ?? ''}';
+          _handleController.text = '${account['handle'] ?? ''}';
           _addressController.text = '${account['address'] ?? ''}';
           if (location is Map) {
             _location = LatLng(
@@ -67,6 +80,32 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
       if (mounted) showErrorSnack(context, error);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _pickAvatar() async {
+    if (_avatarBusy) return;
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1200,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _avatarBusy = true);
+    try {
+      final media = await context.read<AuthStore>().api.uploadFile(
+            'media',
+            filePath: picked.path,
+            purpose: 'avatar',
+          );
+      final payload = media['media'];
+      if (payload is Map && payload['media_id'] is int) {
+        setState(() => _avatarMediaId = payload['media_id'] as int);
+      }
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    } finally {
+      if (mounted) setState(() => _avatarBusy = false);
     }
   }
 
@@ -108,6 +147,16 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
 
   Future<void> _save() async {
     if (_busy) return;
+    final name = _nameController.text.trim();
+    final handle = normalizeUsername(_handleController.text);
+    if (name.isEmpty) {
+      showErrorSnack(context, 'Nama usaha wajib diisi.');
+      return;
+    }
+    if (!validUsername(handle)) {
+      showErrorSnack(context, 'Username bisnis tidak valid.');
+      return;
+    }
     setState(() => _busy = true);
     final auth = context.read<AuthStore>();
     try {
@@ -123,6 +172,9 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
       final body = <String, dynamic>{
         'location_mode': _mode,
         'is_active': _active,
+        'display_name': name,
+        'handle': handle,
+        'avatar_media_id': _avatarMediaId,
       };
       if (position != null) {
         body['location'] = {
@@ -142,7 +194,7 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
       await auth.refresh();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pengaturan lokasi disimpan.')),
+        const SnackBar(content: Text('Pengaturan usaha disimpan.')),
       );
       Navigator.of(context).pop(true);
     } catch (error) {
@@ -176,6 +228,67 @@ class _BusinessLocationScreenState extends State<BusinessLocationScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                Center(
+                  child: GestureDetector(
+                    onTap: _pickAvatar,
+                    child: Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        AccountAvatar(
+                          account: {'avatar_media_id': _avatarMediaId},
+                          radius: 42,
+                          token: context.read<AuthStore>().api.accessToken,
+                          fallbackIcon: typeIcon(_typeCode),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: _avatarBusy
+                              ? const SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.photo_camera,
+                                  size: 14, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: TextButton(
+                    onPressed: _avatarBusy ? null : _pickAvatar,
+                    child: const Text('Ganti foto usaha'),
+                  ),
+                ),
+                TextField(
+                  controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama usaha',
+                    prefixIcon: Icon(Icons.storefront_outlined),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _handleController,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Username bisnis',
+                    prefixText: '@',
+                    prefixIcon: Icon(Icons.alternate_email),
+                    helperText:
+                        'Terpisah dari username personal dan tidak bisa dipakai login.',
+                  ),
+                ),
+                const SizedBox(height: 10),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: _active,

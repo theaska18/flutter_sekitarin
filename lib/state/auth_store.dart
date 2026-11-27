@@ -22,6 +22,7 @@ class AuthStore extends ChangeNotifier {
   List<Map<String, dynamic>> accounts = <Map<String, dynamic>>[];
   int? activeAccountId;
   int unreadNotifications = 0;
+  int unreadChatNotifications = 0;
   bool loading = true;
   String? lastError;
 
@@ -33,7 +34,15 @@ class AuthStore extends ChangeNotifier {
 
   bool get signedIn => _accessToken != null && user != null;
 
+  bool get hasStoredToken => _accessToken != null && _accessToken!.isNotEmpty;
+
   bool get locationConsent => _locationConsent;
+
+  void clearChatBadge() {
+    if (unreadChatNotifications == 0) return;
+    unreadChatNotifications = 0;
+    notifyListeners();
+  }
 
   Map<String, dynamic>? get activeAccount {
     for (final account in accounts) {
@@ -58,12 +67,25 @@ class AuthStore extends ChangeNotifier {
         ws.connect(_accessToken!);
         _startRealtimeTracking();
       }
+    } on ApiException catch (error) {
+      if (error.statusCode == 401) {
+        await _clearSession();
+      } else {
+        lastError =
+            'Tidak dapat terhubung ke server. Periksa koneksi lalu coba lagi.';
+      }
     } catch (_) {
-      await _clearSession();
+      lastError =
+          'Tidak dapat terhubung ke server. Periksa koneksi lalu coba lagi.';
     } finally {
       loading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> retryBootstrap() async {
+    lastError = null;
+    await bootstrap();
   }
 
   Future<void> login(String email, String password) async {
@@ -179,6 +201,9 @@ class AuthStore extends ChangeNotifier {
     unreadNotifications = data['unread_notifications'] is int
         ? data['unread_notifications'] as int
         : 0;
+    unreadChatNotifications = data['unread_chat_notifications'] is int
+        ? data['unread_chat_notifications'] as int
+        : 0;
     final consents = data['consents'];
     _locationConsent = consents is Map &&
         consents['location'] is Map &&
@@ -265,6 +290,7 @@ class AuthStore extends ChangeNotifier {
     accounts = [];
     activeAccountId = null;
     unreadNotifications = 0;
+    unreadChatNotifications = 0;
     _locationConsent = false;
     _realtimeTimer?.cancel();
     _realtimeTimer = null;

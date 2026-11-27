@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
-ThemeData buildSekitarTheme() {
+ThemeData buildSekitarTheme(Brightness brightness) {
   final scheme = ColorScheme.fromSeed(
     seedColor: const Color(0xFF0F766E),
-    brightness: Brightness.light,
+    brightness: brightness,
   );
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: const Color(0xFFF6F8F7),
+    brightness: brightness,
+    scaffoldBackgroundColor: brightness == Brightness.light
+        ? const Color(0xFFF6F8F7)
+        : scheme.surface,
     appBarTheme: AppBarTheme(
       backgroundColor: scheme.surface,
       foregroundColor: scheme.onSurface,
@@ -34,13 +37,13 @@ ThemeData buildSekitarTheme() {
     ),
     cardTheme: CardThemeData(
       elevation: 0,
-      color: Colors.white,
+      color: scheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       margin: EdgeInsets.zero,
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: scheme.surfaceContainerHighest,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide(color: scheme.outlineVariant),
