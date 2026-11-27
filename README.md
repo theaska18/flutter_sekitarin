@@ -13,11 +13,14 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
   Daftar chat juga menampilkan “sedang mengetik…” per percakapan (langsung
   maupun grup). Header chat punya tombol panggilan suara + video (personal)
   dan video saja (grup); fungsinya belum aktif.
+  Kirim **foto** (galeri) dan **file** (PDF, Word, Excel, TXT, ZIP) lewat
+  tombol lampiran. Chat direct terpisah per akun: daftar chat mengikuti akun
+  aktif dan menampilkan “Chat sebagai <nama akun>”.
   Daftar chat memakai waktu relatif (“time ago”); di dalam chat ada header
   tanggal *sticky* (tanggal + bulan, atau + tahun bila beda tahun) dan jam pesan
   memakai “x menit lalu” hingga 60 menit lalu `HH:mm`.
-- Ketuk nama grup untuk membuka **Info grup**; avatar grup selalu ada di pojok
-  kanan atas (membuka Info grup) dan ikon peta di sebelahnya membuka **peta
+- Ketuk nama grup untuk membuka **Info grup**; avatar grup tampil sebelum nama
+  dan ikon peta di kanan membuka **peta
   anggota** yang hanya menampilkan anggota yang menyetujui share lokasi.
 - **Bagikan lokasi diatur per grup** dari Info grup, jadi grup lain bisa
   ditolak. Foto grup dapat diganti oleh anggota mana pun; nama grup tetap
@@ -32,8 +35,10 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
   “Bagikan lokasi” di Setelan aktif. Di bawah zoom 14.5 data tidak dimuat agar
   tidak menarik seluruh area. Update otomatis tiap 10 detik, marker “Akunmu”
   untuk akun sendiri, tap marker untuk chat/pesan. Marker pengemudi (mobil,
-  motor, kurir) memakai ikon kendaraan tanpa lingkaran. Peta memakai tile OSM
-  terang untuk sementara, termasuk saat mode gelap. Ikon profil di header
+  motor, kurir) memakai ikon kendaraan tanpa lingkaran. Ukuran marker
+  menyesuaikan zoom (mengecil saat zoom out, label jarak muncul mulai zoom 16).
+  Peta otomatis memakai filter gelap pada tile OSM saat mode gelap, tanpa API
+  key. Ikon profil di header
   menampilkan foto akun aktif; akun non-personal diberi badge ikon tipe akun
   (mis. mobil untuk driver) di pojok kanan bawah.
 - Akun usaha: pilih **Realtime GPS** (lokasi diperbarui tiap 15 detik selama app

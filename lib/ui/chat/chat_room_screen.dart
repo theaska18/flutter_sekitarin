@@ -338,7 +338,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   Future<void> _sendFile() async {
     if (_sending) return;
-    final result = await FilePicker.pickFiles(
+    final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const [
         'pdf',

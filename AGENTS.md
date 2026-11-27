@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.17+33 | Group avatars visible to every member and refreshed live; map follows dark mode via a free tile filter and marker icons scale with zoom; direct chats are scoped per account (all account types) with an active-account chip; chat supports photo and file attachments (PDF/Word/Excel/TXT/ZIP). |
 | 2026-11-27 | 0.12.16+32 | Fix random logouts: refresh is single-flight (parallel 401s share one rotation) and only a rejected refresh token clears the session — network/timeout/429/5xx keep it. Backend refresh rotation now updates only if the old token still matches, returning 401 on races. |
 | 2026-11-27 | 0.12.15+31 | Map driver markers use bare vehicle icons (no circle); the header profile button shows the active account photo and, for non-personal accounts, a bottom-right badge with that account type's icon; nearby distance is now returned for own/contact posts too and shown whenever known. |
 | 2026-11-27 | 0.12.14+30 | Tapping a profile that belongs to any of your accounts (not just the active one) switches to it and opens the existing Profile page; other accounts open the read-only posts profile. |
