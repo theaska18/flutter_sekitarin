@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.50+66 | Send SourceVideoTypeMessage and ReceiverVideoConstraints on JVB data-channel open and when peers join; preserve call-debug uploads (fix broken retention that deleted every diagnostic row). |
 | 2026-11-27 | 0.12.49+65 | Delay opening the WebRTC call screen until the app is resumed (CallKit accept leaves the Flutter activity in the background, which previously dropped the route on the callee). CallKit's incoming notification is dismissed before joining. |
 | 2026-11-27 | 0.12.48+64 | Use our local ICE credentials/fingerprint for the data content in the Jingle session-accept (it previously carried JVB's credentials from the offer, causing 401 connectivity checks and DTLS timeouts). |
 | 2026-11-27 | 0.12.47+63 | Fix duplicate incoming-call notifications: dedupe by call id across WS/FCM, suppress WS ringing while backgrounded, and dismiss the CallKit incoming UI immediately on accept. |

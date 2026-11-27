@@ -79,6 +79,8 @@ class JitsiCallClient implements JitsiSessionView {
   bool _negotiating = false;
   bool _negotiationPending = false;
   final Map<String, String> _sourceOwners = {};
+  String _lastConstraintSignature = '';
+  bool _dataChannelAnnounced = false;
   Timer? _connectTimer;
   Timer? _durationTimer;
   DateTime? _connectedAt;
@@ -362,6 +364,7 @@ class JitsiCallClient implements JitsiSessionView {
       }
       if (type == 'unavailable') {
         participants.removeWhere((p) => p.jid == from);
+        _sendReceiverVideoConstraints();
         _notify();
         return;
       }
@@ -378,6 +381,23 @@ class JitsiCallClient implements JitsiSessionView {
           participants.add(JitsiParticipant(jid: from, nickName: 'focus'));
           _notify();
         }
+        return;
+      }
+      if (from.startsWith('$_roomJid/')) {
+        final endpoint = from.substring('$_roomJid/'.length);
+        if (endpoint.isEmpty || endpoint == nick) return;
+        final nickElement = doc
+            .findAllElements('nick',
+                namespace: 'http://jabber.org/protocol/nick')
+            .firstOrNull;
+        final name = nickElement?.innerText ?? endpoint;
+        final existing = participants.indexWhere((p) => p.jid == from);
+        if (existing < 0) {
+          participants.add(JitsiParticipant(jid: from, nickName: name));
+          _diag('Peserta masuk: $endpoint');
+        }
+        _sendReceiverVideoConstraints();
+        _notify();
       }
     } catch (_) {}
   }
@@ -450,13 +470,20 @@ class JitsiCallClient implements JitsiSessionView {
         ..maxRetransmits = 0,
     );
     pc!.onDataChannel = (channel) {
-      channel.onMessage = (_) {};
+      _dataChannel = channel;
+      channel.onMessage = (message) => _handleDataMessage(message.text);
+      channel.onDataChannelState = (state) {
+        if (state == RTCDataChannelState.RTCDataChannelOpen) {
+          _onDataChannelOpen();
+        }
+      };
     };
     _dataChannel?.onMessage = (message) {
       _handleDataMessage(message.text);
     };
     _dataChannel?.onDataChannelState = (state) {
       if (state == RTCDataChannelState.RTCDataChannelOpen) {
+        _onDataChannelOpen();
         _onMediaConnected();
       }
     };
@@ -654,6 +681,56 @@ class JitsiCallClient implements JitsiSessionView {
     onDebug?.call('accept', xml);
     _send(xml);
     _setStage('Menghubungkan media');
+  }
+
+  void _onDataChannelOpen() {
+    if (_dataChannelAnnounced) return;
+    _dataChannelAnnounced = true;
+    _sendData({
+      'colibriClass': 'SourceVideoTypeMessage',
+      'sourceName': '$nick-v0',
+      'videoType': 'camera'
+    });
+    _sendReceiverVideoConstraints(force: true);
+    _diag('Data channel siap; meminta audio/video peserta');
+  }
+
+  void _sendData(Map<String, dynamic> data) {
+    final channel = _dataChannel;
+    if (channel == null ||
+        channel.state != RTCDataChannelState.RTCDataChannelOpen) return;
+    try {
+      channel.send(RTCDataChannelMessage(jsonEncode(data)));
+      onDebug?.call('sent-${data['colibriClass']}', jsonEncode(data));
+    } catch (e) {
+      _diag('Gagal mengirim data channel: $e');
+    }
+  }
+
+  void _sendReceiverVideoConstraints({bool force = false}) {
+    final sourceNames = <String>[];
+    for (final participant in participants) {
+      final jid = participant.jid;
+      if (jid.contains('focus') || !jid.startsWith('$_roomJid/')) continue;
+      final endpoint = jid.substring('$_roomJid/'.length);
+      if (endpoint.isEmpty || endpoint == nick) continue;
+      sourceNames.add('$endpoint-v0');
+    }
+    final constraints = <String, dynamic>{
+      for (final source in sourceNames) source: {'maxHeight': 720},
+    };
+    final message = <String, dynamic>{
+      'colibriClass': 'ReceiverVideoConstraints',
+      'constraints': constraints,
+      'defaultConstraints': {'maxHeight': 0},
+      'lastN': -1,
+      'onStageSources': sourceNames,
+      'selectedSources': <String>[],
+    };
+    final signature = jsonEncode(message);
+    if (!force && signature == _lastConstraintSignature) return;
+    _lastConstraintSignature = signature;
+    _sendData(message);
   }
 
   void _handleDataMessage(String text) {
