@@ -102,6 +102,9 @@ the manifest and downloads/installs the APK.
   icon at `assets/brand/app_icon.png`; replace that asset (and the launcher
   icons) together when a final brand icon is ready.
 - Chat list timestamps use time-ago; never show absolute dates there.
+- **Connection retry:** when a stored session cannot reach the server (e.g. right
+  after the screen wakes up), the retry screen auto-retries every 3 seconds; do
+  not log the user out for network errors.
 - **Chat badge:** never show the bottom Chat badge while the Chat tab is
   selected; chat notifications received while the Chat tab is active are marked
   read (also when leaving the tab). Opening a conversation marks only that

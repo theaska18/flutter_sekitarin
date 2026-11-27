@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -13,6 +15,8 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
+  Timer? _retryTimer;
+
   @override
   void initState() {
     super.initState();
@@ -21,8 +25,23 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _retryTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _ensureAutoRetry() {
+    if (_retryTimer?.isActive == true) return;
+    _retryTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (!mounted) return;
+      final auth = context.read<AuthStore>();
+      if (auth.signedIn || !auth.hasStoredToken) {
+        timer.cancel();
+        _retryTimer = null;
+        return;
+      }
+      if (!auth.loading) auth.retryBootstrap();
+    });
   }
 
   @override
@@ -46,8 +65,13 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    if (auth.signedIn) return const HomeShell();
+    if (auth.signedIn) {
+      _retryTimer?.cancel();
+      _retryTimer = null;
+      return const HomeShell();
+    }
     if (auth.hasStoredToken) {
+      _ensureAutoRetry();
       return _ConnectionRetry(auth: auth);
     }
     return const LoginScreen();
@@ -85,6 +109,12 @@ class _ConnectionRetry extends StatelessWidget {
                   auth.lastError ??
                       'Periksa koneksi internet lalu coba lagi. Sesi Anda tetap tersimpan.',
                   textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Mencoba menyambung ulang otomatis…',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 20),
                 FilledButton.icon(
