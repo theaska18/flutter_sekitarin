@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../services/location_service.dart';
+import '../widgets/theme_map_tile_layer.dart';
 
 class LocationPickerScreen extends StatefulWidget {
   const LocationPickerScreen({super.key, this.initial});
@@ -52,10 +53,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               onTap: (_, point) => setState(() => _selected = point),
             ),
             children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'net.emetrotel.sekitar_app',
-              ),
+              const ThemeMapTileLayer(),
               if (_selected != null)
                 MarkerLayer(
                   markers: [

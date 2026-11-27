@@ -30,7 +30,8 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
   400 ms), akun freeze selalu tampil; akun realtime/driver muncul setelah
   “Bagikan lokasi” di Setelan aktif. Di bawah zoom 14.5 data tidak dimuat agar
   tidak menarik seluruh area. Update otomatis tiap 10 detik, marker “Akunmu”
-  untuk akun sendiri, tap marker untuk chat/pesan.
+  untuk akun sendiri, tap marker untuk chat/pesan. Peta mengikuti tema sistem:
+  tile terang saat light mode dan tile gelap (CARTO dark) saat dark mode.
 - Akun usaha: pilih **Realtime GPS** (lokasi diperbarui tiap 15 detik selama app
   aktif) atau **freeze** dengan titik yang dipilih di peta. Status
   **Aktif/Tutup** juga diatur di layar Pengaturan usaha dan tampil di peta.

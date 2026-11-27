@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.11+27 | Group avatars are now visible to every group member (backend media access allows group-avatar media for conversation members); all maps use CARTO dark tiles in dark mode and OSM light tiles otherwise. |
 | 2026-11-27 | 0.12.10+26 | Update progress is inline on the Settings “Cek update” row (no progress dialog) with adaptive MB/percent and cancel; downloaded APKs are cached per version so “Pasang” retries the installer without re-downloading. Bottom navigation is now Chat / Peta / Post / Log Telepon (empty placeholder); profile opens from the header icon, and Settings from the profile AppBar. |
 | 2026-11-27 | 0.12.9+25 | Nearby posts show their distance in the feed card (“Sekitar 850 m / 1,2 km dari kamu”, with a near-me icon) and on the post detail header; detail preserves feed distance metadata after reloading the post. |
 | 2026-11-27 | 0.12.8+24 | Personal accounts now publish their position when “Bagikan lokasi” is on (business fixed pins stay put), so nearby feed works for personal users; feed falls back to public posts from the last 7 days labeled “Terbaru” when nobody is nearby; the chat list shows “sedang mengetik…” per conversation (direct and group) over WebSocket with ref-counted subscriptions. |

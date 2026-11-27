@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../services/location_service.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../widgets/theme_map_tile_layer.dart';
 
 class GroupMapScreen extends StatefulWidget {
   const GroupMapScreen({
@@ -134,11 +135,7 @@ class _GroupMapScreenState extends State<GroupMapScreen> {
                     initialZoom: 15,
                   ),
                   children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'net.emetrotel.sekitar_app',
-                    ),
+                    const ThemeMapTileLayer(),
                     MarkerLayer(
                       markers: [
                         for (final item in _locations)

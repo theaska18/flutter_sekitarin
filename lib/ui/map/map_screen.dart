@@ -10,6 +10,7 @@ import '../../state/auth_store.dart';
 import '../chat/chat_room_screen.dart';
 import '../common.dart';
 import '../orders/provider_screen.dart';
+import '../widgets/theme_map_tile_layer.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -322,10 +323,7 @@ class _MapScreenState extends State<MapScreen> {
             onTap: (_, __) => FocusScope.of(context).unfocus(),
           ),
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'net.emetrotel.sekitar_app',
-            ),
+            const ThemeMapTileLayer(),
             MarkerLayer(
               markers: [
                 if (consent && _userLocation != null)
