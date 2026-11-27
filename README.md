@@ -14,8 +14,10 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
   maupun grup). Header chat punya tombol panggilan suara + video (personal)
   dan video saja (grup); fungsinya belum aktif.
   Kirim **foto** (galeri) dan **file** (PDF, Word, Excel, TXT, ZIP) lewat
-  tombol lampiran. Chat direct terpisah per akun: daftar chat mengikuti akun
-  aktif dan menampilkan “Chat sebagai <nama akun>”.
+  tombol lampiran. Chat direct terpisah per akun, tetapi semua thread tampil
+  dalam **satu daftar Chat**: pesan masuk ke akun bisnis ditampilkan sebagai
+  `akun bisnis < pengirim`, sedangkan pesan yang kita kirim ke akun bisnis
+  menampilkan akun bisnis tujuan. Balasan memakai akun milik thread tersebut.
   Daftar chat memakai waktu relatif (“time ago”); di dalam chat ada header
   tanggal *sticky* (tanggal + bulan, atau + tahun bila beda tahun) dan jam pesan
   memakai “x menit lalu” hingga 60 menit lalu `HH:mm`.
