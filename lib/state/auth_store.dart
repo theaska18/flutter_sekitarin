@@ -28,6 +28,7 @@ class AuthStore extends ChangeNotifier {
 
   String? _accessToken;
   String? _refreshToken;
+  Future<bool>? _refreshFuture;
   Timer? _realtimeTimer;
   bool _realtimeBusy = false;
   bool _locationConsent = false;
@@ -257,7 +258,21 @@ class AuthStore extends ChangeNotifier {
     }
   }
 
-  Future<bool> _refreshSession() async {
+  Future<bool> _refreshSession() {
+    // Refresh tokens rotate on the server, so concurrent 401s must share one
+    // refresh. Otherwise the second request sends an already-rotated token and
+    // the whole session gets cleared.
+    final inFlight = _refreshFuture;
+    if (inFlight != null) return inFlight;
+    final future = _performRefresh();
+    _refreshFuture = future;
+    future.whenComplete(() {
+      if (identical(_refreshFuture, future)) _refreshFuture = null;
+    });
+    return future;
+  }
+
+  Future<bool> _performRefresh() async {
     final refreshToken = _refreshToken ?? await store.readRefreshToken();
     if (refreshToken == null || refreshToken.isEmpty) return false;
     try {
@@ -278,9 +293,16 @@ class AuthStore extends ChangeNotifier {
         refreshToken: _refreshToken,
       );
       return _accessToken != null && _accessToken!.isNotEmpty;
+    } on ApiException catch (error) {
+      // Only a rejected refresh token ends the session. Network errors,
+      // timeouts, rate limits, and server errors keep the stored session so a
+      // later attempt can recover without logging the user out.
+      if (error.statusCode == 401 || error.statusCode == 422) {
+        await _clearSession();
+        notifyListeners();
+      }
+      return false;
     } catch (_) {
-      await _clearSession();
-      notifyListeners();
       return false;
     }
   }

@@ -161,8 +161,10 @@ lib/
 ```
 
 Token akses disimpan di `flutter_secure_storage`; device UUID dan akun aktif di
-`SharedPreferences`. Access token diperbarui otomatis sekali lewat
-`/auth/refresh` saat server membalas 401.
+`SharedPreferences`. Access token diperbarui otomatis lewat `/auth/refresh`
+saat server membalas 401. Refresh bersifat *single-flight* (banyak request 401
+berbarengan berbagi satu rotasi token), dan sesi hanya dihapus jika refresh
+token benar-benar ditolak — gangguan jaringan/rate limit tidak membuat logout.
 
 ## Batasan saat ini
 
