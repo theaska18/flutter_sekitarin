@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.30+46 | Call polish: outgoing call notification is marked connected while in Jitsi and cleared when the call ends. |
 | 2026-11-27 | 0.12.29+45 | Voice/video calls via Jitsi (`jitsi.ckamal.com`): 1:1 calls ring through CallKit/full-screen notification, group calls only show an in-chat banner with join, Log Telepon filled with call history and call-back, mic/camera permissions. |
 | 2026-11-27 | 0.12.28+44 | Chat menus in list + room (pin, mute, clear all, add contact, delete/leave), group notification mute, pin/mute icons by the name, wider name layout, logout exits app, login password visibility toggle. |
 | 2026-11-27 | 0.12.27+43 | Pin/unpin personal and group chats; business availability requires owner personal online and hides inactive businesses from the map; UI polling pauses in background while GPS/WebSocket stay connected. |
@@ -142,6 +143,11 @@ the manifest and downloads/installs the APK.
 - **Pin:** personal and group chats can be pinned per user from the three-dot
   menu (`conversations/{id}/pin`); pinned chats sort first and show a pin icon
   next to the name. Group mute (`/mute`) suppresses chat notifications.
+- **Calls:** 1:1 voice/video calls ring through CallKit (`flutter_callkit_incoming`)
+  and open the Jitsi SDK; group calls never ring, they only publish an
+  `active_call` marker on the group. Join uses a short-lived JWT minted by the
+  backend; never commit the Jitsi secret. The Jitsi plugin is vendored under
+  `packages/jitsi_meet_flutter_sdk` to pin `compileSdk 36`.
 - **Chat actions:** the three-dot menu exists in both the chat list and chat
   room (pin, mute for groups, clear all, add contact for unknown personal
   peers, delete/leave). Logout exits the app instead of showing login; login

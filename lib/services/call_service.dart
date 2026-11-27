@@ -578,12 +578,22 @@ class CallService extends ChangeNotifier {
     );
     try {
       await meet.join(options, listener);
+      if (callId != null) {
+        try {
+          await FlutterCallkitIncoming.setCallConnected('call-$callId');
+        } catch (_) {}
+      }
       await completer.future.timeout(
         const Duration(hours: 6),
         onTimeout: () {},
       );
     } finally {
       await meet.hangUp();
+      if (callId != null) {
+        try {
+          await FlutterCallkitIncoming.endCall('call-$callId');
+        } catch (_) {}
+      }
       if (group && callId != null) {
         try {
           await _auth?.api.post('calls/$callId/leave');
