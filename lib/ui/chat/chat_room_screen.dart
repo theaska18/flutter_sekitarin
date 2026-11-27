@@ -8,8 +8,10 @@ import 'package:provider/provider.dart';
 import '../../config.dart';
 import '../../core/ws_client.dart';
 import '../../services/media_opener.dart';
+import '../../services/message_sound.dart';
 import '../../state/auth_store.dart';
 import '../../state/chat_cache.dart';
+import '../../state/chat_presence.dart';
 import '../common.dart';
 import '../profile/account_profile_route.dart';
 import '../widgets/account_avatar.dart';
@@ -26,12 +28,16 @@ class ChatRoomScreen extends StatefulWidget {
   State<ChatRoomScreen> createState() => _ChatRoomScreenState();
 }
 
-class _ChatRoomScreenState extends State<ChatRoomScreen> {
+class _ChatRoomScreenState extends State<ChatRoomScreen>
+    with WidgetsBindingObserver {
   late final int _conversationId =
       widget.conversation['conversation_id'] as int;
   final _message = TextEditingController();
+  final _inputFocus = FocusNode();
   final _scroll = ScrollController();
   final List<Map<String, dynamic>> _messages = [];
+  final Set<int> _incomingIds = {};
+  final Map<int, Timer> _incomingTimers = {};
   StreamSubscription? _wsSubscription;
   late final WsClient _ws;
   Timer? _poll;
@@ -52,6 +58,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    ChatPresence.activeConversationId = _conversationId;
+    _inputFocus.addListener(_onInputFocus);
     _ws = context.read<AuthStore>().ws;
     _sendAccountId = widget.conversation['my_account_id'] as int?;
     _ws.subscribe(_conversationId);
@@ -116,13 +125,33 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     _poll = Timer.periodic(const Duration(seconds: 5), (_) => _pollNew());
   }
 
+  void _onInputFocus() {
+    if (!_inputFocus.hasFocus) return;
+    Future.delayed(const Duration(milliseconds: 120), _scrollToBottom);
+    Future.delayed(const Duration(milliseconds: 380), _scrollToBottom);
+  }
+
+  @override
+  void didChangeMetrics() {
+    if (!mounted || MediaQuery.of(context).viewInsets.bottom <= 0) return;
+    Future.delayed(const Duration(milliseconds: 120), _scrollToBottom);
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (ChatPresence.activeConversationId == _conversationId) {
+      ChatPresence.activeConversationId = null;
+    }
+    _inputFocus.dispose();
     _ws.unsubscribe(_conversationId);
     _wsSubscription?.cancel();
     _poll?.cancel();
     _typingStop?.cancel();
     for (final timer in _typingTimers.values) {
+      timer.cancel();
+    }
+    for (final timer in _incomingTimers.values) {
       timer.cancel();
     }
     _message.dispose();
@@ -250,11 +279,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   void _upsert(Map<String, dynamic> message) {
     final id = message['message_id'];
     if (id == null || !mounted) return;
+    var isNew = false;
     setState(() {
       final index = _messages.indexWhere((item) => item['message_id'] == id);
       if (index >= 0) {
         _messages[index] = message;
       } else {
+        isNew = true;
         _messages.add(message);
         _messages.sort((a, b) =>
             (a['message_id'] as int).compareTo(b['message_id'] as int));
@@ -262,6 +293,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       if (id is int && id > _lastId) _lastId = id;
     });
     ChatCache.upsert(_conversationId, message);
+    if (isNew && id is int) {
+      _incomingIds.add(id);
+      _incomingTimers[id]?.cancel();
+      _incomingTimers[id] = Timer(const Duration(milliseconds: 600), () {
+        _incomingIds.remove(id);
+      });
+      MessageSound.play();
+    }
     _scrollToBottom();
   }
 
@@ -515,10 +554,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               (context, index) {
                 final message = messages[index];
                 final mine = message['sender_user_id'] == myId;
+                final id = message['message_id'] as int?;
                 return _MessageBubble(
+                  key: ValueKey(id),
                   message: message,
                   mine: mine,
                   token: token,
+                  animate: id != null && _incomingIds.contains(id),
                   senderName: mine
                       ? null
                       : _memberNames[message['sender_user_id'] as int?],
@@ -549,7 +591,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final myId = auth.user?['user_id'];
     final typingLabel = _typingNames.isEmpty
         ? null
-        : '${_typingNames.values.join(', ')} sedang mengetik…';
+        : isGroup
+            ? '${_typingNames.values.join(', ')} sedang mengetik…'
+            : 'sedang mengetik…';
     final subtitle = typingLabel ??
         (isGroup
             ? '${widget.conversation['member_count'] ?? ''} anggota'
@@ -675,6 +719,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   Expanded(
                     child: TextField(
                       controller: _message,
+                      focusNode: _inputFocus,
                       minLines: 1,
                       maxLines: 4,
                       textCapitalization: TextCapitalization.sentences,
@@ -710,16 +755,19 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
 class _MessageBubble extends StatelessWidget {
   const _MessageBubble({
+    super.key,
     required this.message,
     required this.mine,
     required this.token,
     this.senderName,
+    this.animate = false,
   });
 
   final Map<String, dynamic> message;
   final bool mine;
   final String? token;
   final String? senderName;
+  final bool animate;
 
   @override
   Widget build(BuildContext context) {
@@ -811,7 +859,7 @@ class _MessageBubble extends StatelessWidget {
       );
     }
 
-    return Align(
+    final body = Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         constraints: BoxConstraints(
@@ -853,6 +901,20 @@ class _MessageBubble extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+    if (!animate) return body;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOut,
+      child: body,
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.translate(
+          offset: Offset(0, (1 - value) * 12),
+          child: child,
         ),
       ),
     );

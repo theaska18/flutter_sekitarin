@@ -104,6 +104,12 @@ the manifest and downloads/installs the APK.
 - **Chat cache:** messages are cached per conversation in `ChatCache`; opening a
   chat uses the cache and only fetches messages after the last cached id. Clear
   the cache on logout, clear-chat, and delete/leave.
+- **Typing label:** direct chats show only “sedang mengetik…”; groups include the
+  typing member names. Keep the keyboard from hiding the last message by
+  scrolling to the bottom when input focus/metrics change.
+- **Message feedback:** play `MessageSound` for new incoming/sent messages and
+  animate newly added bubbles once (fade + slide). Suppress the chat-list sound
+  when that conversation is already open (`ChatPresence`).
 - **Clear vs delete:** “Bersihkan pesan” is per-user (`cleared_before_message_id`)
   and never deletes for other members. Direct “Hapus percakapan” and group
   “Keluar grup” use the existing conversation DELETE/leave endpoint.

@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/ws_client.dart';
+import '../../services/message_sound.dart';
 import '../../state/auth_store.dart';
 import '../../state/chat_cache.dart';
+import '../../state/chat_presence.dart';
 import '../common.dart';
 import '../widgets/account_avatar.dart';
 import '../widgets/account_type_avatar.dart';
@@ -95,6 +97,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final name = '${event['event']}';
     if (name == 'message.created') {
       _clearTyping(conversationId);
+      if (ChatPresence.activeConversationId != conversationId) {
+        MessageSound.play();
+      }
       _reloadDebounce?.cancel();
       _reloadDebounce = Timer(const Duration(milliseconds: 350), _load);
       return;
@@ -277,7 +282,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           : _typingUsers[conversationId];
                       final typingLabel = typing == null || typing.isEmpty
                           ? null
-                          : '${typing.values.join(', ')} sedang mengetik…';
+                          : isGroup
+                              ? '${typing.values.join(', ')} sedang mengetik…'
+                              : 'sedang mengetik…';
                       final titleStyle = TextStyle(
                         fontWeight:
                             hasUnread ? FontWeight.w800 : FontWeight.w600,
