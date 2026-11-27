@@ -1,10 +1,13 @@
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../config.dart';
 import '../../core/ws_client.dart';
+import '../../services/media_opener.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
 import '../profile/account_profile_route.dart';
@@ -285,6 +288,118 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     }
   }
 
+  Future<void> _pickAttachment() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Foto'),
+              subtitle: const Text('Pilih dari galeri'),
+              onTap: () => Navigator.of(sheetContext).pop('photo'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.attach_file),
+              title: const Text('File'),
+              subtitle: const Text('PDF, Word, Excel, TXT, atau ZIP'),
+              onTap: () => Navigator.of(sheetContext).pop('file'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (choice == 'photo') {
+      await _sendPhoto();
+    } else if (choice == 'file') {
+      await _sendFile();
+    }
+  }
+
+  Future<void> _sendPhoto() async {
+    if (_sending) return;
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1800,
+    );
+    if (picked == null || !mounted) return;
+    await _sendAttachment(
+      path: picked.path,
+      name: picked.name,
+      type: 'image',
+    );
+  }
+
+  Future<void> _sendFile() async {
+    if (_sending) return;
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const [
+        'pdf',
+        'doc',
+        'docx',
+        'xls',
+        'xlsx',
+        'txt',
+        'zip',
+      ],
+    );
+    final file = result?.files.single;
+    if (file == null || file.path == null || !mounted) return;
+    await _sendAttachment(
+      path: file.path!,
+      name: file.name,
+      type: 'file',
+    );
+  }
+
+  Future<void> _sendAttachment({
+    required String path,
+    required String name,
+    required String type,
+  }) async {
+    if (_sending) return;
+    _typingStop?.cancel();
+    _sendTyping(false);
+    final api = context.read<AuthStore>().api;
+    setState(() => _sending = true);
+    try {
+      final media = await api.uploadFile(
+        'media',
+        filePath: path,
+        purpose: 'chat',
+      );
+      final payload = media['media'];
+      if (payload is! Map || payload['media_id'] is! int) {
+        throw Exception('Upload lampiran gagal.');
+      }
+      final data = await api.post(
+        'conversations/$_conversationId/messages',
+        {
+          'type': type,
+          'media_id': payload['media_id'],
+          'body': name,
+        },
+      );
+      if (data['message'] is Map) {
+        final message = Map<String, dynamic>.from(data['message'] as Map);
+        _upsert(message);
+        await _markRead(message);
+      }
+      _scrollToBottom();
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scroll.hasClients) return;
@@ -536,6 +651,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  IconButton(
+                    onPressed: _sending ? null : _pickAttachment,
+                    icon: const Icon(Icons.attach_file),
+                    tooltip: 'Kirim foto atau file',
+                  ),
                   Expanded(
                     child: TextField(
                       controller: _message,
@@ -623,6 +743,36 @@ class _MessageBubble extends StatelessWidget {
           width: 220,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => const Text('Gambar tidak tersedia'),
+        ),
+      );
+    } else if (type == 'file' && mediaId is int) {
+      content = InkWell(
+        onTap: () => openChatMedia(
+          context,
+          mediaId,
+          token,
+          filename: '${message['body'] ?? ''}',
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.insert_drive_file_outlined,
+                size: 26, color: bubbleTextColor),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                '${message['body'] ?? 'File'}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: bubbleTextColor,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.download, size: 14, color: bubbleMetaColor),
+          ],
         ),
       );
     } else if (type == 'location' && location is Map) {
