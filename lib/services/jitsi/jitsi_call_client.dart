@@ -85,6 +85,10 @@ class JitsiCallClient implements JitsiSessionView {
   String? error;
   String callDuration = '';
   final List<String> diagnostics = [];
+  String debugInfo = '';
+  Timer? _statsTimer;
+  int remoteVideoTracks = 0;
+  int remoteAudioTracks = 0;
 
   String get _roomJid => '$room@muc.$xmppDomain';
 
@@ -446,6 +450,7 @@ class JitsiCallClient implements JitsiSessionView {
       }
     };
     pc!.onIceConnectionState = (state) {
+      _diag('ICE: ${state.name}');
       if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
           state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
         _onMediaConnected();
@@ -454,9 +459,16 @@ class JitsiCallClient implements JitsiSessionView {
       }
     };
     pc!.onTrack = (event) async {
+      if (event.track.kind == 'video') {
+        remoteVideoTracks++;
+      } else if (event.track.kind == 'audio') {
+        remoteAudioTracks++;
+        _diag('Track audio diterima');
+      }
       final streams = event.streams;
       if (streams.isEmpty) return;
       final media = streams.first;
+      _diag('Track ${event.track.kind}: ${media.id}');
       if (event.track.kind != 'video') return;
       final key = media.id;
       if (remoteRenderers.containsKey(key)) return;
@@ -487,6 +499,7 @@ class JitsiCallClient implements JitsiSessionView {
       _notify();
     });
     Helper.setSpeakerphoneOn(true);
+    _startStats();
     _notify();
     onConnected?.call();
   }
@@ -685,6 +698,49 @@ class JitsiCallClient implements JitsiSessionView {
     stage = value;
     _diag(value);
     _notify();
+  }
+
+  void _startStats() {
+    _statsTimer?.cancel();
+    _statsTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      final peer = pc;
+      if (peer == null) return;
+      try {
+        final reports = await peer.getStats();
+        var inAudio = 0, inVideo = 0, outAudio = 0, outVideo = 0;
+        var dtls = '', pair = '';
+        for (final report in reports) {
+          final values = report.values;
+          if (report.type == 'inbound-rtp') {
+            final kind = '${values['kind'] ?? values['mediaType'] ?? ''}';
+            final bytes = _asIntValue(values['bytesReceived']);
+            if (kind == 'audio') inAudio = bytes;
+            if (kind == 'video') inVideo = bytes;
+          } else if (report.type == 'outbound-rtp') {
+            final kind = '${values['kind'] ?? values['mediaType'] ?? ''}';
+            final bytes = _asIntValue(values['bytesSent']);
+            if (kind == 'audio') outAudio = bytes;
+            if (kind == 'video') outVideo = bytes;
+          } else if (report.type == 'transport') {
+            dtls = '${values['dtlsState'] ?? ''}';
+          } else if (report.type == 'candidate-pair' &&
+              '${values['state']}' == 'succeeded') {
+            pair = 'ok';
+          }
+        }
+        debugInfo = 'ice=${pair.isEmpty ? '-' : 'ok'} dtls=$dtls\n'
+            'masuk a=${(inAudio / 1024).round()}KB v=${(inVideo / 1024).round()}KB\n'
+            'keluar a=${(outAudio / 1024).round()}KB v=${(outVideo / 1024).round()}KB\n'
+            'track v=$remoteVideoTracks a=$remoteAudioTracks';
+        _notify();
+      } catch (_) {}
+    });
+  }
+
+  int _asIntValue(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse('$value') ?? 0;
   }
 
   void _notify() => onUpdate?.call();

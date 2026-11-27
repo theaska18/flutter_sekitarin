@@ -247,6 +247,25 @@ class _WebrtcCallScreenState extends State<WebrtcCallScreen> {
                   ),
                 ),
               ),
+            if (_connected)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 44,
+                left: 12,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    _client.debugInfo,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ),
             Positioned(
               top: MediaQuery.of(context).padding.top + 12,
               left: 12,
