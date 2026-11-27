@@ -6,12 +6,12 @@ import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 
 import 'package:flutter/material.dart';
-import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../config.dart';
 import '../state/auth_store.dart';
 import '../ui/calls/call_webview_screen.dart';
+import '../ui/calls/webrtc_call_screen.dart';
 import 'push_service.dart';
 
 /// Voice/video calls: direct calls ring through CallKit, group calls are only
@@ -614,11 +614,14 @@ class CallService extends ChangeNotifier {
       await [Permission.microphone, Permission.camera].request();
       // Prefer the official Jitsi SDK (same UI as the Jitsi app). Fall back to
       // the in-app web view when this server/SDK combination cannot connect.
-      final handled = await _joinNative(
+      final host = Uri.tryParse(serverUrl)?.host ?? '';
+      final handled = await _joinWebrtc(
         serverUrl: serverUrl,
+        host: host,
         room: room,
         token: token,
         kind: kind,
+        callId: callId,
       );
       if (!handled) {
         await _openWebViewCall(
@@ -665,92 +668,38 @@ class CallService extends ChangeNotifier {
     }
   }
 
-  /// Returns true when the native SDK handled the call (joined or failed after
-  /// the user saw the in-call UI). Returns false when the caller should fall
-  /// back to the WebView.
-  Future<bool> _joinNative({
+  /// Opens the custom WebRTC call screen. Returns false when the connection
+  /// could not be established so the caller can fall back to the Jitsi web view.
+  Future<bool> _joinWebrtc({
     required String serverUrl,
+    required String host,
     required String room,
     required String token,
     required String kind,
+    int? callId,
   }) async {
-    final meet = JitsiMeet();
-    final joined = Completer<bool>();
-    final closed = Completer<void>();
-    Object? terminationError;
-    DateTime? joinedAt;
-    final listener = JitsiMeetEventListener(
-      conferenceJoined: (url) {
-        joinedAt = DateTime.now();
-        if (!joined.isCompleted) joined.complete(true);
-      },
-      conferenceTerminated: (url, error) {
-        terminationError = error;
-        if (!joined.isCompleted) joined.complete(false);
-        if (!closed.isCompleted) closed.complete();
-      },
-      readyToClose: () {
-        if (!closed.isCompleted) closed.complete();
-      },
-    );
-    try {
-      await meet.join(
-        JitsiMeetConferenceOptions(
-          serverURL: serverUrl.isEmpty ? null : serverUrl,
+    final nav = navigatorKey.currentState;
+    if (nav == null || host.isEmpty) return false;
+    final auth = _auth;
+    final displayName =
+        '${auth?.user?['display_name'] ?? auth?.user?['username'] ?? 'Sekitarin'}';
+    final result = await nav.push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => WebrtcCallScreen(
+          serverUrl: serverUrl,
+          host: host,
+          xmppDomain: 'meet.jitsi',
           room: room,
           token: token,
-          configOverrides: {
-            'startWithAudioMuted': false,
-            'startWithVideoMuted': kind != 'video',
-            'prejoinConfig': {'enabled': false},
-            'prejoinPageEnabled': false,
-            'requireDisplayName': false,
-            'disableDeepLinking': true,
-            'enableWelcomePage': false,
-            'toolbarButtons': [
-              'microphone',
-              'camera',
-              'hangup',
-              'tileview',
-              'settings',
-            ],
-          },
-          featureFlags: {
-            'welcomePageEnabled': false,
-            'prejoinPageEnabled': false,
-            'unsafeRoomWarningEnabled': false,
-          },
+          displayName: displayName,
+          title: kind == 'video' ? 'Panggilan video' : 'Panggilan suara',
+          video: kind == 'video',
+          callId: callId,
         ),
-        listener,
-      );
-      final ok = await joined.future.timeout(
-        const Duration(seconds: 15),
-        onTimeout: () => false,
-      );
-      if (!ok) {
-        try {
-          await meet.hangUp();
-        } catch (_) {}
-        return false;
-      }
-      await closed.future.timeout(
-        const Duration(hours: 6),
-        onTimeout: () {},
-      );
-      // The SDK joined but dropped the conference with an error a few seconds
-      // later (server/SDK mismatch). Retry in the web view instead.
-      final shortLived = joinedAt != null &&
-          DateTime.now().difference(joinedAt!) < const Duration(seconds: 45);
-      if (terminationError != null && shortLived) {
-        return false;
-      }
-      return true;
-    } catch (_) {
-      try {
-        await meet.hangUp();
-      } catch (_) {}
-      return false;
-    }
+        fullscreenDialog: true,
+      ),
+    );
+    return result ?? false;
   }
 
   Future<void> _openWebViewCall({

@@ -1,8 +1,5 @@
 allprojects {
     repositories {
-        maven {
-            url = uri("https://raw.githubusercontent.com/jitsi/jitsi-maven-repository/master/releases")
-        }
         google()
         mavenCentral()
     }
