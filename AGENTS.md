@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.35+51 | Leaving a call from Jitsi's own hangup button is detected in the WebView and ends the call for both sides; the other device closes its call screen immediately. |
 | 2026-11-27 | 0.12.34+50 | Pass the Jitsi JWT in both the URL query and hash; WebViews that drop the fragment no longer show "Authentication required". |
 | 2026-11-27 | 0.12.33+49 | Calls now run the Jitsi web app inside an in-app WebView (native Jitsi SDK removed after "You have been disconnected"); mic/camera permissions requested in-app, browser fallback when the WebView cannot render, APK back to ~27 MB. |
 | 2026-11-27 | 0.12.32+48 | Call liveness: while in a call the app sends `/calls/{id}/heartbeat`; the backend ends answered calls silent for 3 minutes, dismisses stale CallKit UI on launch, and hangs up Jitsi when the other side ends the call. |

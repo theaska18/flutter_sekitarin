@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -34,6 +36,31 @@ class _CallWebViewScreenState extends State<CallWebViewScreen> {
   InAppWebViewController? _controller;
   bool _failed = false;
   bool _ended = false;
+  Timer? _watch;
+  DateTime? _joinedAt;
+
+  static const _leftCheckJs = r'''
+(function () {
+  try {
+    if (window.APP && APP.conference) {
+      var room = APP.conference._room;
+      if (room && room.isLeft && room.isLeft()) return 'left';
+      if (room && room.getMyUserId && !room.getMyUserId()) return 'left';
+    }
+  } catch (e) {}
+  try {
+    if (location.href === 'about:blank') return 'left';
+    if (location.pathname === '/' || location.pathname === '') return 'left';
+  } catch (e) {}
+  try {
+    var text = (document.body && document.body.innerText || '').toLowerCase();
+    if (text.indexOf('you have left the meeting') >= 0) return 'left';
+    if (text.indexOf('you left the meeting') >= 0) return 'left';
+    if (text.indexOf('kembali ke rapat') >= 0) return 'left';
+  } catch (e) {}
+  return 'in';
+})()
+''';
 
   late final String _url = _buildUrl();
 
@@ -51,8 +78,32 @@ class _CallWebViewScreenState extends State<CallWebViewScreen> {
 
   @override
   void dispose() {
+    _watch?.cancel();
     CallService.instance.endSignal.removeListener(_onEndSignal);
     super.dispose();
+  }
+
+  void _startWatch() {
+    _watch?.cancel();
+    _watched = false;
+    _watch = Timer.periodic(const Duration(seconds: 2), (_) => _checkLeft());
+  }
+
+  bool _watched = false;
+
+  Future<void> _checkLeft() async {
+    if (_ended || _failed || _controller == null) return;
+    if (_joinedAt != null &&
+        DateTime.now().difference(_joinedAt!) < const Duration(seconds: 4)) {
+      return;
+    }
+    try {
+      final result =
+          await _controller!.evaluateJavascript(source: _leftCheckJs);
+      if ('$result'.toLowerCase() == 'left' && !_ended) {
+        await _endCall();
+      }
+    } catch (_) {}
   }
 
   void _onEndSignal() {
@@ -189,6 +240,13 @@ class _CallWebViewScreenState extends State<CallWebViewScreen> {
                 ),
                 onWebViewCreated: (controller) {
                   _controller = controller;
+                },
+                onLoadStop: (controller, url) {
+                  if (!_watched) {
+                    _watched = true;
+                    _joinedAt = DateTime.now();
+                    _startWatch();
+                  }
                 },
                 onPermissionRequest: (controller, request) async {
                   final statuses = await [
