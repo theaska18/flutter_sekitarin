@@ -11,9 +11,13 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
   Daftar chat memakai waktu relatif (“time ago”); di dalam chat ada header
   tanggal *sticky* (tanggal + bulan, atau + tahun bila beda tahun) dan jam pesan
   memakai “x menit lalu” hingga 60 menit lalu `HH:mm`.
-- Ketuk nama grup untuk membuka **Info grup**; ikon peta di kanan atas membuka
-  **peta anggota** yang hanya menampilkan anggota yang menyetujui share lokasi,
-  lengkap dengan tombol bagikan lokasi 10 menit.
+- Ketuk nama grup untuk membuka **Info grup**; avatar grup selalu ada di pojok
+  kanan atas (membuka Info grup) dan ikon peta di sebelahnya membuka **peta
+  anggota** yang hanya menampilkan anggota yang menyetujui share lokasi.
+- **Bagikan lokasi diatur per grup** dari Info grup, jadi grup lain bisa
+  ditolak. Foto grup dapat diganti oleh anggota mana pun; nama grup tetap
+  khusus owner.
+- Logo Sekitarin tampil di header beranda (kiri atas) dan layar login.
 - Tambah kontak lewat username dari ikon di topbar samping notifikasi.
 - Peta OpenStreetMap: memuat area yang sedang dilihat (pan/zoom, debounce
   400 ms), akun freeze selalu tampil; akun realtime/driver muncul setelah
@@ -40,7 +44,8 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
 - Katalog & order: lihat layanan akun dari peta, order makanan/jasa/ride,
   pembayaran tunai/transfer, dan alur status (terima → proses → antar →
   selesai/batal).
-- Consent lokasi/notifikasi dan feed notifikasi in-app.
+- Notifikasi in-app: badge chat hilang saat tab Chat dibuka, dan daftar chat
+  menandai percakapan yang belum dibaca (teks tebal + badge jumlah).
 
 ## Menjalankan
 

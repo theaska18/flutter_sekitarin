@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../config.dart';
+import '../../services/location_service.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
 
@@ -25,6 +26,8 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   bool _loading = true;
   bool _busy = false;
   bool _avatarBusy = false;
+  bool _sharingLocation = false;
+  bool _locationBusy = false;
 
   @override
   void initState() {
@@ -45,10 +48,65 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
           _conversation = Map<String, dynamic>.from(conversation);
         });
       }
+      await _loadLiveLocation();
     } catch (error) {
       if (mounted) showErrorSnack(context, error);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadLiveLocation() async {
+    try {
+      final data = await context.read<AuthStore>().api.get(
+            'conversations/${widget.conversationId}/live-location',
+          );
+      if (!mounted) return;
+      final items = data is Map && data['data'] is List
+          ? (data['data'] as List).whereType<Map>()
+          : const <Map>[];
+      final myId = context.read<AuthStore>().user?['user_id'];
+      setState(() {
+        _sharingLocation = items.any((item) => item['user_id'] == myId);
+      });
+    } catch (_) {
+      // Location sharing state is best-effort.
+    }
+  }
+
+  Future<void> _toggleLocation(bool value) async {
+    if (_locationBusy) return;
+    setState(() => _locationBusy = true);
+    final auth = context.read<AuthStore>();
+    try {
+      if (value) {
+        await auth.api.put('me/consents/location', {
+          'granted': true,
+          'policy_version': '1.0',
+        });
+        final position = await LocationService.current();
+        if (position == null) {
+          throw Exception('Lokasi GPS tidak tersedia.');
+        }
+        await auth.api.put(
+          'conversations/${widget.conversationId}/live-location',
+          {
+            'lat': position.latitude,
+            'lng': position.longitude,
+            'expires_in': 3600,
+          },
+        );
+      } else {
+        await auth.api.delete(
+          'conversations/${widget.conversationId}/live-location',
+        );
+      }
+      await auth.refresh();
+      await _loadLiveLocation();
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    } finally {
+      if (mounted) setState(() => _locationBusy = false);
     }
   }
 
@@ -69,7 +127,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   }
 
   Future<void> _pickAvatar() async {
-    if (!_isOwner || _avatarBusy) return;
+    if (_avatarBusy) return;
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
       imageQuality: 85,
@@ -243,26 +301,24 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                                     context.read<AuthStore>().api.accessToken,
                                 radius: 36,
                               ),
-                              if (_isOwner)
-                                Container(
-                                  padding: const EdgeInsets.all(5),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                        color: Colors.white, width: 2),
-                                  ),
-                                  child: _avatarBusy
-                                      ? const SizedBox(
-                                          width: 12,
-                                          height: 12,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2),
-                                        )
-                                      : const Icon(Icons.photo_camera,
-                                          size: 14, color: Colors.white),
+                              Container(
+                                padding: const EdgeInsets.all(5),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  shape: BoxShape.circle,
+                                  border:
+                                      Border.all(color: Colors.white, width: 2),
                                 ),
+                                child: _avatarBusy
+                                    ? const SizedBox(
+                                        width: 12,
+                                        height: 12,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.photo_camera,
+                                        size: 14, color: Colors.white),
+                              ),
                             ],
                           ),
                         ),
@@ -283,7 +339,33 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+                Card(
+                  child: SwitchListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    value: _sharingLocation,
+                    onChanged: _locationBusy ? null : _toggleLocation,
+                    secondary: Icon(
+                      _sharingLocation
+                          ? Icons.location_on
+                          : Icons.location_off_outlined,
+                      size: 20,
+                      color: _sharingLocation
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                    title: const Text(
+                      'Bagikan lokasi ke grup ini',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    subtitle: const Text(
+                      'Hanya berlaku untuk grup ini. Grup lain tetap bisa Anda tolak.',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Text('Anggota',

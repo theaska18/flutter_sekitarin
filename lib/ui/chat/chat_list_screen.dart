@@ -3,8 +3,13 @@ import 'package:provider/provider.dart';
 
 import '../../state/auth_store.dart';
 import '../common.dart';
+import '../widgets/account_avatar.dart';
 import 'chat_room_screen.dart';
 import 'new_chat_sheet.dart';
+
+/// Bumped by the shell whenever the Chat tab is opened so the list reloads
+/// unread counts after messages arrive in the background.
+final ValueNotifier<int> chatListRefreshTick = ValueNotifier<int>(0);
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -21,7 +26,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   void initState() {
     super.initState();
+    chatListRefreshTick.addListener(_load);
     _load();
+  }
+
+  @override
+  void dispose() {
+    chatListRefreshTick.removeListener(_load);
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -109,26 +121,36 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     itemBuilder: (context, index) {
                       final item = _items[index];
                       final unread = item['unread_count'] ?? 0;
+                      final hasUnread = unread is int && unread > 0;
+                      final scheme = Theme.of(context).colorScheme;
                       return Card(
+                        color: hasUnread
+                            ? scheme.primaryContainer.withValues(alpha: 0.35)
+                            : null,
                         child: ListTile(
                           onTap: () => _openConversation(item),
-                          leading: CircleAvatar(
-                            backgroundColor: item['type'] == 'group'
-                                ? Theme.of(context)
-                                    .colorScheme
-                                    .tertiaryContainer
-                                : Theme.of(context)
-                                    .colorScheme
-                                    .primaryContainer,
-                            child: Icon(
-                              item['type'] == 'group'
-                                  ? Icons.groups
-                                  : Icons.person,
-                            ),
-                          ),
+                          leading: item['type'] == 'group'
+                              ? AccountAvatar(
+                                  account: {
+                                    'avatar_media_id': item['avatar_media_id'],
+                                  },
+                                  radius: 20,
+                                  token:
+                                      context.read<AuthStore>().api.accessToken,
+                                  fallbackIcon: Icons.groups,
+                                  backgroundColor: scheme.tertiaryContainer,
+                                  foregroundColor: scheme.onTertiaryContainer,
+                                )
+                              : CircleAvatar(
+                                  backgroundColor: scheme.primaryContainer,
+                                  child: const Icon(Icons.person),
+                                ),
                           title: Text(
                             peerName(item),
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              fontWeight:
+                                  hasUnread ? FontWeight.w800 : FontWeight.w600,
+                            ),
                           ),
                           subtitle: Text(
                             messagePreview(
@@ -139,6 +161,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontWeight:
+                                  hasUnread ? FontWeight.w600 : FontWeight.w400,
+                              color: hasUnread ? scheme.onSurface : null,
+                            ),
                           ),
                           trailing: Column(
                             mainAxisAlignment: MainAxisAlignment.center,

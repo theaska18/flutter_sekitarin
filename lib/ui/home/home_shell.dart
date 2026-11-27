@@ -11,6 +11,7 @@ import '../map/map_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/profile_screen.dart';
 import '../settings/settings_screen.dart';
+import '../widgets/sekitarin_logo.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -40,6 +41,18 @@ class _HomeShellState extends State<HomeShell> {
     super.dispose();
   }
 
+  Future<void> _openChatTab() async {
+    final auth = context.read<AuthStore>();
+    auth.clearChatBadge();
+    chatListRefreshTick.value++;
+    try {
+      await auth.api.post('notifications/read-chat');
+    } catch (_) {
+      // Clearing the badge locally is enough when offline.
+    }
+    await auth.refresh();
+  }
+
   Widget _badgedIcon(IconData icon, int count) {
     if (count <= 0) return Icon(icon);
     return Badge(
@@ -53,17 +66,34 @@ class _HomeShellState extends State<HomeShell> {
     final auth = context.watch<AuthStore>();
     return Scaffold(
       appBar: AppBar(
-        title: Text(_titles[_index]),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SekitarinLogo(height: 24),
+            const SizedBox(width: 10),
+            Container(
+              width: 1,
+              height: 18,
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              _titles[_index],
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add_alt_1),
-            tooltip: 'Tambah kontak',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const AddContactScreen(),
+          if (_index == 0)
+            IconButton(
+              icon: const Icon(Icons.contacts_outlined),
+              tooltip: 'Kontak',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const AddContactScreen(),
+                ),
               ),
             ),
-          ),
           Stack(
             clipBehavior: Clip.none,
             children: [
@@ -123,11 +153,7 @@ class _HomeShellState extends State<HomeShell> {
         selectedIndex: _index,
         onDestinationSelected: (value) {
           setState(() => _index = value);
-          if (value == 0) {
-            final auth = context.read<AuthStore>();
-            auth.clearChatBadge();
-            auth.refresh();
-          }
+          if (value == 0) _openChatTab();
         },
         destinations: [
           NavigationDestination(

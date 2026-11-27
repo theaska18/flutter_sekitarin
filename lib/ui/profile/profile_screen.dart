@@ -20,7 +20,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, dynamic>> _posts = [];
   bool _loading = true;
-  bool _consentBusy = false;
   int? _loadedAccountId;
 
   @override
@@ -95,23 +94,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (selected is int && mounted) {
       await auth.switchAccount(selected);
-    }
-  }
-
-  Future<void> _setLocationConsent(bool value) async {
-    if (_consentBusy) return;
-    setState(() => _consentBusy = true);
-    final auth = context.read<AuthStore>();
-    try {
-      await auth.api.put('me/consents/location', {
-        'granted': value,
-        'policy_version': '1.0',
-      });
-      await auth.refresh();
-    } catch (error) {
-      if (mounted) showErrorSnack(context, error);
-    } finally {
-      if (mounted) setState(() => _consentBusy = false);
     }
   }
 
@@ -340,30 +322,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Card(
-              child: SwitchListTile(
-                dense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                value: auth.locationConsent,
-                onChanged: _consentBusy ? null : _setLocationConsent,
-                secondary: Icon(
-                  auth.locationConsent
-                      ? Icons.location_on
-                      : Icons.location_off_outlined,
-                  size: 20,
-                  color: auth.locationConsent
-                      ? Theme.of(context).colorScheme.primary
-                      : null,
-                ),
-                title: const Text('Bagikan lokasi',
-                    style: TextStyle(fontSize: 13)),
-                subtitle: const Text(
-                  'Aktifkan agar Anda terlihat di peta, feed sekitar, dan peta grup.',
-                  style: TextStyle(fontSize: 11),
-                ),
               ),
             ),
             const SizedBox(height: 12),

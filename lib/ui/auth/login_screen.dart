@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/api_exception.dart';
 import '../../state/auth_store.dart';
+import '../widgets/sekitarin_logo.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -56,24 +57,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Icon(Icons.public,
-                          color: Colors.white, size: 34),
+                    const Center(
+                      child: SekitarinLogo(height: 54),
                     ),
-                    const SizedBox(height: 20),
-                    Text('Sekitar',
-                        style: theme.textTheme.headlineMedium
-                            ?.copyWith(fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 6),
-                    Text('Chat, peta, dan usaha di sekitar Anda.',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant)),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Chat, peta, dan usaha di sekitar Anda.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                     const SizedBox(height: 28),
                     TextFormField(
                       controller: _email,

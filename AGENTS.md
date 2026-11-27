@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.2+18 | Per-group location sharing switch in Group Info (profile-level toggle removed); any member can change the group photo; group chat always shows the group avatar at the top-right with the standard back button restored; contacts button only on the Chat tab; chat badge clears server-side when the Chat tab is opened; unread chats highlighted with bold text + badge; Sekitarin logo on the home header and login screen. |
 | 2026-11-27 | 0.12.1+17 | Chat list uses relative “time ago”; chat room adds sticky date headers (day+month, or day+month+year across years) and message timestamps show minutes-ago under 60 minutes, then wall-clock `HH:mm`. |
 | 2026-11-27 | 0.12.0+16 | Group live-location map (consent-gated) + share toggle; typing indicator in direct and group chats; tap group name for Group Info, info icon removed; editable group photo; business account photo/name/username editing with business-scoped usernames (not usable for login); commenter avatar, tappable profile, delete own comment; chat notifications moved to Chat tab badge and excluded from the bell; light/dark theme following system; offline "cannot connect to server" screen with retry; in-app update checker. |
 | 2026-11-26 | 0.11.3+15 | Map viewport loading, distance labels, own-location tag, relative post times, post detail/actions, business activation countdown, settings account layout. |
@@ -62,3 +63,15 @@ the manifest and downloads/installs the APK.
   live location only render members who granted it.
 - Times from the API are UTC; display relative labels with helpers in
   `lib/ui/common.dart`.
+- **Group chat header:** always show the group avatar/icon in the **top-right**
+  corner (opens Group Info) and keep the default back button on the left. Never
+  replace the AppBar `leading` with the group avatar.
+- **Location sharing is per group.** Configure it from Group Info; do not add a
+  profile-level share toggle. Enabling it also grants the location consent
+  needed by the API.
+- **Group photo** can be changed by any member; only the group name stays
+  owner-only. Backend mirrors this rule.
+- **Branding:** the Sekitarin logo (`lib/ui/widgets/sekitarin_logo.dart`) sits at
+  the top-left of the home header and on the login screen. Keep it theme-aware;
+  don't hardcode a light-only logo image.
+- Chat list timestamps use time-ago; never show absolute dates there.

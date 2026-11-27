@@ -370,17 +370,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     final groupAvatarId = widget.conversation['avatar_media_id'];
     return Scaffold(
       appBar: AppBar(
-        leading: isGroup
-            ? Padding(
-                padding: const EdgeInsets.all(8),
-                child: AccountAvatar(
-                  account: {'avatar_media_id': groupAvatarId},
-                  radius: 18,
-                  token: auth.api.accessToken,
-                  fallbackIcon: Icons.groups,
-                ),
-              )
-            : null,
         title: GestureDetector(
           onTap: isGroup ? _openGroupInfo : null,
           child: Row(
@@ -411,12 +400,25 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           ),
         ),
         actions: [
-          if (isGroup)
+          if (isGroup) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 4, right: 2),
+              child: GestureDetector(
+                onTap: _openGroupInfo,
+                child: AccountAvatar(
+                  account: {'avatar_media_id': groupAvatarId},
+                  radius: 18,
+                  token: auth.api.accessToken,
+                  fallbackIcon: Icons.groups,
+                ),
+              ),
+            ),
             IconButton(
               onPressed: _openGroupMap,
               icon: const Icon(Icons.map_outlined),
               tooltip: 'Peta anggota',
             ),
+          ],
         ],
       ),
       body: Column(
