@@ -3,6 +3,8 @@ analyzer:
     - build/**
     - android/**
     - ios/**
+    - packages/jitsi_meet_flutter_sdk/example/**
+    - packages/jitsi_meet_flutter_sdk/test/**
 include: package:flutter_lints/flutter.yaml
 
 linter:

@@ -6,6 +6,7 @@ import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 
 import 'package:flutter/material.dart';
+import 'package:jitsi_meet_flutter_sdk/jitsi_meet_flutter_sdk.dart';
 
 import '../config.dart';
 import '../state/auth_store.dart';
@@ -590,11 +591,10 @@ class CallService extends ChangeNotifier {
     int? callId,
     bool group = false,
   }) async {
-    final nav = navigatorKey.currentState;
     final serverUrl = '${jitsi['server_url'] ?? ''}';
     final room = '${jitsi['room'] ?? ''}';
     final token = '${jitsi['token'] ?? ''}';
-    if (nav == null || room.isEmpty) return;
+    if (room.isEmpty) return;
     _activeMeetCallId = callId;
     _heartbeat?.cancel();
     if (!group && callId != null) {
@@ -608,22 +608,24 @@ class CallService extends ChangeNotifier {
       } catch (_) {}
     }
     try {
-      await nav.push(
-        MaterialPageRoute<void>(
-          builder: (_) => CallWebViewScreen(
-            serverUrl: serverUrl,
-            room: room,
-            token: token,
-            title: group
-                ? 'Panggilan grup'
-                : (kind == 'video' ? 'Panggilan video' : 'Panggilan suara'),
-            video: kind == 'video',
-            callId: callId,
-          ),
-        ),
+      // Prefer the official Jitsi SDK (same UI as the Jitsi app). Fall back to
+      // the in-app web view when this server/SDK combination cannot connect.
+      final handled = await _joinNative(
+        serverUrl: serverUrl,
+        room: room,
+        token: token,
+        kind: kind,
       );
-    } catch (_) {
-      // The screen dismissed itself (remote end or user action).
+      if (!handled) {
+        await _openWebViewCall(
+          serverUrl: serverUrl,
+          room: room,
+          token: token,
+          kind: kind,
+          group: group,
+          callId: callId,
+        );
+      }
     } finally {
       _heartbeat?.cancel();
       _heartbeat = null;
@@ -657,6 +659,109 @@ class CallService extends ChangeNotifier {
       }
       notifyListeners();
     }
+  }
+
+  /// Returns true when the native SDK handled the call (joined or failed after
+  /// the user saw the in-call UI). Returns false when the caller should fall
+  /// back to the WebView.
+  Future<bool> _joinNative({
+    required String serverUrl,
+    required String room,
+    required String token,
+    required String kind,
+  }) async {
+    final meet = JitsiMeet();
+    final joined = Completer<bool>();
+    final closed = Completer<void>();
+    final listener = JitsiMeetEventListener(
+      conferenceJoined: (url) {
+        if (!joined.isCompleted) joined.complete(true);
+      },
+      conferenceTerminated: (url, error) {
+        if (!joined.isCompleted) joined.complete(false);
+        if (!closed.isCompleted) closed.complete();
+      },
+      readyToClose: () {
+        if (!closed.isCompleted) closed.complete();
+      },
+    );
+    try {
+      await meet.join(
+        JitsiMeetConferenceOptions(
+          serverURL: serverUrl.isEmpty ? null : serverUrl,
+          room: room,
+          token: token,
+          configOverrides: {
+            'startWithAudioMuted': false,
+            'startWithVideoMuted': kind != 'video',
+            'prejoinConfig': {'enabled': false},
+            'prejoinPageEnabled': false,
+            'requireDisplayName': false,
+            'disableDeepLinking': true,
+            'enableWelcomePage': false,
+            'toolbarButtons': [
+              'microphone',
+              'camera',
+              'hangup',
+              'tileview',
+              'settings',
+            ],
+          },
+          featureFlags: {
+            'welcomePageEnabled': false,
+            'prejoinPageEnabled': false,
+            'unsafeRoomWarningEnabled': false,
+          },
+        ),
+        listener,
+      );
+      final ok = await joined.future.timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => false,
+      );
+      if (!ok) {
+        try {
+          await meet.hangUp();
+        } catch (_) {}
+        return false;
+      }
+      await closed.future.timeout(
+        const Duration(hours: 6),
+        onTimeout: () {},
+      );
+      return true;
+    } catch (_) {
+      try {
+        await meet.hangUp();
+      } catch (_) {}
+      return false;
+    }
+  }
+
+  Future<void> _openWebViewCall({
+    required String serverUrl,
+    required String room,
+    required String token,
+    required String kind,
+    required bool group,
+    int? callId,
+  }) async {
+    final nav = navigatorKey.currentState;
+    if (nav == null) return;
+    await nav.push(
+      MaterialPageRoute<void>(
+        builder: (_) => CallWebViewScreen(
+          serverUrl: serverUrl,
+          room: room,
+          token: token,
+          title: group
+              ? 'Panggilan grup'
+              : (kind == 'video' ? 'Panggilan video' : 'Panggilan suara'),
+          video: kind == 'video',
+          callId: callId,
+        ),
+      ),
+    );
   }
 
   static int? _asInt(dynamic value) {
