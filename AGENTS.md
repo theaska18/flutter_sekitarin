@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.3+19 | In-app update shows download progress (percentage, MB downloaded/total, status, cancel/close) before opening the installer; header/login logo now uses the blue app icon (`assets/brand/app_icon.png`) instead of the custom teal mark. |
 | 2026-11-27 | 0.12.2+18 | Per-group location sharing switch in Group Info (profile-level toggle removed); any member can change the group photo; group chat always shows the group avatar at the top-right with the standard back button restored; contacts button only on the Chat tab; chat badge clears server-side when the Chat tab is opened; unread chats highlighted with bold text + badge; Sekitarin logo on the home header and login screen. |
 | 2026-11-27 | 0.12.1+17 | Chat list uses relative “time ago”; chat room adds sticky date headers (day+month, or day+month+year across years) and message timestamps show minutes-ago under 60 minutes, then wall-clock `HH:mm`. |
 | 2026-11-27 | 0.12.0+16 | Group live-location map (consent-gated) + share toggle; typing indicator in direct and group chats; tap group name for Group Info, info icon removed; editable group photo; business account photo/name/username editing with business-scoped usernames (not usable for login); commenter avatar, tappable profile, delete own comment; chat notifications moved to Chat tab badge and excluded from the bell; light/dark theme following system; offline "cannot connect to server" screen with retry; in-app update checker. |
@@ -72,6 +73,7 @@ the manifest and downloads/installs the APK.
 - **Group photo** can be changed by any member; only the group name stays
   owner-only. Backend mirrors this rule.
 - **Branding:** the Sekitarin logo (`lib/ui/widgets/sekitarin_logo.dart`) sits at
-  the top-left of the home header and on the login screen. Keep it theme-aware;
-  don't hardcode a light-only logo image.
+  the top-left of the home header and on the login screen. It uses the blue app
+  icon at `assets/brand/app_icon.png`; replace that asset (and the launcher
+  icons) together when a final brand icon is ready.
 - Chat list timestamps use time-ago; never show absolute dates there.

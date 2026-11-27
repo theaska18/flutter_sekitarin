@@ -158,18 +158,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final url = AppConfig.absoluteUrl(
         '${app['url'] ?? '/api/v1/app/download'}',
       );
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/sekitar-update.apk');
-      final request = http.Request('GET', Uri.parse(url));
-      final response = await request.send();
-      if (response.statusCode != 200) {
-        throw Exception('Download update gagal (${response.statusCode}).');
-      }
-      final sink = file.openWrite();
-      await response.stream.pipe(sink);
-      await sink.flush();
-      await sink.close();
-      await OpenFilex.open(file.path);
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _UpdateProgressDialog(url: url),
+      );
     } catch (error) {
       if (mounted) showErrorSnack(context, error);
     }
@@ -536,6 +529,163 @@ class _ActiveBadge extends StatelessWidget {
           fontWeight: FontWeight.w700,
           color: color,
         ),
+      ),
+    );
+  }
+}
+
+class _UpdateProgressDialog extends StatefulWidget {
+  const _UpdateProgressDialog({required this.url});
+
+  final String url;
+
+  @override
+  State<_UpdateProgressDialog> createState() => _UpdateProgressDialogState();
+}
+
+class _UpdateProgressDialogState extends State<_UpdateProgressDialog> {
+  http.Client? _client;
+  double? _progress;
+  int _received = 0;
+  int _total = 0;
+  String _status = 'Menyiapkan unduhan…';
+  String? _error;
+  bool _finished = false;
+  bool _cancelled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _download();
+  }
+
+  @override
+  void dispose() {
+    _cancelled = true;
+    _client?.close();
+    super.dispose();
+  }
+
+  Future<void> _download() async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/sekitar-update.apk');
+      if (await file.exists()) await file.delete();
+      final client = http.Client();
+      _client = client;
+      final request = http.Request('GET', Uri.parse(widget.url));
+      final response = await client.send(request);
+      if (response.statusCode != 200) {
+        throw Exception('Server membalas ${response.statusCode}.');
+      }
+      if (!mounted) return;
+      setState(() {
+        _total = response.contentLength ?? 0;
+        _status = 'Mengunduh update…';
+      });
+      final sink = file.openWrite();
+      await for (final chunk in response.stream) {
+        if (_cancelled) break;
+        sink.add(chunk);
+        _received += chunk.length;
+        if (mounted) {
+          setState(() {
+            _progress = _total > 0 ? _received / _total : null;
+          });
+        }
+      }
+      await sink.flush();
+      await sink.close();
+      if (_cancelled) {
+        if (await file.exists()) await file.delete();
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _progress = 1;
+        _status = 'Membuka installer…';
+      });
+      final result = await OpenFilex.open(file.path);
+      if (!mounted) return;
+      setState(() {
+        _finished = true;
+        _status = result.type == ResultType.done
+            ? 'Installer dibuka. Ikuti instruksi di layar untuk memasang.'
+            : 'Unduhan selesai, tetapi installer tidak dapat dibuka. '
+                'File tersimpan di ${file.path}';
+      });
+    } catch (error) {
+      if (!mounted || _cancelled) return;
+      setState(() {
+        _error = 'Unduhan gagal. Periksa koneksi lalu coba lagi.\n($error)';
+        _finished = true;
+      });
+    } finally {
+      _client?.close();
+    }
+  }
+
+  String get _sizeLabel {
+    final received = (_received / (1024 * 1024)).toStringAsFixed(1);
+    if (_total <= 0) return '$received MB terunduh';
+    final total = (_total / (1024 * 1024)).toStringAsFixed(1);
+    final percent = (_progress == null ? 0 : _progress! * 100).round();
+    return '$percent% • $received MB / $total MB';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final done = _finished || _error != null;
+    return PopScope(
+      canPop: done,
+      child: AlertDialog(
+        title: Text(
+          _error != null
+              ? 'Update gagal'
+              : _finished
+                  ? 'Update siap'
+                  : 'Memperbarui aplikasi',
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_error != null)
+              Text(_error!)
+            else ...[
+              LinearProgressIndicator(value: _progress),
+              const SizedBox(height: 12),
+              Text(_status),
+              const SizedBox(height: 4),
+              Text(_sizeLabel),
+              if (!done) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Jangan tutup aplikasi saat pengunduhan berlangsung.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ],
+          ],
+        ),
+        actions: [
+          if (done)
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Tutup'),
+            )
+          else
+            TextButton(
+              onPressed: _cancelled
+                  ? null
+                  : () {
+                      _cancelled = true;
+                      _client?.close();
+                      Navigator.of(context).pop();
+                    },
+              child: const Text('Batal'),
+            ),
+        ],
       ),
     );
   }

@@ -109,7 +109,8 @@ Aplikasi memakai HTTP/cleartext untuk development. Sebelum rilis produksi:
 
 Buka **Setelan → Cek update**. Aplikasi membandingkan versi terpasang dengan
 `GET /api/v1/app/latest`; jika lebih baru, APK diunduh dari
-`/api/v1/app/download` lalu installer Android dibuka (izin
+`/api/v1/app/download` dengan dialog progres (persentase, MB terunduh/total,
+status, dan tombol batal), lalu installer Android dibuka (izin
 `REQUEST_INSTALL_PACKAGES` sudah diminta di manifest).
 
 Proses rilis (wajib untuk setiap perubahan): lihat `AGENTS.md` dan

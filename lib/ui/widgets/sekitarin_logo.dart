@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Sekitarin wordmark: a gradient map-pin tile next to the app name.
-/// Drawn in Flutter so it stays crisp and follows the active theme.
+/// Sekitarin wordmark: the blue app icon next to the app name.
+/// Uses the launcher icon asset so the in-app logo matches the home-screen icon.
 class SekitarinLogo extends StatelessWidget {
   const SekitarinLogo({
     super.key,
@@ -15,45 +15,29 @@ class SekitarinLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final radius = height * 0.24;
     final mark = Container(
       width: height,
       height: height,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0F766E), Color(0xFF14B8A6)],
-        ),
-        borderRadius: BorderRadius.circular(height * 0.3),
+        borderRadius: BorderRadius.circular(radius),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F766E).withValues(alpha: 0.25),
-            blurRadius: height * 0.18,
-            offset: Offset(0, height * 0.08),
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: height * 0.16,
+            offset: Offset(0, height * 0.06),
           ),
         ],
       ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Icon(
-            Icons.place,
-            color: Colors.white,
-            size: height * 0.66,
-          ),
-          Positioned(
-            right: height * 0.16,
-            bottom: height * 0.14,
-            child: Container(
-              width: height * 0.22,
-              height: height * 0.22,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFC857),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-        ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.asset(
+          'assets/brand/app_icon.png',
+          width: height,
+          height: height,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.medium,
+        ),
       ),
     );
 
