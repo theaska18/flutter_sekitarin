@@ -79,7 +79,7 @@ class _WebrtcCallScreenState extends State<WebrtcCallScreen> {
         setState(() => _error = message);
         // Give the user a brief moment, then let CallService fall back to the
         // in-app Jitsi web view.
-        Future.delayed(const Duration(milliseconds: 1200), () async {
+        Future.delayed(const Duration(milliseconds: 5000), () async {
           if (!mounted || _closing || _connected) return;
           _closing = true;
           await _client.hangUp();
@@ -196,6 +196,23 @@ class _WebrtcCallScreenState extends State<WebrtcCallScreen> {
                                     : Colors.white70,
                               ),
                             ),
+                            if (_error != null) ...[
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.black45,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  _client.diagnostics.join('\n'),
+                                  style: const TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            ],
                             if (!_connected && _error == null) ...[
                               const SizedBox(height: 20),
                               const SizedBox(

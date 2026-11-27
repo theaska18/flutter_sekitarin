@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.41+57 | Fix the Jitsi XMPP WebSocket handshake: connect with the `xmpp` subprotocol (the server rejects connections without it with HTTP 501) and add on-screen connection diagnostics. |
 | 2026-11-27 | 0.12.40+56 | Removed the Jitsi WebView fallback and `flutter_inappwebview`: calls use only the custom WebRTC screen; a failed connection now ends the call with a message. |
 | 2026-11-27 | 0.12.39+55 | Custom WebRTC call screen (flutter_webrtc + Jitsi XMPP/Jingle, ported from InfinityOne ISP-2194) with mute/camera/speaker/switch controls; falls back to the Jitsi web view if the connection cannot be established. |
 | 2026-11-27 | 0.12.38+54 | Request microphone/camera permissions before the native Jitsi join (the SDK starts a mic foreground service) and fall back to the WebView when the native conference drops with an error within 45s. |

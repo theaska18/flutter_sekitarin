@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:uuid/uuid.dart';
+import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:xml/xml.dart';
 
@@ -83,6 +84,7 @@ class JitsiCallClient implements JitsiSessionView {
   String stage = 'Menyiapkan panggilan';
   String? error;
   String callDuration = '';
+  final List<String> diagnostics = [];
 
   String get _roomJid => '$room@muc.$xmppDomain';
 
@@ -90,7 +92,9 @@ class JitsiCallClient implements JitsiSessionView {
     await localRenderer.initialize();
     await _openMedia();
     _connectTimer = Timer(const Duration(seconds: 25), () {
-      if (!connected) _fail('Server tidak merespons panggilan.');
+      if (!connected) {
+        _fail('Server tidak merespons ($stage).');
+      }
     });
     _connectSocket();
   }
@@ -124,18 +128,27 @@ class JitsiCallClient implements JitsiSessionView {
     final url =
         'wss://$host/xmpp-websocket?room=${Uri.encodeQueryComponent(room)}&token=${Uri.encodeQueryComponent(token)}';
     try {
-      final channel = WebSocketChannel.connect(Uri.parse(url));
+      final channel = IOWebSocketChannel.connect(
+        Uri.parse(url),
+        protocols: const ['xmpp'],
+        connectTimeout: const Duration(seconds: 15),
+      );
       _channel = channel;
       _sub = channel.stream.listen(
         (raw) => _onStanza('$raw'),
-        onError: (e) => _transportClosed('$e'),
-        onDone: () => _transportClosed('closed'),
+        onError: (e) {
+          _diag('WS error: $e');
+          _transportClosed('$e');
+        },
+        onDone: () {
+          _diag('WS ditutup server');
+          _transportClosed('closed');
+        },
       );
       _send(
         '<open to="$xmppDomain" version="1.0" xmlns="urn:ietf:params:xml:ns:xmpp-framing"/>',
       );
-      stage = 'Menghubungkan ke server';
-      _notify();
+      _setStage('Menghubungkan ke server');
     } catch (e) {
       _fail('Gagal menghubungkan ke server: $e');
     }
@@ -157,6 +170,8 @@ class JitsiCallClient implements JitsiSessionView {
 
   void _onStanza(String msg) {
     if (msg.trim().isEmpty) return;
+    final tag = RegExp(r'<([a-zA-Z0-9:_-]+)').firstMatch(msg)?.group(1) ?? '?';
+    _diag('Terima <$tag>');
     try {
       if (msg.contains('<iq') && xmpp_utils.isPingQuery(msg)) {
         final doc = XmlDocument.parse(msg);
@@ -185,8 +200,7 @@ class JitsiCallClient implements JitsiSessionView {
           _send(
             '<iq id="$_sessionId" type="set" xmlns="jabber:client"><session xmlns="urn:ietf:params:xml:ns:xmpp-session"/></iq>',
           );
-          stage = 'Menyiapkan sesi';
-          _notify();
+          _setStage('Menyiapkan sesi');
         }
         return;
       }
@@ -272,8 +286,7 @@ class JitsiCallClient implements JitsiSessionView {
       '<property name="disableP2P" value="true"/>'
       '</conference></iq>',
     );
-    stage = 'Meminta ruang panggilan';
-    _notify();
+    _setStage('Meminta ruang panggilan');
   }
 
   void _handleConference(String msg) {
@@ -305,8 +318,7 @@ class JitsiCallClient implements JitsiSessionView {
       return;
     }
     _sendPresence();
-    stage = 'Masuk ke ruang panggilan';
-    _notify();
+    _setStage('Masuk ke ruang panggilan');
   }
 
   void _sendPresence() {
@@ -346,8 +358,7 @@ class JitsiCallClient implements JitsiSessionView {
               namespace: 'http://jabber.org/protocol/muc#user')
           .any((s) => s.getAttribute('code') == '110');
       if (self) {
-        stage = 'Menunggu media dari server';
-        _notify();
+        _setStage('Menunggu media dari server');
         return;
       }
       if (from.contains('focus') || from.startsWith(focusJid)) {
@@ -612,8 +623,7 @@ class JitsiCallClient implements JitsiSessionView {
       false,
     );
     _send(xml);
-    stage = 'Menghubungkan media';
-    _notify();
+    _setStage('Menghubungkan media');
   }
 
   Future<void> toggleAudio() async {
@@ -666,12 +676,23 @@ class JitsiCallClient implements JitsiSessionView {
     _notify();
   }
 
+  void _diag(String line) {
+    diagnostics.add(line);
+    if (diagnostics.length > 8) diagnostics.removeAt(0);
+  }
+
+  void _setStage(String value) {
+    stage = value;
+    _diag(value);
+    _notify();
+  }
+
   void _notify() => onUpdate?.call();
 
   void _fail(String message) {
     if (closed) return;
     error = message;
-    stage = '';
+    _diag('Gagal: $message');
     _notify();
     onFailed?.call(message);
   }
