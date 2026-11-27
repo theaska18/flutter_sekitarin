@@ -8,11 +8,13 @@ import 'package:provider/provider.dart';
 
 import '../../config.dart';
 import '../../core/ws_client.dart';
+import '../../services/call_service.dart';
 import '../../services/media_opener.dart';
 import '../../services/message_sound.dart';
 import '../../state/auth_store.dart';
 import '../../state/chat_cache.dart';
 import '../../state/chat_presence.dart';
+import '../calls/call_status_screen.dart';
 import '../common.dart';
 import '../profile/account_profile_route.dart';
 import '../widgets/account_type_avatar.dart';
@@ -70,6 +72,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     _sendAccountId = widget.conversation['my_account_id'] as int?;
     _pinned = widget.conversation['pinned'] == true;
     _muted = widget.conversation['muted'] == true;
+    CallService.instance.setGroupCallFromConversation(widget.conversation);
     _ws.subscribe(_conversationId);
     _wsSubscription = _ws.events.listen((event) {
       if (!mounted || event['conversation_id'] != _conversationId) return;
@@ -943,6 +946,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
         await _togglePin();
       case 'mute':
         await _toggleMute();
+      case 'map':
+        await _openGroupMap();
       case 'clear':
         await _clearAllMessages();
       case 'add_contact':
@@ -950,6 +955,44 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
       case 'delete':
       case 'leave':
         await _deleteOrLeave();
+    }
+  }
+
+  Future<void> _startDirectCall(String kind) async {
+    final accountId = _peerAccountId;
+    if (accountId == null) return;
+    try {
+      final result = await CallService.instance.startDirectCall(
+        accountId: accountId,
+        kind: kind,
+        conversationId: _conversationId,
+      );
+      if (!mounted) return;
+      if (result == null) {
+        showErrorSnack(context, 'Panggilan tidak dapat dimulai.');
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => CallStatusScreen(
+            call: result['call'] as Map<String, dynamic>,
+            jitsi: result['jitsi'] as Map<String, dynamic>,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    }
+  }
+
+  Future<void> _startGroupCall(String kind) async {
+    try {
+      await CallService.instance.startGroupCall(
+        _conversationId,
+        kind: kind,
+      );
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
     }
   }
 
@@ -1113,29 +1156,18 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
           ),
         ),
         actions: [
-          if (isGroup) ...[
-            IconButton(
-              onPressed: _openGroupMap,
-              icon: const Icon(Icons.map_outlined),
-              tooltip: 'Peta anggota',
-            ),
-            IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.videocam_outlined),
-              tooltip: 'Panggilan video',
-            ),
-          ] else ...[
-            IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.call_outlined),
-              tooltip: 'Panggilan suara',
-            ),
-            IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.videocam_outlined),
-              tooltip: 'Panggilan video',
-            ),
-          ],
+          IconButton(
+            onPressed: () =>
+                isGroup ? _startGroupCall('voice') : _startDirectCall('voice'),
+            icon: const Icon(Icons.call_outlined),
+            tooltip: 'Panggilan suara',
+          ),
+          IconButton(
+            onPressed: () =>
+                isGroup ? _startGroupCall('video') : _startDirectCall('video'),
+            icon: const Icon(Icons.videocam_outlined),
+            tooltip: 'Panggilan video',
+          ),
           PopupMenuButton<String>(
             tooltip: 'Menu percakapan',
             onSelected: _chatMenuAction,
@@ -1150,6 +1182,11 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
                   child: Text(
                     _muted ? 'Aktifkan notifikasi' : 'Bisukan notifikasi',
                   ),
+                ),
+              if (isGroup)
+                const PopupMenuItem(
+                  value: 'map',
+                  child: Text('Peta anggota'),
                 ),
               const PopupMenuItem(
                 value: 'clear',
@@ -1176,6 +1213,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
       ),
       body: Column(
         children: [
+          if (isGroup) _GroupCallBanner(conversationId: _conversationId),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -1546,5 +1584,85 @@ class _ChatDayHeaderDelegate extends SliverPersistentHeaderDelegate {
         oldDelegate.background != background ||
         oldDelegate.foreground != foreground ||
         oldDelegate.chip != chip;
+  }
+}
+
+/// In-chat marker for an ongoing group call. Group calls never ring; members
+/// only see this banner and join on demand.
+class _GroupCallBanner extends StatelessWidget {
+  const _GroupCallBanner({required this.conversationId});
+
+  final int conversationId;
+
+  Future<void> _join(BuildContext context, Map<String, dynamic> active) async {
+    final callId = active['call_id'];
+    if (callId is! int) return;
+    try {
+      await CallService.instance.joinGroupCall(conversationId, callId);
+    } catch (error) {
+      if (context.mounted) showErrorSnack(context, error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ListenableBuilder(
+      listenable: CallService.instance,
+      builder: (context, _) {
+        final active = CallService.instance.groupCall(conversationId);
+        if (active == null) return const SizedBox.shrink();
+        final participants = active['participant_count'] ?? 0;
+        final joined = active['joined'] == true;
+        final video = active['kind'] == 'video';
+        return Material(
+          color: scheme.primaryContainer,
+          child: InkWell(
+            onTap: () => _join(context, active),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(
+                    video ? Icons.videocam : Icons.call,
+                    size: 20,
+                    color: scheme.onPrimaryContainer,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Panggilan grup berlangsung',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: scheme.onPrimaryContainer,
+                          ),
+                        ),
+                        Text(
+                          '$participants peserta · ketuk untuk gabung',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(color: scheme.onPrimaryContainer),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    joined ? 'Kembali' : 'Gabung',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onPrimaryContainer,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

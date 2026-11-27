@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/ws_client.dart';
 import '../../services/message_sound.dart';
+import '../../services/call_service.dart';
 import '../../state/auth_store.dart';
 import '../../state/chat_cache.dart';
 import '../../state/chat_presence.dart';
@@ -49,8 +50,13 @@ class _ChatListScreenState extends State<ChatListScreen>
     chatListRefreshTick.addListener(_load);
     _ws = context.read<AuthStore>().ws;
     _wsSub = _ws.events.listen(_onWsEvent);
+    CallService.instance.addListener(_onCallStateChanged);
     if (widget.active) _startPresencePoll();
     _load();
+  }
+
+  void _onCallStateChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -93,6 +99,7 @@ class _ChatListScreenState extends State<ChatListScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     chatListRefreshTick.removeListener(_load);
+    CallService.instance.removeListener(_onCallStateChanged);
     _wsSub?.cancel();
     _reloadDebounce?.cancel();
     _presencePoll?.cancel();
@@ -208,6 +215,7 @@ class _ChatListScreenState extends State<ChatListScreen>
             : [];
       });
       _syncSubscriptions();
+      CallService.instance.syncConversations(_items);
     } catch (error) {
       if (mounted) setState(() => _error = '$error');
     } finally {
@@ -467,6 +475,19 @@ class _ChatListScreenState extends State<ChatListScreen>
                           title: Row(
                             children: [
                               Expanded(child: titleWidget),
+                              if (isGroup &&
+                                  CallService.instance.groupCall(
+                                          item['conversation_id'] as int? ??
+                                              -1) !=
+                                      null)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 4),
+                                  child: Icon(
+                                    Icons.call,
+                                    size: 13,
+                                    color: scheme.primary,
+                                  ),
+                                ),
                               if (item['pinned'] == true)
                                 const Padding(
                                   padding: EdgeInsets.only(left: 4),
@@ -505,7 +526,14 @@ class _ChatListScreenState extends State<ChatListScreen>
                               Expanded(
                                 child: Text(
                                   typingLabel ??
-                                      '$senderPrefix${messagePreview(lastMessage)}',
+                                      (isGroup &&
+                                              CallService.instance.groupCall(
+                                                      item['conversation_id']
+                                                              as int? ??
+                                                          -1) !=
+                                                  null
+                                          ? 'Panggilan grup berlangsung'
+                                          : '$senderPrefix${messagePreview(lastMessage)}'),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(

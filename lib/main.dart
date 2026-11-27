@@ -5,6 +5,7 @@ import 'app.dart';
 import 'core/api_client.dart';
 import 'core/token_store.dart';
 import 'core/ws_client.dart';
+import 'services/call_service.dart';
 import 'services/push_service.dart';
 import 'state/auth_store.dart';
 
@@ -16,6 +17,7 @@ Future<void> main() async {
   final ws = WsClient();
   final auth = AuthStore(api, store, ws);
   await auth.bootstrap();
+  CallService.instance.attach(auth);
   runApp(
     MultiProvider(
       providers: [

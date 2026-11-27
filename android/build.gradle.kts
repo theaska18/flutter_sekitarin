@@ -1,5 +1,10 @@
 allprojects {
     repositories {
+        // The Jitsi repository advertises itself through github.com/raw, which
+        // is unreliable (504). Prefer the raw CDN for the same artifacts.
+        maven {
+            url = uri("https://raw.githubusercontent.com/jitsi/jitsi-maven-repository/master/releases")
+        }
         google()
         mavenCentral()
     }

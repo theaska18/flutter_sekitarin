@@ -4,15 +4,22 @@ Aplikasi mobile iOS/Android untuk backend `cms_sekitarin`. Fitur MVP:
 
 - Registrasi/login email + password, username publik (mis. `@aska.development`),
   dan konfirmasi password saat daftar.
-- Beranda 4 tab: **Chat**, **Peta**, **Post**, **Log Telepon** (placeholder).
-  Profil dibuka dari ikon profil di kanan atas header; Setelan dibuka dari
-  ikon setelan di halaman Profil.
+- Beranda 4 tab: **Chat**, **Peta**, **Post**, **Log Telepon**. Profil dibuka
+  dari ikon profil di kanan atas header; Setelan dibuka dari ikon setelan di
+  halaman Profil. Tab **Log Telepon** berisi riwayat panggilan suara/video
+  dengan tombol hubungi lagi.
 - Chat direct/grup, buat grup, kelola anggota, ganti nama/foto grup, kirim teks,
   read receipt, penanda **sedang mengetik** (direct & grup), WebSocket + polling
   fallback. Nama pengirim grup diambil dari anggota asli, bukan judul grup.
   Daftar chat juga menampilkan “sedang mengetik…” per percakapan (langsung
-  maupun grup). Header chat punya tombol panggilan suara + video (personal)
-  dan video saja (grup); fungsinya belum aktif.
+  maupun grup). Header chat punya tombol **panggilan suara** dan **panggilan
+  video**.
+- **Panggilan suara/video (Jitsi)**: panggilan 1:1 berdering lewat notifikasi
+  panggilan penuh (CallKit) dan bisa dijawab dari layar kunci; panggilan grup
+  tidak berdering, hanya menampilkan banner “Panggilan grup berlangsung” di
+  dalam grup yang bisa diketuk untuk gabung. Panggilan default memakai suara;
+  tombol kamera di layar Jitsi menyalakan video. Riwayat panggilan ada di tab
+  **Log Telepon**.
   Kirim **foto** (galeri) dan **file** (PDF, Word, Excel, TXT, ZIP) lewat
   tombol lampiran. Chat direct terpisah per akun, tetapi semua thread tampil
   dalam **satu daftar Chat**: pesan masuk ke akun bisnis ditampilkan sebagai

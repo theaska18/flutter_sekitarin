@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.29+45 | Voice/video calls via Jitsi (`jitsi.ckamal.com`): 1:1 calls ring through CallKit/full-screen notification, group calls only show an in-chat banner with join, Log Telepon filled with call history and call-back, mic/camera permissions. |
 | 2026-11-27 | 0.12.28+44 | Chat menus in list + room (pin, mute, clear all, add contact, delete/leave), group notification mute, pin/mute icons by the name, wider name layout, logout exits app, login password visibility toggle. |
 | 2026-11-27 | 0.12.27+43 | Pin/unpin personal and group chats; business availability requires owner personal online and hides inactive businesses from the map; UI polling pauses in background while GPS/WebSocket stay connected. |
 | 2026-11-27 | 0.12.26+42 | Opening a chat marks that conversation read (incl. cached messages) and clears only its notification; chat list reloads on app resume; personal online dots derive from recent location/presence (2 min); business status dots reflect `is_active`. |
