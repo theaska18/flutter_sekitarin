@@ -201,6 +201,18 @@ class _ChatListScreenState extends State<ChatListScreen>
     final conversationId = item['conversation_id'] as int?;
     if (conversationId == null) return;
     final isGroup = item['type'] == 'group';
+    if (action == 'pin') {
+      try {
+        await context.read<AuthStore>().api.post(
+          'conversations/$conversationId/pin',
+          {'pinned': item['pinned'] != true},
+        );
+        await _load();
+      } catch (error) {
+        if (mounted) showErrorSnack(context, error);
+      }
+      return;
+    }
     final title = action == 'clear'
         ? 'Bersihkan pesan?'
         : isGroup
@@ -458,11 +470,20 @@ class _ChatListScreenState extends State<ChatListScreen>
                                       )
                                     else
                                       const SizedBox.shrink(),
-                                    Text(
-                                      timeAgo(item['last_message_at']),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelSmall,
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (item['pinned'] == true) ...[
+                                          const Icon(Icons.push_pin, size: 11),
+                                          const SizedBox(width: 3),
+                                        ],
+                                        Text(
+                                          timeAgo(item['last_message_at']),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelSmall,
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -474,6 +495,12 @@ class _ChatListScreenState extends State<ChatListScreen>
                                 onSelected: (action) =>
                                     _chatAction(item, action),
                                 itemBuilder: (_) => [
+                                  PopupMenuItem(
+                                    value: 'pin',
+                                    child: Text(item['pinned'] == true
+                                        ? 'Lepas pin'
+                                        : 'Pin percakapan'),
+                                  ),
                                   const PopupMenuItem(
                                     value: 'clear',
                                     child: Text('Bersihkan pesan'),

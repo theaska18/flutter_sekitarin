@@ -136,6 +136,8 @@ the manifest and downloads/installs the APK.
   `messages.delivered` and `read.updated` WS events update counts.
 - **Chat list styling:** full-bleed rows with no card radius or side padding;
   use dividers between rows.
+- **Pin:** personal and group chats can be pinned per user from the three-dot
+  menu (`conversations/{id}/pin`); pinned chats sort first and show a pin icon.
 - **Clear vs delete:** “Bersihkan pesan” is per-user (`cleared_before_message_id`)
   and never deletes for other members. Direct “Hapus percakapan” and group
   “Keluar grup” use the existing conversation DELETE/leave endpoint.
