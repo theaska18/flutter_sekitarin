@@ -93,6 +93,9 @@ the manifest and downloads/installs the APK.
   icon at `assets/brand/app_icon.png`; replace that asset (and the launcher
   icons) together when a final brand icon is ready.
 - Chat list timestamps use time-ago; never show absolute dates there.
+- **Profile edit:** show the Edit button only for the personal account. Business
+  accounts change name/photo/location from the business settings screen, not
+  from the Profile edit sheet.
 - **Direct chats are account-scoped.** Each pair of accounts has its own
   conversation, but the Chat tab shows **all threads in one list** (groups stay
   user-level). Do not add an active-account filter or a “Chat sebagai …” chip.

@@ -232,23 +232,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ],
                           ),
                         ),
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          tooltip: 'Edit profil',
-                          onPressed: () async {
-                            final changed =
-                                await Navigator.of(context).push<bool>(
-                              MaterialPageRoute(
-                                builder: (_) => const EditProfileScreen(),
-                              ),
-                            );
-                            if (changed == true && mounted) {
-                              _loadedAccountId = null;
-                              didChangeDependencies();
-                            }
-                          },
-                          icon: const Icon(Icons.edit_outlined, size: 19),
-                        ),
+                        if (type == 'personal')
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            tooltip: 'Edit profil',
+                            onPressed: () async {
+                              final changed =
+                                  await Navigator.of(context).push<bool>(
+                                MaterialPageRoute(
+                                  builder: (_) => const EditProfileScreen(),
+                                ),
+                              );
+                              if (changed == true && mounted) {
+                                _loadedAccountId = null;
+                                didChangeDependencies();
+                              }
+                            },
+                            icon: const Icon(Icons.edit_outlined, size: 19),
+                          ),
                       ],
                     ),
                     if ('${account?['bio'] ?? ''}'.isNotEmpty) ...[
