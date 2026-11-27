@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.12+28 | Maps reverted to light OSM tiles even in dark mode (CARTO dark tiles need a key); shared `ThemeMapTileLayer` kept for a future keyed provider. |
 | 2026-11-27 | 0.12.11+27 | Group avatars are now visible to every group member (backend media access allows group-avatar media for conversation members); all maps use CARTO dark tiles in dark mode and OSM light tiles otherwise. |
 | 2026-11-27 | 0.12.10+26 | Update progress is inline on the Settings “Cek update” row (no progress dialog) with adaptive MB/percent and cancel; downloaded APKs are cached per version so “Pasang” retries the installer without re-downloading. Bottom navigation is now Chat / Peta / Post / Log Telepon (empty placeholder); profile opens from the header icon, and Settings from the profile AppBar. |
 | 2026-11-27 | 0.12.9+25 | Nearby posts show their distance in the feed card (“Sekitar 850 m / 1,2 km dari kamu”, with a near-me icon) and on the post detail header; detail preserves feed distance metadata after reloading the post. |
@@ -93,3 +94,5 @@ the manifest and downloads/installs the APK.
 - **Updater:** keep update progress inline on the Settings row, never in a
   dialog; cache the APK per version so installing can be retried without a new
   download.
+- **Maps:** use the shared `ThemeMapTileLayer` (light OSM). CARTO dark tiles
+  require an API key now; do not re-enable keyless dark tiles.
