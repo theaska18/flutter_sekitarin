@@ -93,6 +93,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
       _clearTyping(conversationId);
       return;
     }
+    if (name == 'conversation.updated') {
+      _load();
+      return;
+    }
     if (name != 'typing') return;
     final payload = event['payload'];
     if (payload is! Map) return;

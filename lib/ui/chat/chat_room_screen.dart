@@ -73,6 +73,13 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             setState(() => _typingNames.remove(userId));
           }
         }
+      } else if (name == 'conversation.updated') {
+        setState(() {
+          if (payload['title'] != null) {
+            _groupTitle = '${payload['title']}';
+          }
+          widget.conversation['avatar_media_id'] = payload['avatar_media_id'];
+        });
       } else if (name == 'message.deleted') {
         final index = _messages
             .indexWhere((item) => item['message_id'] == message['message_id']);
