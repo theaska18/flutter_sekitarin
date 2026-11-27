@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-27 | 0.12.45+61 | Temporary call diagnostics: the client uploads the Jingle offer, remote SDP, local SDP and session-accept to `/me/call-debug` so the DTLS/media failure can be inspected server-side. |
 | 2026-11-27 | 0.12.44+60 | Apply Jitsi source-map renegotiation (VideoSourcesMap/AudioSourcesMap from the data channel) so JVB starts sending RTP; added media renegotiation diagnostics. |
 | 2026-11-27 | 0.12.43+59 | Announce audio/video sources in the XMPP presence (`SourceInfo`) so Jicofo includes media sections in the session-initiate. |
 | 2026-11-27 | 0.12.42+58 | Show live WebRTC media diagnostics (ICE/DTLS state, inbound/outbound KB, remote track counts) on the call screen to debug missing audio/video. |

@@ -692,6 +692,16 @@ class CallService extends ChangeNotifier {
           title: kind == 'video' ? 'Panggilan video' : 'Panggilan suara',
           video: kind == 'video',
           callId: callId,
+          onDebug: (stage, payload) {
+            unawaited(() async {
+              try {
+                await _auth?.api.post(
+                  'me/call-debug',
+                  {'stage': stage, 'room': room, 'payload': payload},
+                );
+              } catch (_) {}
+            }());
+          },
         ),
         fullscreenDialog: true,
       ),

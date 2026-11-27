@@ -32,6 +32,7 @@ class JitsiCallClient implements JitsiSessionView {
     this.onConnected,
     this.onEnded,
     this.onFailed,
+    this.onDebug,
   });
 
   final String serverUrl;
@@ -46,6 +47,7 @@ class JitsiCallClient implements JitsiSessionView {
   final VoidCallback? onConnected;
   final VoidCallback? onEnded;
   final void Function(String message)? onFailed;
+  final void Function(String stage, String payload)? onDebug;
 
   final Uuid _uuid = const Uuid();
   late final JitsiSdpHelper _sdp = JitsiSdpHelper(this);
@@ -537,6 +539,7 @@ class JitsiCallClient implements JitsiSessionView {
       }
       participants[index] =
           participants[index].copyWith(sessionInitiateData: msg, sid: sid);
+      onDebug?.call('offer', msg);
       stage = 'Menyiapkan media';
       _notify();
       await _setupPeerConnection();
@@ -588,6 +591,7 @@ class JitsiCallClient implements JitsiSessionView {
       focusIp ?? '',
       focusPort ?? '',
     );
+    onDebug?.call('remote-sdp', remoteSdp + sdpApplication);
     await peer.setRemoteDescription(RTCSessionDescription(
       remoteSdp + sdpApplication,
       'offer',
@@ -634,6 +638,7 @@ class JitsiCallClient implements JitsiSessionView {
     }
     final answer = await peer.createAnswer({'voiceActivityDetection': true});
     await peer.setLocalDescription(answer);
+    onDebug?.call('answer-sdp', '${answer.sdp}');
     final reordered = await _sdp.reorderSdpForVP8OrVP9(answer.sdp);
     _sdpTemplate = await _sdp.extactTemplateSDP(reordered);
     final xml = await _sdp.sdpToJingleSessionAccept(
@@ -644,6 +649,7 @@ class JitsiCallClient implements JitsiSessionView {
       idx,
       false,
     );
+    onDebug?.call('accept', xml);
     _send(xml);
     _setStage('Menghubungkan media');
   }
@@ -653,6 +659,7 @@ class JitsiCallClient implements JitsiSessionView {
       final decoded = jsonDecode(text);
       if (decoded is! Map) return;
       final cls = '${decoded['colibriClass'] ?? ''}';
+      onDebug?.call('data-$cls', text);
       if (cls == 'VideoSourcesMap') {
         _onSources(decoded['mappedSources'] ?? decoded['sources'], 'video');
       } else if (cls == 'AudioSourcesMap') {
