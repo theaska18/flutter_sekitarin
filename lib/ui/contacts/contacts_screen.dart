@@ -23,7 +23,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
   bool _loading = true;
   bool _busy = false;
   String? _error;
-  String _scope = 'all';
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
 
@@ -78,23 +77,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
         : account['is_online'] == true;
   }
 
-  bool _isBusiness(Map<String, dynamic> account) {
-    final type = account['type_code'];
-    return type != null && type != 'personal';
-  }
-
   List<Map<String, dynamic>> get _visibleContacts {
     final query = _query.trim().toLowerCase();
+    if (query.isEmpty) return _contacts;
     return _contacts.where((account) {
-      switch (_scope) {
-        case 'personal':
-          if (_isBusiness(account)) return false;
-        case 'business':
-          if (!_isBusiness(account)) return false;
-        case 'online':
-          if (!_isOnline(account)) return false;
-      }
-      if (query.isEmpty) return true;
       return '${account['alias'] ?? ''} '
               '${account['display_name'] ?? ''} '
               '${account['handle'] ?? ''}'
@@ -211,41 +197,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
     }
   }
 
-  Widget _scopeChips() {
-    const scopes = [
-      ('all', 'Semua'),
-      ('personal', 'Personal'),
-      ('business', 'Bisnis'),
-      ('online', 'Online'),
-    ];
-    final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      height: 36,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        children: [
-          for (final scope in scopes)
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: ChoiceChip(
-                label: Text(scope.$2),
-                selected: _scope == scope.$1,
-                labelStyle: TextStyle(
-                  fontSize: 12,
-                  color: _scope == scope.$1
-                      ? scheme.onPrimary
-                      : scheme.onSurfaceVariant,
-                ),
-                selectedColor: scheme.primary,
-                onSelected: (_) => setState(() => _scope = scope.$1),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   Widget _compactAction({
     required IconData icon,
     required String tooltip,
@@ -300,7 +251,6 @@ class _ContactsScreenState extends State<ContactsScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            _scopeChips(),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _load,
