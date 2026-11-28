@@ -334,6 +334,23 @@ class _ChatListScreenState extends State<ChatListScreen>
     if (mounted) await _load();
   }
 
+  PopupMenuItem<String> _menuItem(
+    String value,
+    IconData icon,
+    String label,
+  ) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 10),
+          Flexible(child: Text(label)),
+        ],
+      ),
+    );
+  }
+
   Future<void> _newChat() async {
     final created = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
@@ -591,40 +608,50 @@ class _ChatListScreenState extends State<ChatListScreen>
                               tooltip: 'Aksi chat',
                               onSelected: (action) => _chatAction(item, action),
                               itemBuilder: (_) => [
-                                PopupMenuItem(
-                                  value: 'pin',
-                                  child: Text(item['pinned'] == true
+                                _menuItem(
+                                  'pin',
+                                  item['pinned'] == true
+                                      ? Icons.push_pin_outlined
+                                      : Icons.push_pin,
+                                  item['pinned'] == true
                                       ? 'Lepas pin'
-                                      : 'Pin percakapan'),
+                                      : 'Pin percakapan',
                                 ),
                                 if (isGroup)
-                                  PopupMenuItem(
-                                    value: 'mute',
-                                    child: Text(item['muted'] == true
+                                  _menuItem(
+                                    'mute',
+                                    item['muted'] == true
+                                        ? Icons.notifications_active_outlined
+                                        : Icons.notifications_off_outlined,
+                                    item['muted'] == true
                                         ? 'Aktifkan notifikasi'
-                                        : 'Bisukan notifikasi'),
+                                        : 'Bisukan notifikasi',
                                   ),
-                                const PopupMenuItem(
-                                  value: 'clear',
-                                  child: Text('Bersihkan semua pesan'),
+                                _menuItem(
+                                  'clear',
+                                  Icons.cleaning_services_outlined,
+                                  'Bersihkan semua pesan',
                                 ),
                                 if (!isGroup &&
                                     peer?['account_id'] is int &&
                                     !_contactAccountIds
                                         .contains(peer?['account_id']))
-                                  const PopupMenuItem(
-                                    value: 'add_contact',
-                                    child: Text('Tambah ke kontak'),
+                                  _menuItem(
+                                    'add_contact',
+                                    Icons.person_add_alt_1,
+                                    'Tambah ke kontak',
                                   ),
                                 if (isGroup)
-                                  const PopupMenuItem(
-                                    value: 'leave',
-                                    child: Text('Keluar dari grup'),
+                                  _menuItem(
+                                    'leave',
+                                    Icons.logout,
+                                    'Keluar dari grup',
                                   )
                                 else
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: Text('Hapus pesan'),
+                                  _menuItem(
+                                    'delete',
+                                    Icons.delete_outline,
+                                    'Hapus pesan',
                                   ),
                               ],
                             ),

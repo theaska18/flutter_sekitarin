@@ -959,6 +959,23 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     }
   }
 
+  PopupMenuItem<String> _menuItem(
+    String value,
+    IconData icon,
+    String label,
+  ) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 10),
+          Flexible(child: Text(label)),
+        ],
+      ),
+    );
+  }
+
   Future<void> _chatMenuAction(String action) async {
     switch (action) {
       case 'pin':
@@ -1199,41 +1216,35 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
             tooltip: 'Menu percakapan',
             onSelected: _chatMenuAction,
             itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'pin',
-                child: Text(_pinned ? 'Lepas pin' : 'Pin percakapan'),
+              _menuItem(
+                'pin',
+                _pinned ? Icons.push_pin_outlined : Icons.push_pin,
+                _pinned ? 'Lepas pin' : 'Pin percakapan',
               ),
               if (isGroup)
-                PopupMenuItem(
-                  value: 'mute',
-                  child: Text(
-                    _muted ? 'Aktifkan notifikasi' : 'Bisukan notifikasi',
-                  ),
+                _menuItem(
+                  'mute',
+                  _muted
+                      ? Icons.notifications_active_outlined
+                      : Icons.notifications_off_outlined,
+                  _muted ? 'Aktifkan notifikasi' : 'Bisukan notifikasi',
                 ),
-              if (isGroup)
-                const PopupMenuItem(
-                  value: 'map',
-                  child: Text('Peta anggota'),
-                ),
-              const PopupMenuItem(
-                value: 'clear',
-                child: Text('Bersihkan semua pesan'),
+              if (isGroup) _menuItem('map', Icons.map_outlined, 'Peta anggota'),
+              _menuItem(
+                'clear',
+                Icons.cleaning_services_outlined,
+                'Bersihkan semua pesan',
               ),
               if (!isGroup && _peerAccountId != null && !_peerIsContact)
-                const PopupMenuItem(
-                  value: 'add_contact',
-                  child: Text('Tambah ke kontak'),
+                _menuItem(
+                  'add_contact',
+                  Icons.person_add_alt_1,
+                  'Tambah ke kontak',
                 ),
               if (isGroup)
-                const PopupMenuItem(
-                  value: 'leave',
-                  child: Text('Keluar dari grup'),
-                )
+                _menuItem('leave', Icons.logout, 'Keluar dari grup')
               else
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Text('Hapus pesan'),
-                ),
+                _menuItem('delete', Icons.delete_outline, 'Hapus pesan'),
             ],
           ),
         ],

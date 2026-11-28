@@ -167,82 +167,75 @@ class _AddContactScreenState extends State<AddContactScreen> {
               const SizedBox(height: 10),
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                  padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          AccountTypeAvatar(
-                            account: account,
-                            radius: 24,
-                            token: context.read<AuthStore>().api.accessToken,
-                            showStatusDot: true,
-                            backgroundColor:
-                                typeColor(account['type_code'] as String?)
-                                    .withValues(alpha: 0.15),
-                            foregroundColor:
-                                typeColor(account['type_code'] as String?),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${account['display_name'] ?? account['handle'] ?? 'Akun'}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                                Text(
-                                  '@${account['handle'] ?? ''}'
-                                  '${account['type_label'] != null ? ' • ${account['type_label']}' : ''}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.labelSmall,
-                                ),
-                                const SizedBox(height: 2),
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: BoxDecoration(
-                                        color: _isOnline(account)
-                                            ? const Color(0xFF22C55E)
-                                            : const Color(0xFF94A3B8),
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 5),
-                                    Text(
-                                      _isOnline(account) ? 'Online' : 'Offline',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: _isOnline(account)
-                                            ? const Color(0xFF16A34A)
-                                            : Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      AccountTypeAvatar(
+                        account: account,
+                        radius: 24,
+                        token: context.read<AuthStore>().api.accessToken,
+                        showStatusDot: _isOnline(account),
+                        backgroundColor:
+                            typeColor(account['type_code'] as String?)
+                                .withValues(alpha: 0.15),
+                        foregroundColor:
+                            typeColor(account['type_code'] as String?),
                       ),
-                      const SizedBox(height: 12),
-                      FilledButton.icon(
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${account['display_name'] ?? account['handle'] ?? 'Akun'}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                            Text(
+                              '@${account['handle'] ?? ''}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                            if (_isOnline(account)) ...[
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF22C55E),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  const Text(
+                                    'Online',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF16A34A),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
                         onPressed: _adding ? null : () => _add(account),
-                        icon: const Icon(Icons.person_add_alt_1, size: 18),
-                        label: const Text('Tambah ke kontak'),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        child: const Text('Tambah'),
                       ),
                     ],
                   ),

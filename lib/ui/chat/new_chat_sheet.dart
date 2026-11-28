@@ -279,7 +279,7 @@ class _NewChatSheetState extends State<NewChatSheet> {
                         account: account,
                         radius: 22,
                         token: context.read<AuthStore>().api.accessToken,
-                        showStatusDot: true,
+                        showStatusDot: online,
                         backgroundColor:
                             typeColor(type).withValues(alpha: 0.15),
                         foregroundColor: typeColor(type),
@@ -290,8 +290,9 @@ class _NewChatSheetState extends State<NewChatSheet> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       subtitle: Text(
-                        '@${account['handle'] ?? ''} · '
-                        '${online ? 'Online' : 'Offline'}',
+                        online
+                            ? '@${account['handle'] ?? ''} · Online'
+                            : '@${account['handle'] ?? ''}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

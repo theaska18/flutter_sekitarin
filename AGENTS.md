@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-28 | 0.12.65+81 | Remove the Server API row from Settings; add icons to chat-list and chat-room menus; add-contact and new-chat results only show `Online` (never `Offline`) and the add-contact card drops the account type and puts `Tambah` on the right. Server: account lookup/search now carry presence/location/device activity and the API treats recent authenticated activity as online, so online status is correct without location sharing. |
 | 2026-11-28 | 0.12.64+80 | Tablet landscape (>=980 dp) Chat tab is a two-pane master/detail: conversation list on the left, the selected room on the right with the row highlighted, an empty-state pane before selecting, and notification taps selecting the thread instead of pushing a route. |
 | 2026-11-28 | 0.12.63+79 | Update row uses a custom Row so the `Pasang` button no longer squeezes `Cek update` downwards (row tap installs when ready); the Post feed becomes a 2/3-column grid on tablet landscape; add-contact results show the name, handle, online/offline status and a full-width `Tambah ke kontak` button. |
 | 2026-11-28 | 0.12.62+78 | New-chat search by username for anyone (not only saved contacts), live as you type, with online/offline dots and labels (personal `is_online`, business `is_active`) plus voice/video call buttons that first create the direct conversation so calling a non-contact is allowed. Own accounts are filtered out. |

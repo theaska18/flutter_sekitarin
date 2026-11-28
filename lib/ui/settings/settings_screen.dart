@@ -705,16 +705,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                   child: LinearProgressIndicator(value: _updateProgress),
                 ),
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                dense: true,
-                leading: const Icon(Icons.info_outline, size: 20),
-                title: const Text('Server API', style: TextStyle(fontSize: 13)),
-                subtitle: Text(
-                  AppConfig.apiBaseUrl,
-                  style: const TextStyle(fontSize: 10),
-                ),
-              ),
               const Divider(height: 1),
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12),
