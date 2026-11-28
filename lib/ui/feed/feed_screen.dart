@@ -217,6 +217,48 @@ class _FeedScreenState extends State<FeedScreen> {
     if (created == true && mounted) _load();
   }
 
+  Widget _buildPostCard(Map<String, dynamic> post) {
+    final own = _isOwnPost(post);
+    return _PostCard(
+      post: post,
+      onLike: () => _toggleLike(post),
+      onComments: () => _openComments(post),
+      onOpen: () => _openDetail(post),
+      onProfile: () {
+        final accountId = post['account'] is Map
+            ? (post['account'] as Map)['account_id']
+            : null;
+        if (accountId is int) {
+          openAccountProfile(
+            context,
+            accountId,
+            initialName: (post['account'] as Map)['display_name'] as String?,
+          );
+        }
+      },
+      onEdit: own ? () => _editPost(post) : null,
+      onDelete: own ? () => _deletePost(post) : null,
+    );
+  }
+
+  Widget _emptyState() {
+    return ListView(
+      children: const [
+        SizedBox(height: 110),
+        Icon(Icons.photo_library_outlined, size: 44),
+        SizedBox(height: 10),
+        Center(child: Text('Belum ada post di sekitar')),
+        SizedBox(height: 4),
+        Center(
+          child: Text(
+            'Post dari kontak dan akun dalam radius 2 km.',
+            style: TextStyle(fontSize: 12),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -227,56 +269,65 @@ class _FeedScreenState extends State<FeedScreen> {
         tooltip: 'Buat post',
         child: const Icon(Icons.add_a_photo_outlined),
       ),
-      body: ReadableWidth(
-        maxWidth: 760,
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: _posts.isEmpty
-              ? ListView(
-                  children: const [
-                    SizedBox(height: 110),
-                    Icon(Icons.photo_library_outlined, size: 44),
-                    SizedBox(height: 10),
-                    Center(child: Text('Belum ada post di sekitar')),
-                    SizedBox(height: 4),
-                    Center(
-                      child: Text(
-                          'Post dari kontak dan akun dalam radius 2 km.',
-                          style: TextStyle(fontSize: 12)),
-                    ),
-                  ],
-                )
-              : ListView.separated(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // Tablets in landscape show the feed as a grid of columns and rows.
+          final columns = constraints.maxWidth >= 1180
+              ? 3
+              : (constraints.maxWidth >= 760 ? 2 : 1);
+          if (_posts.isEmpty) {
+            return ReadableWidth(
+              maxWidth: 760,
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: _emptyState(),
+              ),
+            );
+          }
+          if (columns == 1) {
+            return ReadableWidth(
+              maxWidth: 760,
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(10, 8, 10, 92),
                   itemCount: _posts.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final post = _posts[index];
-                    final own = _isOwnPost(post);
-                    return _PostCard(
-                      post: post,
-                      onLike: () => _toggleLike(post),
-                      onComments: () => _openComments(post),
-                      onOpen: () => _openDetail(post),
-                      onProfile: () {
-                        final accountId = post['account'] is Map
-                            ? (post['account'] as Map)['account_id']
-                            : null;
-                        if (accountId is int) {
-                          openAccountProfile(
-                            context,
-                            accountId,
-                            initialName: (post['account']
-                                as Map)['display_name'] as String?,
-                          );
-                        }
-                      },
-                      onEdit: own ? () => _editPost(post) : null,
-                      onDelete: own ? () => _deletePost(post) : null,
-                    );
-                  },
+                  itemBuilder: (context, index) =>
+                      _buildPostCard(_posts[index]),
                 ),
-        ),
+              ),
+            );
+          }
+          const spacing = 10.0;
+          final contentWidth = constraints.maxWidth.clamp(0.0, 1240.0);
+          final cardWidth =
+              (contentWidth - 20 - spacing * (columns - 1)) / columns;
+          return RefreshIndicator(
+            onRefresh: _load,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 92),
+              child: Center(
+                child: SizedBox(
+                  width: contentWidth,
+                  child: Wrap(
+                    spacing: spacing,
+                    runSpacing: spacing,
+                    crossAxisAlignment: WrapCrossAlignment.start,
+                    children: [
+                      for (final post in _posts)
+                        SizedBox(
+                          width: cardWidth,
+                          child: _buildPostCard(post),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

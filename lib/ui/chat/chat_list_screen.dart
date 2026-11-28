@@ -20,9 +20,21 @@ import 'new_chat_sheet.dart';
 final ValueNotifier<int> chatListRefreshTick = ValueNotifier<int>(0);
 
 class ChatListScreen extends StatefulWidget {
-  const ChatListScreen({super.key, this.active = true});
+  const ChatListScreen({
+    super.key,
+    this.active = true,
+    this.onOpenConversation,
+    this.selectedConversationId,
+  });
 
   final bool active;
+
+  /// When set (tablet two-pane layout) the room is shown beside the list
+  /// instead of being pushed as a new route.
+  final void Function(Map<String, dynamic> conversation)? onOpenConversation;
+
+  /// Conversation currently shown in the right-hand pane (highlighted row).
+  final int? selectedConversationId;
 
   @override
   State<ChatListScreen> createState() => _ChatListScreenState();
@@ -309,6 +321,11 @@ class _ChatListScreenState extends State<ChatListScreen>
   }
 
   Future<void> _openConversation(Map<String, dynamic> conversation) async {
+    final embedded = widget.onOpenConversation;
+    if (embedded != null) {
+      embedded(conversation);
+      return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ChatRoomScreen(conversation: conversation),
@@ -459,6 +476,11 @@ class _ChatListScreenState extends State<ChatListScreen>
                               ? scheme.primaryContainer.withValues(alpha: 0.25)
                               : null,
                           child: ListTile(
+                            selected: widget.selectedConversationId != null &&
+                                item['conversation_id'] ==
+                                    widget.selectedConversationId,
+                            selectedTileColor:
+                                scheme.primary.withValues(alpha: 0.08),
                             onTap: () => _openConversation(item),
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12,

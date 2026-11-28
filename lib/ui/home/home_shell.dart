@@ -27,6 +27,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
   int? _lastActiveAccountId;
   Timer? _badgePoll;
+  Map<String, dynamic>? _selectedConversation;
 
   static const _titles = ['Chat', 'Sekitar', 'Post', 'Log Telepon'];
 
@@ -54,11 +55,17 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           .get('conversations/$conversationId');
       final conversation = data is Map ? data['conversation'] : null;
       if (conversation is! Map || !mounted) return;
+      final target = Map<String, dynamic>.from(conversation);
+      if (MediaQuery.sizeOf(context).width >= 980) {
+        setState(() {
+          _index = 0;
+          _selectedConversation = target;
+        });
+        return;
+      }
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => ChatRoomScreen(
-            conversation: Map<String, dynamic>.from(conversation),
-          ),
+          builder: (_) => ChatRoomScreen(conversation: target),
         ),
       );
       if (mounted) {
@@ -143,6 +150,66 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         label: Text('Log Telepon'),
       ),
     ];
+  }
+
+  Widget _emptyChatPane(ThemeData theme) {
+    final scheme = theme.colorScheme;
+    return ColoredBox(
+      color: scheme.surfaceContainerLowest,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.forum_outlined, size: 48, color: scheme.outline),
+            const SizedBox(height: 12),
+            Text(
+              'Pilih percakapan',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Percakapan dibuka di kolom ini.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Tablet landscape: conversation list on the left, active room on the
+  /// right. The room is part of the shell instead of a pushed route.
+  Widget _twoPaneChat(AuthStore auth, double listWidth) {
+    final conversation = _selectedConversation;
+    return Row(
+      children: [
+        SizedBox(
+          width: listWidth,
+          child: ChatListScreen(
+            active: _index == 0,
+            selectedConversationId: conversation?['conversation_id'] as int?,
+            onOpenConversation: (selected) {
+              setState(() => _selectedConversation = selected);
+            },
+          ),
+        ),
+        const VerticalDivider(width: 1),
+        Expanded(
+          child: conversation == null
+              ? _emptyChatPane(Theme.of(context))
+              : ChatRoomScreen(
+                  key: ValueKey(conversation['conversation_id']),
+                  conversation: conversation,
+                  embedded: true,
+                  onClosed: () {
+                    setState(() => _selectedConversation = null);
+                    chatListRefreshTick.value++;
+                  },
+                ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -255,10 +322,14 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
+          final twoPane = constraints.maxWidth >= 980;
+          final listWidth = (constraints.maxWidth * 0.3).clamp(320.0, 420.0);
           final content = IndexedStack(
             index: _index,
             children: [
-              ChatListScreen(active: _index == 0),
+              twoPane
+                  ? _twoPaneChat(auth, listWidth)
+                  : ChatListScreen(active: _index == 0),
               MapScreen(active: _index == 1),
               const FeedScreen(),
               const CallLogScreen(),

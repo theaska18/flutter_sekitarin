@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/api_exception.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
-import '../widgets/account_avatar.dart';
+import '../widgets/account_type_avatar.dart';
 
 class AddContactScreen extends StatefulWidget {
   const AddContactScreen({super.key});
@@ -26,6 +26,14 @@ class _AddContactScreenState extends State<AddContactScreen> {
     _username.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  bool _isOnline(Map<String, dynamic> account) {
+    final type = account['type_code'];
+    final business = type != null && type != 'personal';
+    return business
+        ? account['is_active'] == true
+        : account['is_online'] == true;
   }
 
   Future<void> _search() async {
@@ -145,49 +153,96 @@ class _AddContactScreenState extends State<AddContactScreen> {
               Text(_error!,
                   style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
+            if (_results.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              Text(
+                'Hasil pencarian',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
             for (final account in _results) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(14),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      AccountAvatar(
-                        account: account,
-                        radius: 24,
-                        token: context.read<AuthStore>().api.accessToken,
-                        fallbackIcon: typeIcon(account['type_code'] as String?),
-                        backgroundColor:
-                            typeColor(account['type_code'] as String?)
-                                .withValues(alpha: 0.15),
-                        foregroundColor:
-                            typeColor(account['type_code'] as String?),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${account['display_name'] ?? ''}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w700),
+                      Row(
+                        children: [
+                          AccountTypeAvatar(
+                            account: account,
+                            radius: 24,
+                            token: context.read<AuthStore>().api.accessToken,
+                            showStatusDot: true,
+                            backgroundColor:
+                                typeColor(account['type_code'] as String?)
+                                    .withValues(alpha: 0.15),
+                            foregroundColor:
+                                typeColor(account['type_code'] as String?),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${account['display_name'] ?? account['handle'] ?? 'Akun'}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                Text(
+                                  '@${account['handle'] ?? ''}'
+                                  '${account['type_label'] != null ? ' • ${account['type_label']}' : ''}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.labelSmall,
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: _isOnline(account)
+                                            ? const Color(0xFF22C55E)
+                                            : const Color(0xFF94A3B8),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      _isOnline(account) ? 'Online' : 'Offline',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: _isOnline(account)
+                                            ? const Color(0xFF16A34A)
+                                            : Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                            Text(
-                              '@${account['handle'] ?? ''} • ${account['type_label'] ?? ''}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelSmall,
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      FilledButton(
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
                         onPressed: _adding ? null : () => _add(account),
-                        child: const Text('Tambah'),
+                        icon: const Icon(Icons.person_add_alt_1, size: 18),
+                        label: const Text('Tambah ke kontak'),
                       ),
                     ],
                   ),

@@ -23,9 +23,20 @@ import 'group_info_screen.dart';
 import 'group_map_screen.dart';
 
 class ChatRoomScreen extends StatefulWidget {
-  const ChatRoomScreen({super.key, required this.conversation});
+  const ChatRoomScreen({
+    super.key,
+    required this.conversation,
+    this.embedded = false,
+    this.onClosed,
+  });
 
   final Map<String, dynamic> conversation;
+
+  /// Tablet two-pane mode: the room is part of the shell, not a pushed route.
+  final bool embedded;
+
+  /// Called instead of popping when [embedded] and the room should close.
+  final VoidCallback? onClosed;
 
   @override
   State<ChatRoomScreen> createState() => _ChatRoomScreenState();
@@ -322,6 +333,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     }
   }
 
+  void _closeRoom() {
+    if (widget.onClosed != null) {
+      widget.onClosed!();
+      return;
+    }
+    if (mounted) Navigator.of(context).pop();
+  }
+
   Future<void> _openGroupInfo() async {
     final result = await Navigator.of(context).push<Object?>(
       MaterialPageRoute<Object?>(
@@ -333,7 +352,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     );
     if (!mounted) return;
     if (result == 'left') {
-      Navigator.of(context).pop();
+      _closeRoom();
       return;
     }
     await _loadConversation();
@@ -934,7 +953,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
           .api
           .delete('conversations/$_conversationId');
       ChatCache.clear(_conversationId);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) _closeRoom();
     } catch (error) {
       if (mounted) showErrorSnack(context, error);
     }
@@ -1099,6 +1118,14 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     final groupAvatarId = widget.conversation['avatar_media_id'];
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: !widget.embedded,
+        leading: widget.embedded
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Kembali ke daftar chat',
+                onPressed: _closeRoom,
+              )
+            : null,
         titleSpacing: 0,
         title: GestureDetector(
           onTap: () {

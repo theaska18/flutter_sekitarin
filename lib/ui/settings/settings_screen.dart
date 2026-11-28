@@ -646,34 +646,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
               ),
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                dense: true,
-                leading: _updateDownloading
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.4,
-                          value: _updateProgress,
-                        ),
-                      )
-                    : const Icon(Icons.system_update_alt, size: 20),
-                title: const Text('Cek update', style: TextStyle(fontSize: 13)),
-                subtitle: Text(
-                  _updateSubtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: _updateError != null
-                        ? Theme.of(context).colorScheme.error
-                        : null,
-                  ),
-                ),
-                trailing: _updateTrailing(),
+              // Custom row instead of ListTile: the "Pasang" button used to
+              // squeeze the title and push "Cek update" downwards on narrow
+              // screens.
+              InkWell(
                 onTap:
                     _updateDownloading || _updateChecking ? null : _checkUpdate,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      if (_updateDownloading)
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            value: _updateProgress,
+                          ),
+                        )
+                      else
+                        const Icon(Icons.system_update_alt, size: 20),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Cek update',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 13),
+                            ),
+                            Text(
+                              _updateSubtitle,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: _updateError != null
+                                    ? Theme.of(context).colorScheme.error
+                                    : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (_updateTrailing() case final trailing?) trailing,
+                    ],
+                  ),
+                ),
               ),
               if (_updateDownloading)
                 Padding(

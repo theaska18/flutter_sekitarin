@@ -43,6 +43,8 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-28 | 0.12.64+80 | Tablet landscape (>=980 dp) Chat tab is a two-pane master/detail: conversation list on the left, the selected room on the right with the row highlighted, an empty-state pane before selecting, and notification taps selecting the thread instead of pushing a route. |
+| 2026-11-28 | 0.12.63+79 | Update row uses a custom Row so the `Pasang` button no longer squeezes `Cek update` downwards (row tap installs when ready); the Post feed becomes a 2/3-column grid on tablet landscape; add-contact results show the name, handle, online/offline status and a full-width `Tambah ke kontak` button. |
 | 2026-11-28 | 0.12.62+78 | New-chat search by username for anyone (not only saved contacts), live as you type, with online/offline dots and labels (personal `is_online`, business `is_active`) plus voice/video call buttons that first create the direct conversation so calling a non-contact is allowed. Own accounts are filtered out. |
 | 2026-11-28 | 0.12.61+77 | Tablet rail no longer repeats the logo (it is already in the header). Add-contact/search fixes: the keyboard is dismissed and the list scrolls to the result, the result name/handle stay on one line, and the new-chat sheet height follows the visible area so results are not pushed below the keyboard. |
 | 2026-11-28 | 0.12.60+76 | Tablet/landscape layout: screens from 700 dp wide use a left NavigationRail (with the app mark and labels) instead of the bottom bar, and the chat list, feed, call log and chat bubbles are width-capped so they stay readable on tablets in portrait and landscape. |
@@ -206,9 +208,11 @@ the manifest and downloads/installs the APK.
   active account.
 - **Navigation:** four tabs — Chat, Peta, Post, Log Telepon. Phones show them
   in a bottom `NavigationBar`; screens 700 dp wide or more (tablets, phone
-  landscape) show the same tabs in a left `NavigationRail` with the app mark on
-  top. Profil is opened from the top-right header icon; Setelan is opened from
-  the Profil AppBar. Do not add Profil/Setelan back to the navigation.
+  landscape) show the same tabs in a left `NavigationRail`. On screens 980 dp
+  wide or more the Chat tab is a two-pane master/detail (list left, room right,
+  highlighted row, empty-state pane). Profil is opened from the top-right
+  header icon; Setelan is opened from the Profil AppBar. Do not add
+  Profil/Setelan back to the navigation.
 - **Updater:** keep update progress inline on the Settings row, never in a
   dialog; cache the APK per version so installing can be retried without a new
   download.
