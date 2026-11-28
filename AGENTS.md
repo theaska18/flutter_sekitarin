@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-28 | 0.12.59+75 | New glossy pin/map/chat brand icon: replaced the in-app header/login logo, all Android launcher icons (including a white adaptive icon) and all iOS AppIcon sizes; the original upload was removed after generating the assets. |
 | 2026-11-28 | 0.12.58+74 | Keep users signed in like a messenger: refresh tokens are long-lived (10 years) and no longer rotate on every refresh (the server only rotates the 1-hour access token), the app retries a 401 with the just-renewed token for 15s instead of refreshing again, and secure storage writes the refresh token first. Fixes the repeated logout after login caused by cached media requests returning 401 with the previous token. |
 | 2026-11-28 | 0.12.57+73 | Send `ReceiverVideoConstraints` on every remote track event (audio and video, including tracks that were already rendered) like ISP-2194, instead of only once per video track. |
 | 2026-11-28 | 0.12.56+72 | Request video for the peer endpoint source (`<endpoint>-v0`, as ISP-2194's `sendSourceVideoTypeMessage` does) instead of only the JVB mixed source, and resend `ReceiverVideoConstraints` after media connects, when peer presence joins, when a remote video track arrives, and after source-map renegotiation (with the 2.5s/4.5s retries Jitsi uses). |
@@ -130,9 +131,12 @@ the manifest and downloads/installs the APK.
 - **Group photo** can be changed by any member; only the group name stays
   owner-only. Backend mirrors this rule.
 - **Branding:** the Sekitarin logo (`lib/ui/widgets/sekitarin_logo.dart`) sits at
-  the top-left of the home header and on the login screen. It uses the blue app
-  icon at `assets/brand/app_icon.png`; replace that asset (and the launcher
-  icons) together when a final brand icon is ready.
+  the top-left of the home header and on the login screen. It uses the glossy
+  pin/map/chat app icon at `assets/brand/app_icon.png` (1024 px, transparent).
+  Launcher icons live in `android/app/src/main/res/mipmap-*/` (legacy PNG plus
+  `ic_launcher_foreground.png` for the white adaptive icon) and
+  `ios/Runner/Assets.xcassets/AppIcon.appiconset/` (opaque white background).
+  Replace all of them together when the brand icon changes.
 - Chat list timestamps use time-ago; never show absolute dates there.
 - **Connection retry:** when a stored session cannot reach the server (e.g. right
   after the screen wakes up), the retry screen auto-retries every 3 seconds; do
