@@ -146,6 +146,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_updateReady) {
       return FilledButton.tonal(
         onPressed: _openInstaller,
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(0, 36),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          visualDensity: VisualDensity.compact,
+        ),
         child: const Text('Pasang'),
       );
     }

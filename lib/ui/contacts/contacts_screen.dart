@@ -24,11 +24,19 @@ class _ContactsScreenState extends State<ContactsScreen> {
   bool _busy = false;
   String? _error;
   String _scope = 'all';
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -76,16 +84,22 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   List<Map<String, dynamic>> get _visibleContacts {
+    final query = _query.trim().toLowerCase();
     return _contacts.where((account) {
       switch (_scope) {
         case 'personal':
-          return !_isBusiness(account);
+          if (_isBusiness(account)) return false;
         case 'business':
-          return _isBusiness(account);
+          if (!_isBusiness(account)) return false;
         case 'online':
-          return _isOnline(account);
+          if (!_isOnline(account)) return false;
       }
-      return true;
+      if (query.isEmpty) return true;
+      return '${account['alias'] ?? ''} '
+              '${account['display_name'] ?? ''} '
+              '${account['handle'] ?? ''}'
+          .toLowerCase()
+          .contains(query);
     }).toList();
   }
 
@@ -262,6 +276,29 @@ class _ContactsScreenState extends State<ContactsScreen> {
         maxWidth: 680,
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) => setState(() => _query = value),
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: 'Cari nama atau username…',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  suffixIcon: _query.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          tooltip: 'Hapus pencarian',
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _query = '');
+                          },
+                        ),
+                ),
+              ),
+            ),
             const SizedBox(height: 8),
             _scopeChips(),
             Expanded(

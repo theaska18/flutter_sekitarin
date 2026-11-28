@@ -211,10 +211,11 @@ class _AddContactScreenState extends State<AddContactScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${account['display_name'] ?? account['handle'] ?? 'Akun'}',
+                              '${'${account['display_name'] ?? ''}'.trim().isEmpty ? '@${account['handle'] ?? ''}' : account['display_name']}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 15,
                               ),
@@ -223,7 +224,14 @@ class _AddContactScreenState extends State<AddContactScreen> {
                               '@${account['handle'] ?? ''}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelSmall,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
                             ),
                             if (_isOnline(account)) ...[
                               const SizedBox(height: 2),
@@ -256,8 +264,16 @@ class _AddContactScreenState extends State<AddContactScreen> {
                       FilledButton.icon(
                         onPressed: _adding ? null : () => _add(account),
                         style: FilledButton.styleFrom(
+                          // The app theme uses Size.fromHeight (infinite
+                          // width); override it inside this Row so the button
+                          // does not swallow the name text.
+                          minimumSize: const Size(0, 38),
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           visualDensity: VisualDensity.compact,
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onPrimary,
                         ),
                         icon: const Icon(Icons.person_add_alt_1, size: 16),
                         label: const Text('Tambah'),

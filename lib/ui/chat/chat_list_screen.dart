@@ -620,6 +620,9 @@ class _ChatListScreenState extends State<ChatListScreen>
                                         .withValues(alpha: 0.25)
                                     : null,
                                 child: ListTile(
+                                  // Keep the three-dot menu on the name line
+                                  // instead of centring it under the title.
+                                  titleAlignment: ListTileTitleAlignment.top,
                                   selected:
                                       widget.selectedConversationId != null &&
                                           item['conversation_id'] ==
