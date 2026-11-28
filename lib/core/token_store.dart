@@ -25,10 +25,12 @@ class TokenStore {
     required String accessToken,
     String? refreshToken,
   }) async {
-    await _secure.write(key: _accessKey, value: accessToken);
+    // Write the refresh token first: if the process dies between the two
+    // writes, the next launch can still refresh with the newer token.
     if (refreshToken != null && refreshToken.isNotEmpty) {
       await _secure.write(key: _refreshKey, value: refreshToken);
     }
+    await _secure.write(key: _accessKey, value: accessToken);
   }
 
   int? get activeAccountId {

@@ -37,6 +37,7 @@ class AuthStore extends ChangeNotifier {
   String? _accessToken;
   String? _refreshToken;
   Future<bool>? _refreshFuture;
+  DateTime? _lastRefreshAt;
   StreamSubscription? _wsEventsSub;
   StreamSubscription? _pushForegroundSub;
   StreamSubscription? _pushTokenSub;
@@ -293,6 +294,7 @@ class AuthStore extends ChangeNotifier {
       refreshToken: _refreshToken,
     );
     await store.saveActiveAccount(activeAccountId);
+    _lastRefreshAt = DateTime.now();
     ws.connect(_accessToken ?? '');
     await _loadMe();
     _startRealtimeTracking();
@@ -380,9 +382,17 @@ class AuthStore extends ChangeNotifier {
   }
 
   Future<bool> _refreshSession() {
-    // Refresh tokens rotate on the server, so concurrent 401s must share one
-    // refresh. Otherwise the second request sends an already-rotated token and
-    // the whole session gets cleared.
+    // If the access token was just renewed (login/refresh), a 401 is almost
+    // always a request that was built with the previous header (cached image
+    // requests, parallel calls). Retry it once with the current token instead
+    // of rotating again; repeatedly refreshing on those 401s used to burn
+    // refresh tokens and could end the session.
+    final refreshedAt = _lastRefreshAt;
+    if (refreshedAt != null &&
+        DateTime.now().difference(refreshedAt) < const Duration(seconds: 15)) {
+      return Future.value(true);
+    }
+    // Concurrent 401s share one refresh so the server sees a single request.
     final inFlight = _refreshFuture;
     if (inFlight != null) return inFlight;
     final future = _performRefresh();
@@ -413,6 +423,7 @@ class AuthStore extends ChangeNotifier {
         accessToken: _accessToken ?? '',
         refreshToken: _refreshToken,
       );
+      _lastRefreshAt = DateTime.now();
       return _accessToken != null && _accessToken!.isNotEmpty;
     } on ApiException catch (error) {
       // Only a rejected refresh token ends the session. Network errors,

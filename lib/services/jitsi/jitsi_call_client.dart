@@ -540,7 +540,14 @@ class JitsiCallClient implements JitsiSessionView {
         remoteAudioTracks++;
         _diag('Track audio diterima');
       }
-      if (event.track.kind != 'video') return;
+      // ISP-2194 sends ReceiverVideoConstraints on every remote track event,
+      // not only for video: the first request often arrives before the bridge
+      // knows the source map, so each new track is another chance to ask.
+      _sendReceiverVideoConstraints(force: true);
+      if (event.track.kind != 'video') {
+        _notify();
+        return;
+      }
       final streams = event.streams;
       // JVB delivers a single mixed video track whose msid is often empty on
       // the answer side; do not drop it just because no MediaStream is
@@ -548,7 +555,10 @@ class JitsiCallClient implements JitsiSessionView {
       final key = streams.isNotEmpty
           ? streams.first.id
           : (event.track.id ?? 'remote-${remoteVideoTracks}');
-      if (key.isEmpty || remoteRenderers.containsKey(key)) return;
+      if (key.isEmpty || remoteRenderers.containsKey(key)) {
+        _notify();
+        return;
+      }
       final renderer = RTCVideoRenderer();
       await renderer.initialize();
       if (streams.isNotEmpty) {
@@ -561,9 +571,6 @@ class JitsiCallClient implements JitsiSessionView {
       _diag('Track video diterima: $key');
       remoteRenderers[key] = renderer;
       remoteRenderer ??= renderer;
-      // Like ISP-2194: ask the bridge for all known peer sources again as
-      // soon as a track shows up; the first request usually predates the
-      // bridge's source map.
       _sendReceiverVideoConstraints(force: true);
       _notify();
     };
