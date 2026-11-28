@@ -521,7 +521,7 @@ class _ChatListScreenState extends State<ChatListScreen>
           ),
           const SizedBox(height: 8),
           SizedBox(
-            height: 36,
+            height: 34,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
@@ -531,6 +531,20 @@ class _ChatListScreenState extends State<ChatListScreen>
                     child: ChoiceChip(
                       label: Text(scope.$2),
                       selected: _scope == scope.$1,
+                      showCheckmark: false,
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 2),
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      side: BorderSide(
+                        color: _scope == scope.$1
+                            ? scheme.primary
+                            : scheme.outlineVariant,
+                      ),
                       labelStyle: TextStyle(
                         fontSize: 12,
                         color: _scope == scope.$1
