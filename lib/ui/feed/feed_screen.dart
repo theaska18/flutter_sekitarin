@@ -227,52 +227,56 @@ class _FeedScreenState extends State<FeedScreen> {
         tooltip: 'Buat post',
         child: const Icon(Icons.add_a_photo_outlined),
       ),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: _posts.isEmpty
-            ? ListView(
-                children: const [
-                  SizedBox(height: 110),
-                  Icon(Icons.photo_library_outlined, size: 44),
-                  SizedBox(height: 10),
-                  Center(child: Text('Belum ada post di sekitar')),
-                  SizedBox(height: 4),
-                  Center(
-                    child: Text('Post dari kontak dan akun dalam radius 2 km.',
-                        style: TextStyle(fontSize: 12)),
-                  ),
-                ],
-              )
-            : ListView.separated(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 92),
-                itemCount: _posts.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final post = _posts[index];
-                  final own = _isOwnPost(post);
-                  return _PostCard(
-                    post: post,
-                    onLike: () => _toggleLike(post),
-                    onComments: () => _openComments(post),
-                    onOpen: () => _openDetail(post),
-                    onProfile: () {
-                      final accountId = post['account'] is Map
-                          ? (post['account'] as Map)['account_id']
-                          : null;
-                      if (accountId is int) {
-                        openAccountProfile(
-                          context,
-                          accountId,
-                          initialName: (post['account'] as Map)['display_name']
-                              as String?,
-                        );
-                      }
-                    },
-                    onEdit: own ? () => _editPost(post) : null,
-                    onDelete: own ? () => _deletePost(post) : null,
-                  );
-                },
-              ),
+      body: ReadableWidth(
+        maxWidth: 760,
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: _posts.isEmpty
+              ? ListView(
+                  children: const [
+                    SizedBox(height: 110),
+                    Icon(Icons.photo_library_outlined, size: 44),
+                    SizedBox(height: 10),
+                    Center(child: Text('Belum ada post di sekitar')),
+                    SizedBox(height: 4),
+                    Center(
+                      child: Text(
+                          'Post dari kontak dan akun dalam radius 2 km.',
+                          style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 92),
+                  itemCount: _posts.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final post = _posts[index];
+                    final own = _isOwnPost(post);
+                    return _PostCard(
+                      post: post,
+                      onLike: () => _toggleLike(post),
+                      onComments: () => _openComments(post),
+                      onOpen: () => _openDetail(post),
+                      onProfile: () {
+                        final accountId = post['account'] is Map
+                            ? (post['account'] as Map)['account_id']
+                            : null;
+                        if (accountId is int) {
+                          openAccountProfile(
+                            context,
+                            accountId,
+                            initialName: (post['account']
+                                as Map)['display_name'] as String?,
+                          );
+                        }
+                      },
+                      onEdit: own ? () => _editPost(post) : null,
+                      onDelete: own ? () => _deletePost(post) : null,
+                    );
+                  },
+                ),
+        ),
       ),
     );
   }

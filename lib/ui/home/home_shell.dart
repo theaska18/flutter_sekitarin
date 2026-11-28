@@ -112,6 +112,39 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     );
   }
 
+  void _selectTab(int value) {
+    if (_index == 0 && value != 0) {
+      context.read<AuthStore>().markChatNotificationsRead(force: true);
+    }
+    setState(() => _index = value);
+    if (value == 0) _openChatTab();
+  }
+
+  List<NavigationRailDestination> _railDestinations(int chatBadge) {
+    return [
+      NavigationRailDestination(
+        icon: _badgedIcon(Icons.chat_bubble_outline, chatBadge),
+        selectedIcon: _badgedIcon(Icons.chat_bubble, chatBadge),
+        label: const Text('Chat'),
+      ),
+      const NavigationRailDestination(
+        icon: Icon(Icons.public_outlined),
+        selectedIcon: Icon(Icons.public),
+        label: Text('Peta'),
+      ),
+      const NavigationRailDestination(
+        icon: Icon(Icons.photo_library_outlined),
+        selectedIcon: Icon(Icons.photo_library),
+        label: Text('Post'),
+      ),
+      const NavigationRailDestination(
+        icon: Icon(Icons.phone_in_talk_outlined),
+        selectedIcon: Icon(Icons.phone_in_talk),
+        label: Text('Log Telepon'),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthStore>();
@@ -220,53 +253,83 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           const SizedBox(width: 6),
         ],
       ),
-      body: IndexedStack(
-        index: _index,
-        children: [
-          ChatListScreen(active: _index == 0),
-          MapScreen(active: _index == 1),
-          const FeedScreen(),
-          const CallLogScreen(),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (value) {
-          if (_index == 0 && value != 0) {
-            context.read<AuthStore>().markChatNotificationsRead(force: true);
-          }
-          setState(() => _index = value);
-          if (value == 0) _openChatTab();
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final content = IndexedStack(
+            index: _index,
+            children: [
+              ChatListScreen(active: _index == 0),
+              MapScreen(active: _index == 1),
+              const FeedScreen(),
+              const CallLogScreen(),
+            ],
+          );
+          // Tablets and wide screens get a left navigation rail so the
+          // landscape layout uses the width instead of a bottom bar.
+          if (constraints.maxWidth < 700) return content;
+          final scheme = Theme.of(context).colorScheme;
+          return Row(
+            children: [
+              Material(
+                color: scheme.surface,
+                child: SafeArea(
+                  right: false,
+                  child: NavigationRail(
+                    selectedIndex: _index,
+                    onDestinationSelected: _selectTab,
+                    labelType: NavigationRailLabelType.all,
+                    groupAlignment: -0.92,
+                    minWidth: 76,
+                    destinations: _railDestinations(
+                      _index == 0 ? 0 : auth.unreadChatNotifications,
+                    ),
+                    leading: Padding(
+                      padding: const EdgeInsets.only(top: 8, bottom: 12),
+                      child: SekitarinLogo(height: 34, showWordmark: false),
+                    ),
+                  ),
+                ),
+              ),
+              VerticalDivider(width: 1, color: scheme.outlineVariant),
+              Expanded(child: content),
+            ],
+          );
         },
-        destinations: [
-          NavigationDestination(
-            icon: _badgedIcon(
-              Icons.chat_bubble_outline,
-              _index == 0 ? 0 : auth.unreadChatNotifications,
-            ),
-            selectedIcon: _badgedIcon(
-              Icons.chat_bubble,
-              _index == 0 ? 0 : auth.unreadChatNotifications,
-            ),
-            label: 'Chat',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.public_outlined),
-            selectedIcon: Icon(Icons.public),
-            label: 'Peta',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.photo_library_outlined),
-            selectedIcon: Icon(Icons.photo_library),
-            label: 'Post',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.phone_in_talk_outlined),
-            selectedIcon: Icon(Icons.phone_in_talk),
-            label: 'Log Telepon',
-          ),
-        ],
       ),
+      bottomNavigationBar: MediaQuery.sizeOf(context).width < 700
+          ? NavigationBar(
+              selectedIndex: _index,
+              onDestinationSelected: _selectTab,
+              destinations: [
+                NavigationDestination(
+                  icon: _badgedIcon(
+                    Icons.chat_bubble_outline,
+                    _index == 0 ? 0 : auth.unreadChatNotifications,
+                  ),
+                  selectedIcon: _badgedIcon(
+                    Icons.chat_bubble,
+                    _index == 0 ? 0 : auth.unreadChatNotifications,
+                  ),
+                  label: 'Chat',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.public_outlined),
+                  selectedIcon: Icon(Icons.public),
+                  label: 'Peta',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.photo_library_outlined),
+                  selectedIcon: Icon(Icons.photo_library),
+                  label: 'Post',
+                ),
+                const NavigationDestination(
+                  icon: Icon(Icons.phone_in_talk_outlined),
+                  selectedIcon: Icon(Icons.phone_in_talk),
+                  label: 'Log Telepon',
+                ),
+              ],
+            )
+          : null,
     );
   }
 }

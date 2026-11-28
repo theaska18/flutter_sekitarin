@@ -249,3 +249,22 @@ void showErrorSnack(BuildContext context, Object error) {
     SnackBar(content: Text('$error')),
   );
 }
+
+/// Centers page content and caps its width on tablets so lists keep a
+/// comfortable reading width in portrait and landscape.
+class ReadableWidth extends StatelessWidget {
+  const ReadableWidth({super.key, required this.child, this.maxWidth = 720});
+
+  final Widget child;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: child,
+      ),
+    );
+  }
+}

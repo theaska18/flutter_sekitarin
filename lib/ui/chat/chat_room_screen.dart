@@ -1402,7 +1402,9 @@ class _MessageBubble extends StatelessWidget {
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.76,
+          // Keep bubbles readable on tablets instead of spanning the width.
+          maxWidth:
+              (MediaQuery.sizeOf(context).width * 0.76).clamp(240.0, 560.0),
         ),
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.fromLTRB(12, 9, 12, 7),

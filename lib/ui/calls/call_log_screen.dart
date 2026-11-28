@@ -125,73 +125,77 @@ class _CallLogScreenState extends State<CallLogScreen> {
     }
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: ListView.separated(
-          physics: const AlwaysScrollableScrollPhysics(),
-          itemCount: _items.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final item = _items[index];
-            final peer = item['peer'] is Map
-                ? Map<String, dynamic>.from(item['peer'] as Map)
-                : <String, dynamic>{};
-            final direction = '${item['direction'] ?? 'outgoing'}';
-            final status = '${item['status'] ?? ''}';
-            final missed = status == 'missed' ||
-                status == 'declined' ||
-                status == 'canceled';
-            final icon = direction == 'incoming'
-                ? (missed ? Icons.call_missed : Icons.call_received)
-                : Icons.call_made;
-            final color = missed ? scheme.error : scheme.primary;
-            final busy = _busyCallAccount != null &&
-                _busyCallAccount == peer['account_id'];
-            return ListTile(
-              leading: AccountTypeAvatar(
-                account: peer,
-                radius: 22,
-                showStatusDot: true,
-              ),
-              title: Row(
-                children: [
-                  Icon(icon, size: 15, color: color),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      '${peer['display_name'] ?? 'Panggilan'}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: missed ? FontWeight.w600 : FontWeight.w500,
+      body: ReadableWidth(
+        maxWidth: 720,
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: _items.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final item = _items[index];
+              final peer = item['peer'] is Map
+                  ? Map<String, dynamic>.from(item['peer'] as Map)
+                  : <String, dynamic>{};
+              final direction = '${item['direction'] ?? 'outgoing'}';
+              final status = '${item['status'] ?? ''}';
+              final missed = status == 'missed' ||
+                  status == 'declined' ||
+                  status == 'canceled';
+              final icon = direction == 'incoming'
+                  ? (missed ? Icons.call_missed : Icons.call_received)
+                  : Icons.call_made;
+              final color = missed ? scheme.error : scheme.primary;
+              final busy = _busyCallAccount != null &&
+                  _busyCallAccount == peer['account_id'];
+              return ListTile(
+                leading: AccountTypeAvatar(
+                  account: peer,
+                  radius: 22,
+                  showStatusDot: true,
+                ),
+                title: Row(
+                  children: [
+                    Icon(icon, size: 15, color: color),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '${peer['display_name'] ?? 'Panggilan'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight:
+                              missed ? FontWeight.w600 : FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              subtitle: Text(
-                _describe(item),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              trailing: busy
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : IconButton(
-                      onPressed: () => _callBack(item),
-                      icon: Icon(
-                        item['kind'] == 'video'
-                            ? Icons.videocam_outlined
-                            : Icons.call_outlined,
+                  ],
+                ),
+                subtitle: Text(
+                  _describe(item),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: busy
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : IconButton(
+                        onPressed: () => _callBack(item),
+                        icon: Icon(
+                          item['kind'] == 'video'
+                              ? Icons.videocam_outlined
+                              : Icons.call_outlined,
+                        ),
+                        tooltip: 'Hubungi lagi',
                       ),
-                      tooltip: 'Hubungi lagi',
-                    ),
-              onTap: () => _callBack(item),
-            );
-          },
+                onTap: () => _callBack(item),
+              );
+            },
+          ),
         ),
       ),
     );
