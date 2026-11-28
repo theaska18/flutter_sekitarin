@@ -43,6 +43,8 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-28 | 0.12.62+78 | New-chat search by username for anyone (not only saved contacts), live as you type, with online/offline dots and labels (personal `is_online`, business `is_active`) plus voice/video call buttons that first create the direct conversation so calling a non-contact is allowed. Own accounts are filtered out. |
+| 2026-11-28 | 0.12.61+77 | Tablet rail no longer repeats the logo (it is already in the header). Add-contact/search fixes: the keyboard is dismissed and the list scrolls to the result, the result name/handle stay on one line, and the new-chat sheet height follows the visible area so results are not pushed below the keyboard. |
 | 2026-11-28 | 0.12.60+76 | Tablet/landscape layout: screens from 700 dp wide use a left NavigationRail (with the app mark and labels) instead of the bottom bar, and the chat list, feed, call log and chat bubbles are width-capped so they stay readable on tablets in portrait and landscape. |
 | 2026-11-28 | 0.12.59+75 | New glossy pin/map/chat brand icon: replaced the in-app header/login logo, all Android launcher icons (including a white adaptive icon) and all iOS AppIcon sizes; the original upload was removed after generating the assets. |
 | 2026-11-28 | 0.12.58+74 | Keep users signed in like a messenger: refresh tokens are long-lived (10 years) and no longer rotate on every refresh (the server only rotates the 1-hour access token), the app retries a 401 with the just-renewed token for 15s instead of refreshing again, and secure storage writes the refresh token first. Fixes the repeated logout after login caused by cached media requests returning 401 with the previous token. |

@@ -283,10 +283,6 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
                     destinations: _railDestinations(
                       _index == 0 ? 0 : auth.unreadChatNotifications,
                     ),
-                    leading: Padding(
-                      padding: const EdgeInsets.only(top: 8, bottom: 12),
-                      child: SekitarinLogo(height: 34, showWordmark: false),
-                    ),
                   ),
                 ),
               ),

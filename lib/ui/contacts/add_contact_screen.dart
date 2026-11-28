@@ -15,6 +15,7 @@ class AddContactScreen extends StatefulWidget {
 
 class _AddContactScreenState extends State<AddContactScreen> {
   final _username = TextEditingController();
+  final _scroll = ScrollController();
   List<Map<String, dynamic>> _results = [];
   bool _searching = false;
   bool _adding = false;
@@ -23,10 +24,14 @@ class _AddContactScreenState extends State<AddContactScreen> {
   @override
   void dispose() {
     _username.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
   Future<void> _search() async {
+    // Hide the keyboard first: the result card sits below the search button
+    // and was previously hidden behind the keyboard on phones.
+    FocusScope.of(context).unfocus();
     final handle = normalizeUsername(_username.text);
     if (!validUsername(handle)) {
       setState(() {
@@ -57,6 +62,16 @@ class _AddContactScreenState extends State<AddContactScreen> {
         _results = results;
         if (_results.isEmpty) _error = 'Akun tidak ditemukan.';
       });
+      if (results.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !_scroll.hasClients) return;
+          _scroll.animateTo(
+            _scroll.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          );
+        });
+      }
     } on ApiException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } catch (error) {
@@ -90,86 +105,97 @@ class _AddContactScreenState extends State<AddContactScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Tambah kontak')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            'Cari akun menggunakan username, misalnya @aska.development.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _username,
-            autocorrect: false,
-            textInputAction: TextInputAction.search,
-            decoration: const InputDecoration(
-              labelText: 'Username',
-              prefixText: '@',
-              prefixIcon: Icon(Icons.alternate_email),
+      body: ReadableWidth(
+        maxWidth: 640,
+        child: ListView(
+          controller: _scroll,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(
+              'Cari akun menggunakan username, misalnya @aska.development.',
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
-            onSubmitted: (_) => _search(),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: _searching ? null : _search,
-            icon: _searching
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.search),
-            label: const Text('Cari akun'),
-          ),
-          if (_error != null) ...[
             const SizedBox(height: 14),
-            Text(_error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          ],
-          for (final account in _results) ...[
+            TextField(
+              controller: _username,
+              autocorrect: false,
+              textInputAction: TextInputAction.search,
+              decoration: const InputDecoration(
+                labelText: 'Username',
+                prefixText: '@',
+                prefixIcon: Icon(Icons.alternate_email),
+              ),
+              onSubmitted: (_) => _search(),
+            ),
             const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    AccountAvatar(
-                      account: account,
-                      radius: 24,
-                      token: context.read<AuthStore>().api.accessToken,
-                      fallbackIcon: typeIcon(account['type_code'] as String?),
-                      backgroundColor:
-                          typeColor(account['type_code'] as String?)
-                              .withValues(alpha: 0.15),
-                      foregroundColor:
-                          typeColor(account['type_code'] as String?),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('${account['display_name'] ?? ''}',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w700)),
-                          Text(
-                            '@${account['handle'] ?? ''} • ${account['type_label'] ?? ''}',
-                            style: Theme.of(context).textTheme.labelSmall,
-                          ),
-                        ],
+            FilledButton.icon(
+              onPressed: _searching ? null : _search,
+              icon: _searching
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.search),
+              label: const Text('Cari akun'),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 14),
+              Text(_error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ],
+            for (final account in _results) ...[
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      AccountAvatar(
+                        account: account,
+                        radius: 24,
+                        token: context.read<AuthStore>().api.accessToken,
+                        fallbackIcon: typeIcon(account['type_code'] as String?),
+                        backgroundColor:
+                            typeColor(account['type_code'] as String?)
+                                .withValues(alpha: 0.15),
+                        foregroundColor:
+                            typeColor(account['type_code'] as String?),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    FilledButton(
-                      onPressed: _adding ? null : () => _add(account),
-                      child: const Text('Tambah'),
-                    ),
-                  ],
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${account['display_name'] ?? ''}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            Text(
+                              '@${account['handle'] ?? ''} • ${account['type_label'] ?? ''}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      FilledButton(
+                        onPressed: _adding ? null : () => _add(account),
+                        child: const Text('Tambah'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
