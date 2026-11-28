@@ -720,210 +720,290 @@ class _ChatListScreenState extends State<ChatListScreen>
                                 titleWidget =
                                     Text(peerName(item), style: titleStyle);
                               }
-                              return Container(
+                              return Material(
                                 color: hasUnread
                                     ? scheme.primaryContainer
                                         .withValues(alpha: 0.25)
-                                    : null,
-                                child: ListTile(
-                                  // Keep the three-dot menu on the name line
-                                  // instead of centring it under the title.
-                                  titleAlignment: ListTileTitleAlignment.top,
-                                  selected:
-                                      widget.selectedConversationId != null &&
-                                          item['conversation_id'] ==
-                                              widget.selectedConversationId,
-                                  selectedTileColor:
-                                      scheme.primary.withValues(alpha: 0.08),
+                                    : (widget.selectedConversationId != null &&
+                                            item['conversation_id'] ==
+                                                widget.selectedConversationId
+                                        ? scheme.primary.withValues(alpha: 0.08)
+                                        : null),
+                                child: InkWell(
                                   onTap: () => _openConversation(item),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 2,
-                                  ),
-                                  leading: isGroup
-                                      ? GroupAvatar(
-                                          mediaId:
-                                              item['avatar_media_id'] as int?,
-                                          radius: 20,
-                                          token: token,
-                                        )
-                                      : AccountTypeAvatar(
-                                          account:
-                                              myBusiness ? myAccount : peer,
-                                          radius: 20,
-                                          token: token,
-                                          showStatusDot: true,
-                                        ),
-                                  title: Row(
-                                    children: [
-                                      Expanded(child: titleWidget),
-                                      if (isGroup &&
-                                          CallService.instance.groupCall(
-                                                  item['conversation_id']
-                                                          as int? ??
-                                                      -1) !=
-                                              null)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(left: 4),
-                                          child: Icon(
-                                            Icons.call,
-                                            size: 13,
-                                            color: scheme.primary,
+                                  child: Padding(
+                                    padding:
+                                        const EdgeInsets.fromLTRB(12, 8, 4, 8),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if (isGroup)
+                                          GroupAvatar(
+                                            mediaId:
+                                                item['avatar_media_id'] as int?,
+                                            radius: 20,
+                                            token: token,
+                                          )
+                                        else
+                                          AccountTypeAvatar(
+                                            account:
+                                                myBusiness ? myAccount : peer,
+                                            radius: 20,
+                                            token: token,
+                                            showStatusDot: true,
                                           ),
-                                        ),
-                                      if (item['pinned'] == true)
-                                        const Padding(
-                                          padding: EdgeInsets.only(left: 4),
-                                          child: Icon(Icons.push_pin, size: 13),
-                                        ),
-                                      if (item['muted'] == true)
-                                        const Padding(
-                                          padding: EdgeInsets.only(left: 4),
-                                          child: Icon(Icons.notifications_off,
-                                              size: 13),
-                                        ),
-                                      if (hasUnread)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(left: 6),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 7, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: scheme.primary,
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                            child: Text(
-                                              '$unread',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w700,
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Stack(
+                                            clipBehavior: Clip.none,
+                                            children: [
+                                              Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: titleWidget,
+                                                      ),
+                                                      if (isGroup &&
+                                                          CallService.instance
+                                                                  .groupCall(
+                                                                item['conversation_id']
+                                                                        as int? ??
+                                                                    -1,
+                                                              ) !=
+                                                              null)
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .only(
+                                                                  left: 4),
+                                                          child: Icon(
+                                                            Icons.call,
+                                                            size: 13,
+                                                            color:
+                                                                scheme.primary,
+                                                          ),
+                                                        ),
+                                                      if (item['pinned'] ==
+                                                          true)
+                                                        const Padding(
+                                                          padding:
+                                                              EdgeInsets.only(
+                                                                  left: 4),
+                                                          child: Icon(
+                                                              Icons.push_pin,
+                                                              size: 13),
+                                                        ),
+                                                      if (item['muted'] == true)
+                                                        const Padding(
+                                                          padding:
+                                                              EdgeInsets.only(
+                                                                  left: 4),
+                                                          child: Icon(
+                                                              Icons
+                                                                  .notifications_off,
+                                                              size: 13),
+                                                        ),
+                                                      if (hasUnread)
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .only(
+                                                                  left: 6),
+                                                          child: Container(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                                    horizontal:
+                                                                        7,
+                                                                    vertical:
+                                                                        2),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: scheme
+                                                                  .primary,
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          10),
+                                                            ),
+                                                            child: Text(
+                                                              '$unread',
+                                                              style:
+                                                                  const TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      // Reserve room for the
+                                                      // three-dot menu.
+                                                      const SizedBox(width: 26),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Row(
+                                                    children: [
+                                                      if (lastMine &&
+                                                          typingLabel == null)
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .only(
+                                                                  right: 4),
+                                                          child: Icon(
+                                                            lastRead ||
+                                                                    lastDelivered
+                                                                ? Icons.done_all
+                                                                : Icons.done,
+                                                            size: 13,
+                                                            color: lastRead
+                                                                ? const Color(
+                                                                    0xFF38BDF8)
+                                                                : scheme
+                                                                    .onSurfaceVariant,
+                                                          ),
+                                                        ),
+                                                      Expanded(
+                                                        child: Text(
+                                                          typingLabel ??
+                                                              (isGroup &&
+                                                                      CallService
+                                                                              .instance
+                                                                              .groupCall(
+                                                                            item['conversation_id'] as int? ??
+                                                                                -1,
+                                                                          ) !=
+                                                                          null
+                                                                  ? 'Panggilan grup berlangsung'
+                                                                  : '$senderPrefix${messagePreview(lastMessage)}'),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style: TextStyle(
+                                                            fontWeight:
+                                                                typingLabel !=
+                                                                            null ||
+                                                                        hasUnread
+                                                                    ? FontWeight
+                                                                        .w600
+                                                                    : FontWeight
+                                                                        .w400,
+                                                            fontStyle:
+                                                                typingLabel !=
+                                                                        null
+                                                                    ? FontStyle
+                                                                        .italic
+                                                                    : FontStyle
+                                                                        .normal,
+                                                            color: typingLabel !=
+                                                                    null
+                                                                ? scheme.primary
+                                                                : (hasUnread
+                                                                    ? scheme
+                                                                        .onSurface
+                                                                    : null),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 6),
+                                                      Text(
+                                                        timeAgo(item[
+                                                            'last_message_at']),
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .labelSmall,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
                                               ),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  subtitle: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Row(
-                                          children: [
-                                            if (lastMine && typingLabel == null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    right: 4),
-                                                child: Icon(
-                                                  lastRead || lastDelivered
-                                                      ? Icons.done_all
-                                                      : Icons.done,
-                                                  size: 13,
-                                                  color: lastRead
-                                                      ? const Color(0xFF38BDF8)
-                                                      : scheme.onSurfaceVariant,
+                                              // Menu sits on the name line and
+                                              // hugs the right edge.
+                                              Positioned(
+                                                top: -6,
+                                                right: 0,
+                                                child: SizedBox(
+                                                  width: 30,
+                                                  height: 30,
+                                                  child:
+                                                      PopupMenuButton<String>(
+                                                    padding: EdgeInsets.zero,
+                                                    iconSize: 18,
+                                                    tooltip: 'Aksi chat',
+                                                    onSelected: (action) =>
+                                                        _chatAction(
+                                                            item, action),
+                                                    itemBuilder: (_) => [
+                                                      _menuItem(
+                                                        'pin',
+                                                        item['pinned'] == true
+                                                            ? Icons
+                                                                .push_pin_outlined
+                                                            : Icons.push_pin,
+                                                        item['pinned'] == true
+                                                            ? 'Lepas pin'
+                                                            : 'Pin percakapan',
+                                                      ),
+                                                      if (isGroup)
+                                                        _menuItem(
+                                                          'mute',
+                                                          item['muted'] == true
+                                                              ? Icons
+                                                                  .notifications_active_outlined
+                                                              : Icons
+                                                                  .notifications_off_outlined,
+                                                          item['muted'] == true
+                                                              ? 'Aktifkan notifikasi'
+                                                              : 'Bisukan notifikasi',
+                                                        ),
+                                                      _menuItem(
+                                                        'clear',
+                                                        Icons
+                                                            .cleaning_services_outlined,
+                                                        'Bersihkan semua pesan',
+                                                      ),
+                                                      if (!isGroup &&
+                                                          peer?['account_id']
+                                                              is int &&
+                                                          !_contactAccountIds
+                                                              .contains(peer?[
+                                                                  'account_id']))
+                                                        _menuItem(
+                                                          'add_contact',
+                                                          Icons
+                                                              .person_add_alt_1,
+                                                          'Tambah ke kontak',
+                                                        ),
+                                                      if (isGroup)
+                                                        _menuItem(
+                                                          'leave',
+                                                          Icons.logout,
+                                                          'Keluar dari grup',
+                                                        )
+                                                      else
+                                                        _menuItem(
+                                                          'delete',
+                                                          Icons.delete_outline,
+                                                          'Hapus pesan',
+                                                        ),
+                                                    ],
+                                                  ),
                                                 ),
                                               ),
-                                            Expanded(
-                                              child: Text(
-                                                typingLabel ??
-                                                    (isGroup &&
-                                                            CallService.instance
-                                                                    .groupCall(
-                                                                        item['conversation_id']
-                                                                                as int? ??
-                                                                            -1) !=
-                                                                null
-                                                        ? 'Panggilan grup berlangsung'
-                                                        : '$senderPrefix${messagePreview(lastMessage)}'),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  fontWeight:
-                                                      typingLabel != null ||
-                                                              hasUnread
-                                                          ? FontWeight.w600
-                                                          : FontWeight.w400,
-                                                  fontStyle: typingLabel != null
-                                                      ? FontStyle.italic
-                                                      : FontStyle.normal,
-                                                  color: typingLabel != null
-                                                      ? scheme.primary
-                                                      : (hasUnread
-                                                          ? scheme.onSurface
-                                                          : null),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        timeAgo(item['last_message_at']),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .labelSmall,
-                                      ),
-                                    ],
-                                  ),
-                                  trailing: PopupMenuButton<String>(
-                                    padding: EdgeInsets.zero,
-                                    iconSize: 18,
-                                    tooltip: 'Aksi chat',
-                                    onSelected: (action) =>
-                                        _chatAction(item, action),
-                                    itemBuilder: (_) => [
-                                      _menuItem(
-                                        'pin',
-                                        item['pinned'] == true
-                                            ? Icons.push_pin_outlined
-                                            : Icons.push_pin,
-                                        item['pinned'] == true
-                                            ? 'Lepas pin'
-                                            : 'Pin percakapan',
-                                      ),
-                                      if (isGroup)
-                                        _menuItem(
-                                          'mute',
-                                          item['muted'] == true
-                                              ? Icons
-                                                  .notifications_active_outlined
-                                              : Icons
-                                                  .notifications_off_outlined,
-                                          item['muted'] == true
-                                              ? 'Aktifkan notifikasi'
-                                              : 'Bisukan notifikasi',
-                                        ),
-                                      _menuItem(
-                                        'clear',
-                                        Icons.cleaning_services_outlined,
-                                        'Bersihkan semua pesan',
-                                      ),
-                                      if (!isGroup &&
-                                          peer?['account_id'] is int &&
-                                          !_contactAccountIds
-                                              .contains(peer?['account_id']))
-                                        _menuItem(
-                                          'add_contact',
-                                          Icons.person_add_alt_1,
-                                          'Tambah ke kontak',
-                                        ),
-                                      if (isGroup)
-                                        _menuItem(
-                                          'leave',
-                                          Icons.logout,
-                                          'Keluar dari grup',
-                                        )
-                                      else
-                                        _menuItem(
-                                          'delete',
-                                          Icons.delete_outline,
-                                          'Hapus pesan',
-                                        ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               );
