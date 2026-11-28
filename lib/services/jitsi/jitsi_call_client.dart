@@ -80,6 +80,7 @@ class JitsiCallClient implements JitsiSessionView {
   bool _negotiationPending = false;
   final Map<String, String> _sourceOwners = {};
   final Map<String, Map<String, dynamic>> _remoteVideoSources = {};
+  final Set<String> _peerEndpoints = {};
   String _lastConstraintSignature = '';
   bool _dataChannelAnnounced = false;
   bool _iceConnected = false;
@@ -374,7 +375,10 @@ class JitsiCallClient implements JitsiSessionView {
       }
       if (type == 'unavailable') {
         participants.removeWhere((p) => p.jid == from);
-        _sendReceiverVideoConstraints();
+        if (from.startsWith('$_roomJid/')) {
+          _peerEndpoints.remove(from.substring('$_roomJid/'.length));
+        }
+        _sendReceiverVideoConstraints(force: true);
         _notify();
         return;
       }
@@ -406,7 +410,11 @@ class JitsiCallClient implements JitsiSessionView {
           participants.add(JitsiParticipant(jid: from, nickName: name));
           _diag('Peserta masuk: $endpoint');
         }
-        _sendReceiverVideoConstraints();
+        _peerEndpoints.add(endpoint);
+        _sendReceiverVideoConstraints(force: true);
+        // Jitsi clients ask again shortly after a peer joins; the bridge may
+        // not have built its source map yet on the first request.
+        unawaited(_refreshConstraintsLater());
         _notify();
       }
     } catch (_) {}
@@ -553,6 +561,10 @@ class JitsiCallClient implements JitsiSessionView {
       _diag('Track video diterima: $key');
       remoteRenderers[key] = renderer;
       remoteRenderer ??= renderer;
+      // Like ISP-2194: ask the bridge for all known peer sources again as
+      // soon as a track shows up; the first request usually predates the
+      // bridge's source map.
+      _sendReceiverVideoConstraints(force: true);
       _notify();
     };
   }
@@ -576,6 +588,8 @@ class JitsiCallClient implements JitsiSessionView {
     });
     Helper.setSpeakerphoneOn(true);
     _startStats();
+    _sendReceiverVideoConstraints(force: true);
+    unawaited(_refreshConstraintsLater());
     _notify();
     onConnected?.call();
   }
@@ -750,11 +764,14 @@ class JitsiCallClient implements JitsiSessionView {
   }
 
   void _sendReceiverVideoConstraints({bool force = false}) {
-    // Jicofo advertises the bridge's initial mixed video track as jvb-v0.
-    // Explicitly request it while waiting for source-name maps, then request
-    // each mapped participant source as those arrive.
+    // Match InfinityOne ISP-2194: request the camera source of every peer
+    // endpoint (`<endpoint>-v0`) together with any source names announced by
+    // the bridge's VideoSourcesMap. The JVB's mixed `jvb-v0` source is kept as
+    // a fallback while the endpoint source map is not known yet.
     final sourceNames = <String>{
       'jvb-v0',
+      for (final endpoint in _peerEndpoints)
+        if (endpoint.isNotEmpty) '$endpoint-v0',
       ..._remoteVideoSources.keys,
     }.toList();
     final constraints = <String, dynamic>{
@@ -772,6 +789,17 @@ class JitsiCallClient implements JitsiSessionView {
     if (!force && signature == _lastConstraintSignature) return;
     _lastConstraintSignature = signature;
     _sendData(message);
+  }
+
+  /// Jitsi resends receiver constraints ~2.5s and ~4.5s after a peer joins
+  /// because the bridge may build its source map after the first request.
+  Future<void> _refreshConstraintsLater() async {
+    await Future.delayed(const Duration(milliseconds: 2500));
+    if (closed || _dataChannel == null) return;
+    _sendReceiverVideoConstraints(force: true);
+    await Future.delayed(const Duration(milliseconds: 2000));
+    if (closed || _dataChannel == null) return;
+    _sendReceiverVideoConstraints(force: true);
   }
 
   void _handleDataMessage(String text) {
@@ -802,6 +830,7 @@ class JitsiCallClient implements JitsiSessionView {
       if (ownerId.isEmpty || sourceName.isEmpty || ssrc.isEmpty) continue;
       if (ownerId == nick) continue;
       _sourceOwners[sourceName] = ownerId;
+      if (ownerId.isNotEmpty) _peerEndpoints.add(ownerId);
       if (sourceType == 'video') {
         _remoteVideoSources[sourceName] = Map<String, dynamic>.from(item);
       }
@@ -928,6 +957,7 @@ class JitsiCallClient implements JitsiSessionView {
       await peer.setLocalDescription(answer);
       master['lastNegotiation'] = '$noNego';
       _diag('Renegosiasi media diterapkan');
+      _sendReceiverVideoConstraints(force: true);
     } catch (e) {
       _diag('Renegosiasi gagal: $e');
       _negotiationPending = true;
