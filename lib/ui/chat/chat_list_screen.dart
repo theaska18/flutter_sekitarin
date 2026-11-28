@@ -55,6 +55,8 @@ class _ChatListScreenState extends State<ChatListScreen>
   StreamSubscription? _wsSub;
   Timer? _reloadDebounce;
   Timer? _presencePoll;
+  Timer? _deliveredTimer;
+  final Map<int, Set<int>> _pendingDelivered = {};
   bool _paused = false;
   late final WsClient _ws;
 
@@ -121,6 +123,7 @@ class _ChatListScreenState extends State<ChatListScreen>
     _wsSub?.cancel();
     _reloadDebounce?.cancel();
     _presencePoll?.cancel();
+    _deliveredTimer?.cancel();
     for (final timer in _typingTimers.values) {
       timer.cancel();
     }
@@ -224,7 +227,36 @@ class _ChatListScreenState extends State<ChatListScreen>
         return true;
       }
     }
+    if (name == 'message.deleted') {
+      if (last['message_id'] == payload['message_id']) {
+        last['deleted_at'] =
+            payload['deleted_at'] ?? DateTime.now().toIso8601String();
+        last['body'] = null;
+        last['media_id'] = null;
+        setState(() {});
+        return true;
+      }
+    }
     return false;
+  }
+
+  void _queueDelivered(int conversationId, int messageId) {
+    _pendingDelivered.putIfAbsent(conversationId, () => <int>{}).add(messageId);
+    _deliveredTimer?.cancel();
+    _deliveredTimer = Timer(const Duration(milliseconds: 300), () async {
+      final pending = Map<int, Set<int>>.from(_pendingDelivered);
+      _pendingDelivered.clear();
+      final api = context.read<AuthStore>().api;
+      for (final entry in pending.entries) {
+        try {
+          await api.post('conversations/${entry.key}/delivered', {
+            'message_ids': entry.value.toList(),
+          });
+        } catch (_) {
+          // Best effort; the next GET will mark it delivered.
+        }
+      }
+    });
   }
 
   void _onWsEvent(Map<String, dynamic> event) {
@@ -238,19 +270,21 @@ class _ChatListScreenState extends State<ChatListScreen>
         MessageSound.play();
       }
       final payload = event['payload'];
-      if (payload is Map &&
-          _applyPreviewEvent(
-            name,
-            conversationId,
-            Map<String, dynamic>.from(payload),
-          )) {
-        return;
+      if (payload is Map) {
+        final message = Map<String, dynamic>.from(payload);
+        final myId = context.read<AuthStore>().user?['user_id'];
+        if (message['sender_user_id'] != myId && message['message_id'] is int) {
+          _queueDelivered(conversationId, message['message_id'] as int);
+        }
+        if (_applyPreviewEvent(name, conversationId, message)) return;
       }
       _reloadDebounce?.cancel();
       _reloadDebounce = Timer(const Duration(milliseconds: 350), _load);
       return;
     }
-    if (name == 'messages.delivered' || name == 'read.updated') {
+    if (name == 'messages.delivered' ||
+        name == 'read.updated' ||
+        name == 'message.deleted') {
       final payload = event['payload'];
       if (payload is Map) {
         _applyPreviewEvent(
@@ -824,17 +858,22 @@ class _ChatListScreenState extends State<ChatListScreen>
                                                       padding: EdgeInsets.only(
                                                           right: 4),
                                                       child: Icon(
-                                                          Icons.push_pin,
-                                                          size: 13),
+                                                        Icons.push_pin,
+                                                        size: 13,
+                                                        color:
+                                                            Color(0xFF2563EB),
+                                                      ),
                                                     ),
                                                   if (item['muted'] == true)
                                                     const Padding(
                                                       padding: EdgeInsets.only(
                                                           right: 4),
                                                       child: Icon(
-                                                          Icons
-                                                              .notifications_off,
-                                                          size: 13),
+                                                        Icons.notifications_off,
+                                                        size: 13,
+                                                        color:
+                                                            Color(0xFFDC2626),
+                                                      ),
                                                     ),
                                                   if (isGroup &&
                                                       CallService.instance
@@ -855,36 +894,6 @@ class _ChatListScreenState extends State<ChatListScreen>
                                                       ),
                                                     ),
                                                   Expanded(child: titleWidget),
-                                                  if (hasUnread)
-                                                    Padding(
-                                                      padding:
-                                                          const EdgeInsets.only(
-                                                              left: 6),
-                                                      child: Container(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .symmetric(
-                                                                horizontal: 7,
-                                                                vertical: 2),
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          color: scheme.primary,
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(10),
-                                                        ),
-                                                        child: Text(
-                                                          '$unread',
-                                                          style:
-                                                              const TextStyle(
-                                                            color: Colors.white,
-                                                            fontSize: 11,
-                                                            fontWeight:
-                                                                FontWeight.w700,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
                                                 ],
                                               ),
                                               const SizedBox(height: 2),
@@ -993,7 +1002,25 @@ class _ChatListScreenState extends State<ChatListScreen>
                                             ],
                                           ),
                                         ),
-                                        const SizedBox(width: 2),
+                                        if (hasUnread)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 7, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: scheme.primary,
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            child: Text(
+                                              '$unread',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        const SizedBox(width: 4),
                                         SizedBox(
                                           width: 30,
                                           height: 30,

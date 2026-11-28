@@ -11,7 +11,9 @@ import '../widgets/account_type_avatar.dart';
 import 'group_create_screen.dart';
 
 class NewChatSheet extends StatefulWidget {
-  const NewChatSheet({super.key});
+  const NewChatSheet({super.key, this.title = 'Chat baru'});
+
+  final String title;
 
   @override
   State<NewChatSheet> createState() => _NewChatSheetState();
@@ -207,10 +209,10 @@ class _NewChatSheetState extends State<NewChatSheet> {
           children: [
             Row(
               children: [
-                const Expanded(
-                  child: Text('Chat baru',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                Expanded(
+                  child: Text(widget.title,
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.w700)),
                 ),
                 TextButton.icon(
                   onPressed: () async {

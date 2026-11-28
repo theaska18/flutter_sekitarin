@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -22,6 +24,7 @@ import '../widgets/account_type_avatar.dart';
 import '../widgets/group_avatar.dart';
 import 'group_info_screen.dart';
 import 'group_map_screen.dart';
+import 'new_chat_sheet.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   const ChatRoomScreen({
@@ -582,6 +585,12 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
                 ],
               ),
             ),
+            if (message['deleted_at'] == null)
+              ListTile(
+                leading: const Icon(Icons.forward_outlined),
+                title: const Text('Teruskan'),
+                onTap: () => Navigator.of(sheetContext).pop('forward'),
+              ),
             if (canCopy)
               ListTile(
                 leading: const Icon(Icons.copy_outlined),
@@ -610,6 +619,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     if (action == null || !mounted) return;
     if (action.startsWith('react:')) {
       await _reactMessage(message, action.substring(6));
+      return;
+    }
+    if (action == 'forward') {
+      await _forwardMessage(message);
       return;
     }
     if (action == 'copy') {
@@ -648,6 +661,101 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     );
     if (scope == null || !mounted) return;
     await _deleteMessage(message, forEveryone: scope == 'all');
+  }
+
+  Future<void> _forwardMessage(Map<String, dynamic> message) async {
+    final target = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const NewChatSheet(title: 'Teruskan ke'),
+    );
+    if (target == null || !mounted) return;
+    final targetId = target['conversation_id'];
+    if (targetId is! int) return;
+    final type = '${message['type'] ?? 'text'}';
+    Map<String, dynamic> payload;
+    if (type == 'text') {
+      payload = {'type': 'text', 'body': message['body']};
+    } else if (type == 'location' && message['location'] is Map) {
+      final location = Map<String, dynamic>.from(message['location'] as Map);
+      payload = {
+        'type': 'location',
+        'lat': location['lat'],
+        'lng': location['lng'],
+        'label': location['label'],
+      };
+    } else if (message['media_id'] is int) {
+      final mediaId = await _reuploadMedia(message['media_id'] as int);
+      if (mediaId == null) {
+        if (mounted) showErrorSnack(context, 'Media gagal diteruskan.');
+        return;
+      }
+      payload = {
+        'type': type,
+        'media_id': mediaId,
+        'body': message['body'],
+      };
+    } else {
+      return;
+    }
+    try {
+      await context
+          .read<AuthStore>()
+          .api
+          .post('conversations/$targetId/messages', payload);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pesan diteruskan.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) showErrorSnack(context, error);
+    }
+  }
+
+  /// Received media belongs to the original sender, so forwarding downloads
+  /// it and uploads a private copy before sending it to the new chat.
+  Future<int?> _reuploadMedia(int mediaId) async {
+    final api = context.read<AuthStore>().api;
+    final token = api.accessToken;
+    final response = await http.get(
+      Uri.parse(AppConfig.absoluteUrl('/api/v1/media/$mediaId')),
+      headers: token == null || token.isEmpty
+          ? null
+          : {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode >= 400 || response.bodyBytes.isEmpty) return null;
+    final contentType = response.headers['content-type'] ?? '';
+    final extension = contentType.contains('png')
+        ? 'png'
+        : contentType.contains('jpeg') || contentType.contains('jpg')
+            ? 'jpg'
+            : contentType.contains('gif')
+                ? 'gif'
+                : contentType.contains('pdf')
+                    ? 'pdf'
+                    : 'bin';
+    final dir = Directory.systemTemp.createTempSync('sekitar_forward');
+    try {
+      final file = File('${dir.path}/forward.$extension')
+        ..writeAsBytesSync(response.bodyBytes);
+      final media = await api.uploadFile(
+        'media',
+        filePath: file.path,
+        purpose: 'chat',
+      );
+      final payload = media['media'];
+      return payload is Map && payload['media_id'] is int
+          ? payload['media_id'] as int
+          : null;
+    } catch (_) {
+      return null;
+    } finally {
+      try {
+        dir.deleteSync(recursive: true);
+      } catch (_) {}
+    }
   }
 
   Future<void> _reactMessage(
