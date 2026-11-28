@@ -290,16 +290,9 @@ class _NewChatSheetState extends State<NewChatSheet> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       subtitle: Text(
-                        online
-                            ? '@${account['handle'] ?? ''} · Online'
-                            : '@${account['handle'] ?? ''}',
+                        '@${account['handle'] ?? ''}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: online
-                              ? const Color(0xFF16A34A)
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,

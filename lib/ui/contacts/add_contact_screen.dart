@@ -16,6 +16,7 @@ class AddContactScreen extends StatefulWidget {
 class _AddContactScreenState extends State<AddContactScreen> {
   final _username = TextEditingController();
   final _scroll = ScrollController();
+  final _resultsKey = GlobalKey();
   List<Map<String, dynamic>> _results = [];
   bool _searching = false;
   bool _adding = false;
@@ -60,25 +61,38 @@ class _AddContactScreenState extends State<AddContactScreen> {
       );
       if (!mounted) return;
       final raw = data is Map ? data['accounts'] : null;
-      final results = raw is List
+      final single = data is Map ? data['account'] : null;
+      final list = raw is List && raw.isNotEmpty
           ? raw
-              .whereType<Map>()
-              .map((item) => Map<String, dynamic>.from(item))
-              .toList()
-          : <Map<String, dynamic>>[];
+          : (single is Map ? <Object>[single] : const <Object>[]);
+      final results = list
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
       setState(() {
         _results = results;
         if (_results.isEmpty) _error = 'Akun tidak ditemukan.';
       });
       if (results.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || !_scroll.hasClients) return;
-          _scroll.animateTo(
+        // Wait for the keyboard to collapse before revealing the result card,
+        // otherwise the card stays below the old viewport.
+        await Future.delayed(const Duration(milliseconds: 350));
+        if (!mounted) return;
+        final contextResult = _resultsKey.currentContext;
+        if (contextResult != null) {
+          await Scrollable.ensureVisible(
+            contextResult,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+            alignment: 0.05,
+          );
+        } else if (_scroll.hasClients) {
+          await _scroll.animateTo(
             _scroll.position.maxScrollExtent,
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeOut,
           );
-        });
+        }
       }
     } on ApiException catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -155,12 +169,22 @@ class _AddContactScreenState extends State<AddContactScreen> {
             ],
             if (_results.isNotEmpty) ...[
               const SizedBox(height: 18),
-              Text(
-                'Hasil pencarian',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
+              Row(
+                key: _resultsKey,
+                children: [
+                  Text(
+                    'Hasil pencarian',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '(${_results.length})',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ],
               ),
             ],
             for (final account in _results) ...[
@@ -229,13 +253,14 @@ class _AddContactScreenState extends State<AddContactScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      FilledButton(
+                      FilledButton.icon(
                         onPressed: _adding ? null : () => _add(account),
                         style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
                           visualDensity: VisualDensity.compact,
                         ),
-                        child: const Text('Tambah'),
+                        icon: const Icon(Icons.person_add_alt_1, size: 16),
+                        label: const Text('Tambah'),
                       ),
                     ],
                   ),

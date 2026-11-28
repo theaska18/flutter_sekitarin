@@ -45,6 +45,9 @@ class _ChatListScreenState extends State<ChatListScreen>
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
   String? _error;
+  final TextEditingController _filterController = TextEditingController();
+  String _query = '';
+  String _scope = 'all';
   final Map<int, Map<int, String>> _typingUsers = {};
   final Map<String, Timer> _typingTimers = {};
   final Set<int> _subscribed = {};
@@ -109,6 +112,7 @@ class _ChatListScreenState extends State<ChatListScreen>
 
   @override
   void dispose() {
+    _filterController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     chatListRefreshTick.removeListener(_load);
     CallService.instance.removeListener(_onCallStateChanged);
@@ -363,11 +367,114 @@ class _ChatListScreenState extends State<ChatListScreen>
     }
   }
 
+  bool _isBusinessItem(Map<String, dynamic> item) {
+    if (item['type'] == 'group') return false;
+    bool business(Object? account) {
+      if (account is! Map) return false;
+      final type = account['type_code'];
+      return type != null && type != 'personal';
+    }
+
+    return business(item['my_account']) || business(item['peer']);
+  }
+
+  List<Map<String, dynamic>> get _visibleItems {
+    final query = _query.trim().toLowerCase();
+    return _items.where((item) {
+      switch (_scope) {
+        case 'personal':
+          if (item['type'] == 'group' || _isBusinessItem(item)) return false;
+        case 'group':
+          if (item['type'] != 'group') return false;
+        case 'business':
+          if (item['type'] == 'group' || !_isBusinessItem(item)) return false;
+      }
+      if (query.isEmpty) return true;
+      final peer = item['peer'];
+      final mine = item['my_account'];
+      final last = item['last_message'];
+      final haystack = <String>[
+        peerName(item),
+        if (peer is Map)
+          '${peer['display_name'] ?? ''} ${peer['handle'] ?? ''}',
+        if (mine is Map)
+          '${mine['display_name'] ?? ''} ${mine['handle'] ?? ''}',
+        if (last is Map) '${last['body'] ?? ''}',
+      ].join(' ').toLowerCase();
+      return haystack.contains(query);
+    }).toList();
+  }
+
+  Widget _filterBar() {
+    final scheme = Theme.of(context).colorScheme;
+    const scopes = [
+      ('all', 'Semua'),
+      ('personal', 'Personal'),
+      ('group', 'Grup'),
+      ('business', 'Bisnis'),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+      child: Column(
+        children: [
+          TextField(
+            controller: _filterController,
+            onChanged: (value) => setState(() => _query = value),
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: 'Cari nama atau isi pesan…',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      tooltip: 'Hapus filter',
+                      onPressed: () {
+                        _filterController.clear();
+                        setState(() => _query = '');
+                      },
+                    ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final scope in scopes)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      label: Text(scope.$2),
+                      selected: _scope == scope.$1,
+                      labelStyle: TextStyle(
+                        fontSize: 12,
+                        color: _scope == scope.$1
+                            ? scheme.onPrimary
+                            : scheme.onSurfaceVariant,
+                      ),
+                      selectedColor: scheme.primary,
+                      onSelected: (_) => setState(() {
+                        _scope = scope.$1;
+                      }),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
+    final visible = _visibleItems;
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: FloatingActionButton(
@@ -377,288 +484,323 @@ class _ChatListScreenState extends State<ChatListScreen>
       ),
       body: ReadableWidth(
         maxWidth: 680,
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: _error != null
-              ? ListView(
-                  children: [
-                    const SizedBox(height: 120),
-                    Center(child: Text(_error!)),
-                  ],
-                )
-              : _items.isEmpty
-                  ? ListView(
-                      children: const [
-                        SizedBox(height: 140),
-                        Icon(Icons.chat_bubble_outline, size: 48),
-                        SizedBox(height: 12),
-                        Center(child: Text('Belum ada percakapan')),
-                        SizedBox(height: 4),
-                        Center(
-                          child: Text(
-                            'Mulai chat dari kontak atau peta.',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.only(bottom: 96),
-                      itemCount: _items.length,
-                      separatorBuilder: (_, __) =>
-                          const Divider(height: 1, thickness: 0.5),
-                      itemBuilder: (context, index) {
-                        final item = _items[index];
-                        final unread = item['unread_count'] ?? 0;
-                        final hasUnread = unread is int && unread > 0;
-                        final scheme = Theme.of(context).colorScheme;
-                        final peer = item['peer'] is Map
-                            ? Map<String, dynamic>.from(item['peer'] as Map)
-                            : null;
-                        final myAccount = item['my_account'] is Map
-                            ? Map<String, dynamic>.from(
-                                item['my_account'] as Map)
-                            : null;
-                        final isGroup = item['type'] == 'group';
-                        final myType = myAccount?['type_code'] as String?;
-                        final myBusiness =
-                            myType != null && myType != 'personal';
-                        final token = context.read<AuthStore>().api.accessToken;
-                        final conversationId = item['conversation_id'] as int?;
-                        final typing = conversationId == null
-                            ? null
-                            : _typingUsers[conversationId];
-                        final typingLabel = typing == null || typing.isEmpty
-                            ? null
-                            : isGroup
-                                ? '${typing.values.join(', ')} sedang mengetik…'
-                                : 'sedang mengetik…';
-                        final lastMessage = item['last_message'] is Map
-                            ? Map<String, dynamic>.from(
-                                item['last_message'] as Map)
-                            : null;
-                        final senderPrefix = isGroup &&
-                                lastMessage?['sender_name'] != null &&
-                                '${lastMessage?['sender_name']}'.isNotEmpty
-                            ? '${lastMessage?['sender_name']}: '
-                            : '';
-                        final titleStyle = TextStyle(
-                          fontWeight:
-                              hasUnread ? FontWeight.w800 : FontWeight.w600,
-                        );
-                        Widget titleWidget;
-                        if (isGroup) {
-                          titleWidget = Text(peerName(item), style: titleStyle);
-                        } else if (myBusiness) {
-                          // Message arrived at our business account: show our
-                          // business identity, then the sender.
-                          titleWidget = Row(
+        child: Column(
+          children: [
+            _filterBar(),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: _error != null
+                    ? ListView(
+                        children: [
+                          const SizedBox(height: 120),
+                          Center(child: Text(_error!)),
+                        ],
+                      )
+                    : visible.isEmpty
+                        ? ListView(
                             children: [
-                              Flexible(
+                              const SizedBox(height: 90),
+                              const Icon(Icons.chat_bubble_outline, size: 48),
+                              const SizedBox(height: 12),
+                              Center(
+                                child: Text(_items.isEmpty
+                                    ? 'Belum ada percakapan'
+                                    : 'Tidak ada percakapan yang cocok'),
+                              ),
+                              const SizedBox(height: 4),
+                              Center(
                                 child: Text(
-                                  '${myAccount?['display_name'] ?? ''}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: titleStyle,
-                                ),
-                              ),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 4),
-                                child: Text('<'),
-                              ),
-                              AccountTypeAvatar(
-                                account: peer,
-                                radius: 9,
-                                token: token,
-                                showBadge: false,
-                                showStatusDot: true,
-                              ),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  '${peer?['display_name'] ?? ''}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                  _items.isEmpty
+                                      ? 'Mulai chat dari kontak atau peta.'
+                                      : 'Ubah kata kunci atau filter.',
+                                  style: const TextStyle(fontSize: 12),
                                 ),
                               ),
                             ],
-                          );
-                        } else {
-                          // Sending to a business account (or a normal personal
-                          // chat): show the target account.
-                          titleWidget = Text(peerName(item), style: titleStyle);
-                        }
-                        return Container(
-                          color: hasUnread
-                              ? scheme.primaryContainer.withValues(alpha: 0.25)
-                              : null,
-                          child: ListTile(
-                            selected: widget.selectedConversationId != null &&
-                                item['conversation_id'] ==
-                                    widget.selectedConversationId,
-                            selectedTileColor:
-                                scheme.primary.withValues(alpha: 0.08),
-                            onTap: () => _openConversation(item),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 2,
-                            ),
-                            leading: isGroup
-                                ? GroupAvatar(
-                                    mediaId: item['avatar_media_id'] as int?,
-                                    radius: 20,
-                                    token: token,
-                                  )
-                                : AccountTypeAvatar(
-                                    account: myBusiness ? myAccount : peer,
-                                    radius: 20,
-                                    token: token,
-                                    showStatusDot: true,
-                                  ),
-                            title: Row(
-                              children: [
-                                Expanded(child: titleWidget),
-                                if (isGroup &&
-                                    CallService.instance.groupCall(
-                                            item['conversation_id'] as int? ??
-                                                -1) !=
-                                        null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 4),
-                                    child: Icon(
-                                      Icons.call,
-                                      size: 13,
-                                      color: scheme.primary,
-                                    ),
-                                  ),
-                                if (item['pinned'] == true)
-                                  const Padding(
-                                    padding: EdgeInsets.only(left: 4),
-                                    child: Icon(Icons.push_pin, size: 13),
-                                  ),
-                                if (item['muted'] == true)
-                                  const Padding(
-                                    padding: EdgeInsets.only(left: 4),
-                                    child:
-                                        Icon(Icons.notifications_off, size: 13),
-                                  ),
-                                if (hasUnread)
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 6),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 7, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: scheme.primary,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.only(bottom: 96),
+                            itemCount: visible.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1, thickness: 0.5),
+                            itemBuilder: (context, index) {
+                              final item = visible[index];
+                              final unread = item['unread_count'] ?? 0;
+                              final hasUnread = unread is int && unread > 0;
+                              final scheme = Theme.of(context).colorScheme;
+                              final peer = item['peer'] is Map
+                                  ? Map<String, dynamic>.from(
+                                      item['peer'] as Map)
+                                  : null;
+                              final myAccount = item['my_account'] is Map
+                                  ? Map<String, dynamic>.from(
+                                      item['my_account'] as Map)
+                                  : null;
+                              final isGroup = item['type'] == 'group';
+                              final myType = myAccount?['type_code'] as String?;
+                              final myBusiness =
+                                  myType != null && myType != 'personal';
+                              final token =
+                                  context.read<AuthStore>().api.accessToken;
+                              final conversationId =
+                                  item['conversation_id'] as int?;
+                              final typing = conversationId == null
+                                  ? null
+                                  : _typingUsers[conversationId];
+                              final typingLabel = typing == null ||
+                                      typing.isEmpty
+                                  ? null
+                                  : isGroup
+                                      ? '${typing.values.join(', ')} sedang mengetik…'
+                                      : 'sedang mengetik…';
+                              final lastMessage = item['last_message'] is Map
+                                  ? Map<String, dynamic>.from(
+                                      item['last_message'] as Map)
+                                  : null;
+                              final senderPrefix = isGroup &&
+                                      lastMessage?['sender_name'] != null &&
+                                      '${lastMessage?['sender_name']}'
+                                          .isNotEmpty
+                                  ? '${lastMessage?['sender_name']}: '
+                                  : '';
+                              final titleStyle = TextStyle(
+                                fontWeight: hasUnread
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                              );
+                              Widget titleWidget;
+                              if (isGroup) {
+                                titleWidget =
+                                    Text(peerName(item), style: titleStyle);
+                              } else if (myBusiness) {
+                                // Message arrived at our business account: show our
+                                // business identity, then the sender.
+                                titleWidget = Row(
+                                  children: [
+                                    Flexible(
                                       child: Text(
-                                        '$unread',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
+                                        '${myAccount?['display_name'] ?? ''}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: titleStyle,
+                                      ),
+                                    ),
+                                    const Padding(
+                                      padding:
+                                          EdgeInsets.symmetric(horizontal: 4),
+                                      child: Text('<'),
+                                    ),
+                                    AccountTypeAvatar(
+                                      account: peer,
+                                      radius: 9,
+                                      token: token,
+                                      showBadge: false,
+                                      showStatusDot: true,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        '${peer?['display_name'] ?? ''}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              } else {
+                                // Sending to a business account (or a normal personal
+                                // chat): show the target account.
+                                titleWidget =
+                                    Text(peerName(item), style: titleStyle);
+                              }
+                              return Container(
+                                color: hasUnread
+                                    ? scheme.primaryContainer
+                                        .withValues(alpha: 0.25)
+                                    : null,
+                                child: ListTile(
+                                  selected:
+                                      widget.selectedConversationId != null &&
+                                          item['conversation_id'] ==
+                                              widget.selectedConversationId,
+                                  selectedTileColor:
+                                      scheme.primary.withValues(alpha: 0.08),
+                                  onTap: () => _openConversation(item),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 2,
+                                  ),
+                                  leading: isGroup
+                                      ? GroupAvatar(
+                                          mediaId:
+                                              item['avatar_media_id'] as int?,
+                                          radius: 20,
+                                          token: token,
+                                        )
+                                      : AccountTypeAvatar(
+                                          account:
+                                              myBusiness ? myAccount : peer,
+                                          radius: 20,
+                                          token: token,
+                                          showStatusDot: true,
+                                        ),
+                                  title: Row(
+                                    children: [
+                                      Expanded(child: titleWidget),
+                                      if (isGroup &&
+                                          CallService.instance.groupCall(
+                                                  item['conversation_id']
+                                                          as int? ??
+                                                      -1) !=
+                                              null)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(left: 4),
+                                          child: Icon(
+                                            Icons.call,
+                                            size: 13,
+                                            color: scheme.primary,
+                                          ),
+                                        ),
+                                      if (item['pinned'] == true)
+                                        const Padding(
+                                          padding: EdgeInsets.only(left: 4),
+                                          child: Icon(Icons.push_pin, size: 13),
+                                        ),
+                                      if (item['muted'] == true)
+                                        const Padding(
+                                          padding: EdgeInsets.only(left: 4),
+                                          child: Icon(Icons.notifications_off,
+                                              size: 13),
+                                        ),
+                                      if (hasUnread)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(left: 6),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 7, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: scheme.primary,
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            child: Text(
+                                              '$unread',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  subtitle: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          typingLabel ??
+                                              (isGroup &&
+                                                      CallService.instance.groupCall(
+                                                              item['conversation_id']
+                                                                      as int? ??
+                                                                  -1) !=
+                                                          null
+                                                  ? 'Panggilan grup berlangsung'
+                                                  : '$senderPrefix${messagePreview(lastMessage)}'),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontWeight:
+                                                typingLabel != null || hasUnread
+                                                    ? FontWeight.w600
+                                                    : FontWeight.w400,
+                                            fontStyle: typingLabel != null
+                                                ? FontStyle.italic
+                                                : FontStyle.normal,
+                                            color: typingLabel != null
+                                                ? scheme.primary
+                                                : (hasUnread
+                                                    ? scheme.onSurface
+                                                    : null),
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        timeAgo(item['last_message_at']),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall,
+                                      ),
+                                    ],
                                   ),
-                              ],
-                            ),
-                            subtitle: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    typingLabel ??
-                                        (isGroup &&
-                                                CallService.instance.groupCall(
-                                                        item['conversation_id']
-                                                                as int? ??
-                                                            -1) !=
-                                                    null
-                                            ? 'Panggilan grup berlangsung'
-                                            : '$senderPrefix${messagePreview(lastMessage)}'),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontWeight:
-                                          typingLabel != null || hasUnread
-                                              ? FontWeight.w600
-                                              : FontWeight.w400,
-                                      fontStyle: typingLabel != null
-                                          ? FontStyle.italic
-                                          : FontStyle.normal,
-                                      color: typingLabel != null
-                                          ? scheme.primary
-                                          : (hasUnread
-                                              ? scheme.onSurface
-                                              : null),
-                                    ),
+                                  trailing: PopupMenuButton<String>(
+                                    padding: EdgeInsets.zero,
+                                    iconSize: 18,
+                                    tooltip: 'Aksi chat',
+                                    onSelected: (action) =>
+                                        _chatAction(item, action),
+                                    itemBuilder: (_) => [
+                                      _menuItem(
+                                        'pin',
+                                        item['pinned'] == true
+                                            ? Icons.push_pin_outlined
+                                            : Icons.push_pin,
+                                        item['pinned'] == true
+                                            ? 'Lepas pin'
+                                            : 'Pin percakapan',
+                                      ),
+                                      if (isGroup)
+                                        _menuItem(
+                                          'mute',
+                                          item['muted'] == true
+                                              ? Icons
+                                                  .notifications_active_outlined
+                                              : Icons
+                                                  .notifications_off_outlined,
+                                          item['muted'] == true
+                                              ? 'Aktifkan notifikasi'
+                                              : 'Bisukan notifikasi',
+                                        ),
+                                      _menuItem(
+                                        'clear',
+                                        Icons.cleaning_services_outlined,
+                                        'Bersihkan semua pesan',
+                                      ),
+                                      if (!isGroup &&
+                                          peer?['account_id'] is int &&
+                                          !_contactAccountIds
+                                              .contains(peer?['account_id']))
+                                        _menuItem(
+                                          'add_contact',
+                                          Icons.person_add_alt_1,
+                                          'Tambah ke kontak',
+                                        ),
+                                      if (isGroup)
+                                        _menuItem(
+                                          'leave',
+                                          Icons.logout,
+                                          'Keluar dari grup',
+                                        )
+                                      else
+                                        _menuItem(
+                                          'delete',
+                                          Icons.delete_outline,
+                                          'Hapus pesan',
+                                        ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  timeAgo(item['last_message_at']),
-                                  style: Theme.of(context).textTheme.labelSmall,
-                                ),
-                              ],
-                            ),
-                            trailing: PopupMenuButton<String>(
-                              padding: EdgeInsets.zero,
-                              iconSize: 18,
-                              tooltip: 'Aksi chat',
-                              onSelected: (action) => _chatAction(item, action),
-                              itemBuilder: (_) => [
-                                _menuItem(
-                                  'pin',
-                                  item['pinned'] == true
-                                      ? Icons.push_pin_outlined
-                                      : Icons.push_pin,
-                                  item['pinned'] == true
-                                      ? 'Lepas pin'
-                                      : 'Pin percakapan',
-                                ),
-                                if (isGroup)
-                                  _menuItem(
-                                    'mute',
-                                    item['muted'] == true
-                                        ? Icons.notifications_active_outlined
-                                        : Icons.notifications_off_outlined,
-                                    item['muted'] == true
-                                        ? 'Aktifkan notifikasi'
-                                        : 'Bisukan notifikasi',
-                                  ),
-                                _menuItem(
-                                  'clear',
-                                  Icons.cleaning_services_outlined,
-                                  'Bersihkan semua pesan',
-                                ),
-                                if (!isGroup &&
-                                    peer?['account_id'] is int &&
-                                    !_contactAccountIds
-                                        .contains(peer?['account_id']))
-                                  _menuItem(
-                                    'add_contact',
-                                    Icons.person_add_alt_1,
-                                    'Tambah ke kontak',
-                                  ),
-                                if (isGroup)
-                                  _menuItem(
-                                    'leave',
-                                    Icons.logout,
-                                    'Keluar dari grup',
-                                  )
-                                else
-                                  _menuItem(
-                                    'delete',
-                                    Icons.delete_outline,
-                                    'Hapus pesan',
-                                  ),
-                              ],
-                            ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
+              ),
+            ),
+          ],
         ),
       ),
     );
