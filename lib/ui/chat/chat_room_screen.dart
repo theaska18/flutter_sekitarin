@@ -24,7 +24,7 @@ import '../widgets/account_type_avatar.dart';
 import '../widgets/group_avatar.dart';
 import 'group_info_screen.dart';
 import 'group_map_screen.dart';
-import 'new_chat_sheet.dart';
+import 'forward_sheet.dart';
 
 class ChatRoomScreen extends StatefulWidget {
   const ChatRoomScreen({
@@ -587,7 +587,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
             ),
             if (message['deleted_at'] == null)
               ListTile(
-                leading: const Icon(Icons.forward_outlined),
+                leading: Transform.flip(
+                  flipX: true,
+                  child: const Icon(Icons.reply),
+                ),
                 title: const Text('Teruskan'),
                 onTap: () => Navigator.of(sheetContext).pop('forward'),
               ),
@@ -668,7 +671,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => const NewChatSheet(title: 'Teruskan ke'),
+      builder: (_) => const ForwardSheet(),
     );
     if (target == null || !mounted) return;
     final targetId = target['conversation_id'];
@@ -1762,19 +1765,8 @@ class _MessageBubble extends StatelessWidget {
       // Reactions are drawn over the bubble margin instead of inside the
       // bubble, so adding a reaction never changes the chat list height.
       final reactionBar = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-        decoration: BoxDecoration(
-          color: scheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: scheme.outlineVariant),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+        color: Colors.transparent,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 240),
           child: SingleChildScrollView(

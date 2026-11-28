@@ -6,6 +6,7 @@ import '../../services/location_service.dart';
 import '../../state/auth_store.dart';
 import '../common.dart';
 import '../widgets/group_avatar.dart';
+import 'add_member_sheet.dart';
 
 class GroupInfoScreen extends StatefulWidget {
   const GroupInfoScreen({
@@ -190,31 +191,15 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   }
 
   Future<void> _addMember() async {
-    final controller = TextEditingController();
-    final handle = await showDialog<String>(
+    final memberHandles = _members
+        .map((member) => '${member['handle'] ?? ''}'.toLowerCase())
+        .where((handle) => handle.isNotEmpty)
+        .toSet();
+    final handle = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Tambah anggota'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Username',
-            prefixText: '@',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.of(context).pop(normalizeUsername(controller.text)),
-            child: const Text('Tambah'),
-          ),
-        ],
-      ),
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => AddMemberSheet(excludeHandles: memberHandles),
     );
     if (handle == null || handle.isEmpty || !mounted) return;
     await _run(() => context.read<AuthStore>().api.post(
