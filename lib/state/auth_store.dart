@@ -441,6 +441,7 @@ class AuthStore extends ChangeNotifier {
 
   Future<void> _clearSession() async {
     ChatCache.clearAll();
+    ChatDrafts.clearAll();
     _accessToken = null;
     _refreshToken = null;
     api.accessToken = null;

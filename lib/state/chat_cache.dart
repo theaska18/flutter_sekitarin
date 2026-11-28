@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// Disk-backed message cache so opening a conversation paints instantly, even
@@ -166,5 +167,41 @@ class ChatCache {
         }
       }
     } catch (_) {}
+  }
+}
+
+/// Draft text per conversation so leaving a chat shows "Draft: …" in the
+/// conversation list (like a messenger app).
+class ChatDrafts {
+  static final Map<int, String> _drafts = {};
+
+  /// Bumped whenever a draft changes so the chat list can rebuild.
+  static final ValueNotifier<int> revision = ValueNotifier<int>(0);
+
+  static String? text(int conversationId) {
+    final draft = _drafts[conversationId];
+    return draft == null || draft.trim().isEmpty ? null : draft;
+  }
+
+  static void set(int conversationId, String? text) {
+    final value = text ?? '';
+    final existing = _drafts[conversationId];
+    if (existing == value) return;
+    if (value.trim().isEmpty) {
+      _drafts.remove(conversationId);
+    } else {
+      _drafts[conversationId] = value;
+    }
+    revision.value++;
+  }
+
+  static void clear(int conversationId) {
+    if (_drafts.remove(conversationId) != null) revision.value++;
+  }
+
+  static void clearAll() {
+    if (_drafts.isEmpty) return;
+    _drafts.clear();
+    revision.value++;
   }
 }

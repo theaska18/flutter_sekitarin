@@ -63,6 +63,7 @@ class _ChatListScreenState extends State<ChatListScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     chatListRefreshTick.addListener(_load);
+    ChatDrafts.revision.addListener(_onDraftsChanged);
     _ws = context.read<AuthStore>().ws;
     _wsSub = _ws.events.listen(_onWsEvent);
     CallService.instance.addListener(_onCallStateChanged);
@@ -115,6 +116,7 @@ class _ChatListScreenState extends State<ChatListScreen>
     _filterController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     chatListRefreshTick.removeListener(_load);
+    ChatDrafts.revision.removeListener(_onDraftsChanged);
     CallService.instance.removeListener(_onCallStateChanged);
     _wsSub?.cancel();
     _reloadDebounce?.cancel();
@@ -126,6 +128,10 @@ class _ChatListScreenState extends State<ChatListScreen>
       _ws.unsubscribe(id);
     }
     super.dispose();
+  }
+
+  void _onDraftsChanged() {
+    if (mounted) setState(() {});
   }
 
   void _syncSubscriptions() {
@@ -722,6 +728,11 @@ class _ChatListScreenState extends State<ChatListScreen>
                                   (lastMessage?['delivered_count'] as int? ??
                                           0) >
                                       0;
+                              final draft = conversationId == null
+                                  ? null
+                                  : ChatDrafts.text(conversationId);
+                              final showDraft =
+                                  draft != null && typingLabel == null;
                               Widget titleWidget;
                               if (isGroup) {
                                 titleWidget =
@@ -879,73 +890,104 @@ class _ChatListScreenState extends State<ChatListScreen>
                                               const SizedBox(height: 2),
                                               Row(
                                                 children: [
-                                                  if (lastMine &&
-                                                      typingLabel == null)
-                                                    Padding(
-                                                      padding:
-                                                          const EdgeInsets.only(
-                                                              right: 4),
-                                                      child: Icon(
-                                                        lastRead ||
-                                                                lastDelivered
-                                                            ? Icons.done_all
-                                                            : Icons.done,
-                                                        size: 13,
-                                                        color: lastRead
-                                                            ? const Color(
-                                                                0xFF38BDF8)
-                                                            : scheme
-                                                                .onSurfaceVariant,
+                                                  if (showDraft)
+                                                    Expanded(
+                                                      child: Text.rich(
+                                                        TextSpan(
+                                                          children: [
+                                                            const TextSpan(
+                                                              text: 'Draft: ',
+                                                              style: TextStyle(
+                                                                color: Color(
+                                                                    0xFF16A34A),
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                              ),
+                                                            ),
+                                                            TextSpan(
+                                                                text: draft),
+                                                          ],
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: TextStyle(
+                                                          fontWeight: hasUnread
+                                                              ? FontWeight.w600
+                                                              : FontWeight.w400,
+                                                          color: hasUnread
+                                                              ? scheme.onSurface
+                                                              : null,
+                                                        ),
                                                       ),
-                                                    ),
-                                                  Flexible(
-                                                    child: Text(
-                                                      typingLabel ??
-                                                          (isGroup &&
-                                                                  CallService
-                                                                          .instance
-                                                                          .groupCall(
-                                                                        item['conversation_id']
-                                                                                as int? ??
-                                                                            -1,
-                                                                      ) !=
+                                                    )
+                                                  else ...[
+                                                    if (lastMine &&
+                                                        typingLabel == null)
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .only(right: 4),
+                                                        child: Icon(
+                                                          lastRead ||
+                                                                  lastDelivered
+                                                              ? Icons.done_all
+                                                              : Icons.done,
+                                                          size: 13,
+                                                          color: lastRead
+                                                              ? const Color(
+                                                                  0xFF38BDF8)
+                                                              : scheme
+                                                                  .onSurfaceVariant,
+                                                        ),
+                                                      ),
+                                                    Flexible(
+                                                      child: Text(
+                                                        typingLabel ??
+                                                            (isGroup &&
+                                                                    CallService
+                                                                            .instance
+                                                                            .groupCall(
+                                                                          item['conversation_id'] as int? ??
+                                                                              -1,
+                                                                        ) !=
+                                                                        null
+                                                                ? 'Panggilan grup berlangsung'
+                                                                : '$senderPrefix${messagePreview(lastMessage)}'),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: TextStyle(
+                                                          fontWeight: typingLabel !=
+                                                                      null ||
+                                                                  hasUnread
+                                                              ? FontWeight.w600
+                                                              : FontWeight.w400,
+                                                          fontStyle:
+                                                              typingLabel !=
                                                                       null
-                                                              ? 'Panggilan grup berlangsung'
-                                                              : '$senderPrefix${messagePreview(lastMessage)}'),
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: TextStyle(
-                                                        fontWeight:
-                                                            typingLabel !=
-                                                                        null ||
-                                                                    hasUnread
-                                                                ? FontWeight
-                                                                    .w600
-                                                                : FontWeight
-                                                                    .w400,
-                                                        fontStyle:
-                                                            typingLabel != null
-                                                                ? FontStyle
-                                                                    .italic
-                                                                : FontStyle
-                                                                    .normal,
-                                                        color: typingLabel !=
-                                                                null
-                                                            ? scheme.primary
-                                                            : (hasUnread
-                                                                ? scheme
-                                                                    .onSurface
-                                                                : null),
+                                                                  ? FontStyle
+                                                                      .italic
+                                                                  : FontStyle
+                                                                      .normal,
+                                                          color: typingLabel !=
+                                                                  null
+                                                              ? scheme.primary
+                                                              : (hasUnread
+                                                                  ? scheme
+                                                                      .onSurface
+                                                                  : null),
+                                                        ),
                                                       ),
                                                     ),
-                                                  ),
-                                                  Text(
-                                                    ' · ${timeAgo(item['last_message_at'])}',
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .labelSmall,
-                                                  ),
+                                                    Text(
+                                                      ' · ${timeAgo(item['last_message_at'])}',
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .labelSmall,
+                                                    ),
+                                                  ],
                                                 ],
                                               ),
                                             ],

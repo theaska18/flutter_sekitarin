@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -75,6 +76,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
   bool _hasMore = false;
   bool _loadingOlder = false;
   bool _initialScrollDone = false;
+  bool _userInteracted = false;
 
   @override
   void initState() {
@@ -86,6 +88,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     _sendAccountId = widget.conversation['my_account_id'] as int?;
     _pinned = widget.conversation['pinned'] == true;
     _muted = widget.conversation['muted'] == true;
+    final draft = ChatDrafts.text(_conversationId);
+    if (draft != null) _message.text = draft;
     CallService.instance.setGroupCallFromConversation(widget.conversation);
     _ws.subscribe(_conversationId);
     _wsSubscription = _ws.events.listen((event) {
@@ -372,6 +376,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
   }
 
   void _onTypingChanged(String value) {
+    ChatDrafts.set(_conversationId, value);
     _typingStop?.cancel();
     if (value.trim().isEmpty) {
       _sendTyping(false);
@@ -522,6 +527,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     final localId = pending['message_id'] as int;
     _addPending(pending);
     _message.clear();
+    ChatDrafts.clear(_conversationId);
     setState(() => _sending = true);
     try {
       final data = await context.read<AuthStore>().api.post(
@@ -836,12 +842,30 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
   /// our own new message and the keyboard). The first positioning uses a
   /// jump, not an animation, so opening a chat no longer slides downwards.
   void _scrollToBottom({bool force = false, bool animate = true}) {
+    _scrollAttempt(force: force, animate: animate, attempt: 0);
+  }
+
+  void _scrollAttempt({
+    required bool force,
+    required bool animate,
+    required int attempt,
+  }) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scroll.hasClients) return;
+      if (!mounted || !_scroll.hasClients) return;
       final target = _scroll.position.maxScrollExtent;
       if (!_initialScrollDone) {
-        _initialScrollDone = true;
         _scroll.jumpTo(target);
+        // Images and lazily built slivers can grow after the first frame;
+        // jump again a couple of times so the chat really starts at the
+        // newest message. Stop as soon as the user scrolls.
+        if (attempt < 3 && !_userInteracted) {
+          Future.delayed(const Duration(milliseconds: 120), () {
+            if (!mounted || _userInteracted) return;
+            _scrollAttempt(force: true, animate: false, attempt: attempt + 1);
+          });
+        } else {
+          _initialScrollDone = true;
+        }
         return;
       }
       if (!force && !_nearBottom) return;
@@ -858,6 +882,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
   }
 
   void _onScroll() {
+    if (!_initialScrollDone) return;
     if (!_hasMore || _loadingOlder) return;
     if (!_scroll.hasClients) return;
     if (_scroll.position.pixels > 220) return;
@@ -1153,7 +1178,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
           pinned: true,
           delegate: _ChatDayHeaderDelegate(
             label: chatDateLabel(day.toIso8601String()),
-            background: Theme.of(context).scaffoldBackgroundColor,
+            background: Colors.transparent,
             foreground: scheme.onSurfaceVariant,
             chip: scheme.surfaceContainerHighest,
           ),
@@ -1345,30 +1370,38 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
                 ? const Center(child: CircularProgressIndicator())
                 : _messages.isEmpty
                     ? const Center(child: Text('Belum ada pesan'))
-                    : CustomScrollView(
-                        controller: _scroll,
-                        slivers: [
-                          if (_loadingOlder)
-                            const SliverToBoxAdapter(
-                              child: Padding(
-                                padding: EdgeInsets.all(10),
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
+                    : NotificationListener<UserScrollNotification>(
+                        onNotification: (notification) {
+                          if (notification.direction != ScrollDirection.idle) {
+                            _userInteracted = true;
+                          }
+                          return false;
+                        },
+                        child: CustomScrollView(
+                          controller: _scroll,
+                          slivers: [
+                            if (_loadingOlder)
+                              const SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: EdgeInsets.all(10),
+                                  child: Center(
+                                    child: SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
+                            ..._buildMessageSlivers(
+                              context,
+                              myId,
+                              auth.api.accessToken,
                             ),
-                          ..._buildMessageSlivers(
-                            context,
-                            myId,
-                            auth.api.accessToken,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
           ),
           SafeArea(
@@ -1541,7 +1574,7 @@ class _MessageBubble extends StatelessWidget {
       );
     }
 
-    final body = Align(
+    Widget body = Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         constraints: BoxConstraints(
@@ -1613,50 +1646,78 @@ class _MessageBubble extends StatelessWidget {
                 ),
               ],
             ),
-            if (reactions.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 4,
-                runSpacing: 2,
-                children: [
-                  for (final entry in reactions.entries)
-                    if ((entry.value as num? ?? 0) > 0)
-                      InkWell(
-                        borderRadius: BorderRadius.circular(10),
-                        onTap:
-                            onReact == null ? null : () => onReact!(entry.key),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 5,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: bubbleTextColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                            border: myReaction == entry.key
-                                ? Border.all(
-                                    color: bubbleTextColor.withValues(
-                                      alpha: 0.5,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                          child: Text(
-                            '${entry.key} ${entry.value}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: bubbleTextColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                ],
-              ),
-            ],
           ],
         ),
       ),
     );
+    if (reactions.isNotEmpty) {
+      // Reactions are drawn over the bubble margin instead of inside the
+      // bubble, so adding a reaction never changes the chat list height.
+      final reactionBar = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: scheme.outlineVariant),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 240),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final entry in reactions.entries)
+                  if ((entry.value as num? ?? 0) > 0)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: onReact == null ? null : () => onReact!(entry.key),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          border: myReaction == entry.key
+                              ? Border.all(color: scheme.primary)
+                              : null,
+                        ),
+                        child: Text(
+                          '${entry.key} ${entry.value}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: scheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ),
+              ],
+            ),
+          ),
+        ),
+      );
+      body = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          body,
+          Positioned(
+            bottom: 0,
+            right: mine ? 6 : null,
+            left: mine ? null : 6,
+            child: reactionBar,
+          ),
+        ],
+      );
+    }
     final interactive = onLongPress == null
         ? body
         : GestureDetector(onLongPress: onLongPress, child: body);
