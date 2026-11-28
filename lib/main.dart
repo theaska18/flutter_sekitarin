@@ -8,10 +8,12 @@ import 'core/ws_client.dart';
 import 'services/call_service.dart';
 import 'services/push_service.dart';
 import 'state/auth_store.dart';
+import 'state/chat_cache.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await PushService.initialize();
+  await ChatCache.init();
   final api = ApiClient();
   final store = await TokenStore.create();
   final ws = WsClient();

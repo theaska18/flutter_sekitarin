@@ -72,6 +72,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
   bool _paused = false;
   bool _pinned = false;
   bool _muted = false;
+  bool _hasMore = false;
+  bool _loadingOlder = false;
+  bool _initialScrollDone = false;
 
   @override
   void initState() {
@@ -200,10 +203,16 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     });
     final auth = context.read<AuthStore>();
     auth.markChatNotificationsRead(conversationId: _conversationId);
+    _scroll.addListener(_onScroll);
+    // Paint cached messages immediately on the first frame (also across app
+    // restarts) instead of waiting for the API + spinner.
+    ChatCache.hydrate(_conversationId);
     if (ChatCache.has(_conversationId)) {
       _messages.addAll(ChatCache.messages(_conversationId));
       _lastId = ChatCache.lastId(_conversationId);
       _loading = false;
+      // Optimistically allow loading older pages; a short page disables it.
+      _hasMore = true;
       _scrollToBottom();
       if (_messages.isNotEmpty) _markRead(_messages.last);
       _pollNew();
@@ -220,8 +229,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
 
   void _onInputFocus() {
     if (!_inputFocus.hasFocus) return;
-    Future.delayed(const Duration(milliseconds: 120), _scrollToBottom);
-    Future.delayed(const Duration(milliseconds: 380), _scrollToBottom);
+    Future.delayed(
+        const Duration(milliseconds: 120), () => _scrollToBottom(force: true));
+    Future.delayed(
+        const Duration(milliseconds: 380), () => _scrollToBottom(force: true));
   }
 
   void _startPoll() {
@@ -248,7 +259,8 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
   @override
   void didChangeMetrics() {
     if (!mounted || MediaQuery.of(context).viewInsets.bottom <= 0) return;
-    Future.delayed(const Duration(milliseconds: 120), _scrollToBottom);
+    Future.delayed(
+        const Duration(milliseconds: 120), () => _scrollToBottom(force: true));
   }
 
   @override
@@ -291,6 +303,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
           ..clear()
           ..addAll(items);
         _lastId = items.isEmpty ? 0 : items.last['message_id'] as int;
+        _hasMore = items.length >= 50;
       });
       ChatCache.save(_conversationId, _messages);
       if (items.isNotEmpty) _markRead(items.last);
@@ -439,7 +452,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
         MessageSound.play();
       }
     }
-    _scrollToBottom();
+    final mine =
+        message['sender_user_id'] == context.read<AuthStore>().user?['user_id'];
+    _scrollToBottom(force: mine);
   }
 
   Future<void> _markRead(Map<String, dynamic> message) async {
@@ -458,7 +473,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
   void _addPending(Map<String, dynamic> pending) {
     setState(() => _messages.add(pending));
     MessageSound.play();
-    _scrollToBottom();
+    _scrollToBottom(force: true);
   }
 
   void _removePending(int localId) {
@@ -802,7 +817,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
         _upsert(message, playSound: false);
         await _markRead(message);
       }
-      _scrollToBottom();
+      _scrollToBottom(force: true);
     } catch (error) {
       _markPendingFailed(localId);
       if (mounted) showErrorSnack(context, error);
@@ -811,15 +826,88 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
     }
   }
 
-  void _scrollToBottom() {
+  bool get _nearBottom {
+    if (!_scroll.hasClients) return true;
+    final position = _scroll.position;
+    return position.maxScrollExtent - position.pixels < 140;
+  }
+
+  /// [force] scrolls even when the user is reading older messages (used for
+  /// our own new message and the keyboard). The first positioning uses a
+  /// jump, not an animation, so opening a chat no longer slides downwards.
+  void _scrollToBottom({bool force = false, bool animate = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scroll.hasClients) return;
-      _scroll.animateTo(
-        _scroll.position.maxScrollExtent + 120,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-      );
+      final target = _scroll.position.maxScrollExtent;
+      if (!_initialScrollDone) {
+        _initialScrollDone = true;
+        _scroll.jumpTo(target);
+        return;
+      }
+      if (!force && !_nearBottom) return;
+      if (animate) {
+        _scroll.animateTo(
+          target,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      } else {
+        _scroll.jumpTo(target);
+      }
     });
+  }
+
+  void _onScroll() {
+    if (!_hasMore || _loadingOlder) return;
+    if (!_scroll.hasClients) return;
+    if (_scroll.position.pixels > 220) return;
+    _loadOlder();
+  }
+
+  /// Loads the previous page of messages when the user scrolls to the top,
+  /// keeping the current position steady.
+  Future<void> _loadOlder() async {
+    if (_loadingOlder || _messages.isEmpty) return;
+    final firstId = _messages.first['message_id'] as int?;
+    if (firstId == null || firstId <= 0) return;
+    setState(() => _loadingOlder = true);
+    final beforeExtent =
+        _scroll.hasClients ? _scroll.position.maxScrollExtent : 0.0;
+    try {
+      final data = await context.read<AuthStore>().api.get(
+        'conversations/$_conversationId/messages',
+        query: {'before_id': '$firstId', 'limit': '50'},
+      );
+      if (!mounted) return;
+      final items = data is Map && data['data'] is List
+          ? (data['data'] as List)
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList()
+          : <Map<String, dynamic>>[];
+      final existing = _messages.map((item) => item['message_id']).toSet();
+      final older = items
+          .where((item) => !existing.contains(item['message_id']))
+          .toList();
+      setState(() {
+        _messages.insertAll(0, older);
+        _hasMore = items.length >= 50;
+      });
+      if (older.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_scroll.hasClients) return;
+          final afterExtent = _scroll.position.maxScrollExtent;
+          final delta = afterExtent - beforeExtent;
+          if (delta > 0) {
+            _scroll.jumpTo(_scroll.position.pixels + delta);
+          }
+        });
+      }
+    } catch (_) {
+      // Retry on the next scroll gesture.
+    } finally {
+      if (mounted) setState(() => _loadingOlder = false);
+    }
   }
 
   Future<void> _loadContactState() async {
@@ -1259,11 +1347,28 @@ class _ChatRoomScreenState extends State<ChatRoomScreen>
                     ? const Center(child: Text('Belum ada pesan'))
                     : CustomScrollView(
                         controller: _scroll,
-                        slivers: _buildMessageSlivers(
-                          context,
-                          myId,
-                          auth.api.accessToken,
-                        ),
+                        slivers: [
+                          if (_loadingOlder)
+                            const SliverToBoxAdapter(
+                              child: Padding(
+                                padding: EdgeInsets.all(10),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ..._buildMessageSlivers(
+                            context,
+                            myId,
+                            auth.api.accessToken,
+                          ),
+                        ],
                       ),
           ),
           SafeArea(
