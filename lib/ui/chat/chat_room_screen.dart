@@ -1613,7 +1613,6 @@ class _MessageBubble extends StatelessWidget {
     final reactions = message['reactions'] is Map
         ? Map<String, dynamic>.from(message['reactions'] as Map)
         : <String, dynamic>{};
-    final myReaction = message['my_reaction'] as String?;
 
     Widget content;
     if (deleted) {
@@ -1785,12 +1784,7 @@ class _MessageBubble extends StatelessWidget {
                           horizontal: 5,
                           vertical: 1,
                         ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          border: myReaction == entry.key
-                              ? Border.all(color: scheme.primary)
-                              : null,
-                        ),
+                        decoration: const BoxDecoration(),
                         child: Text(
                           '${entry.key} ${entry.value}',
                           style: TextStyle(

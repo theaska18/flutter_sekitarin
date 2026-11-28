@@ -60,36 +60,46 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
     }
   }
 
+  String? get _handleQuery {
+    final query = _query.trim();
+    if (!query.startsWith('@')) return null;
+    final handle = query.substring(1).toLowerCase();
+    return handle.isEmpty ? null : handle;
+  }
+
   void _onQueryChanged(String value) {
     final query = value.trim();
     setState(() {
       _query = query;
-      if (query.length < 2) _accounts = [];
+      if (!query.startsWith('@')) _accounts = [];
     });
     _debounce?.cancel();
-    if (query.length < 2) return;
-    _debounce = Timer(const Duration(milliseconds: 350), () {
-      _searchAccounts();
-    });
+    if (!query.startsWith('@') || query.length < 2) return;
+    _debounce = Timer(const Duration(milliseconds: 350), _lookupExact);
   }
 
-  Future<void> _searchAccounts() async {
-    final query = _query;
-    if (query.length < 2) return;
+  Future<void> _lookupExact() async {
+    final handle = _handleQuery;
+    if (handle == null || handle.length < 3) return;
     setState(() => _searching = true);
     try {
       final data = await context.read<AuthStore>().api.get(
-        'accounts/search',
-        query: {'q': query},
+        'accounts/lookup',
+        query: {'handle': handle},
       );
       if (!mounted) return;
+      final raw = data is Map ? data['accounts'] : null;
+      final single = data is Map ? data['account'] : null;
+      final list = raw is List && raw.isNotEmpty
+          ? raw
+          : (single is Map ? <Object>[single] : const <Object>[]);
       setState(() {
-        _accounts = data is Map && data['data'] is List
-            ? (data['data'] as List)
-                .whereType<Map>()
-                .map((item) => Map<String, dynamic>.from(item))
-                .toList()
-            : [];
+        _accounts = list
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .where((item) => item['type_code'] == 'personal')
+            .where((item) => '${item['handle'] ?? ''}'.toLowerCase() == handle)
+            .toList();
       });
     } catch (_) {
       if (mounted) setState(() => _accounts = []);
@@ -136,15 +146,18 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
     final available = media.size.height - media.padding.top - 80;
     final height = available.clamp(320.0, 620.0);
     final query = _query.toLowerCase();
-    final contacts = _contacts
-        .where((account) => !_excluded(account) && _matches(account, query))
-        .toList();
-    final accounts = _accounts
-        .where((account) =>
-            !_excluded(account) &&
-            !contacts
-                .any((item) => item['account_id'] == account['account_id']))
-        .toList();
+    final isHandleQuery = _handleQuery != null;
+    final personalContacts = _contacts.where(
+      (account) => account['type_code'] == 'personal',
+    );
+    final contacts = isHandleQuery
+        ? const <Map<String, dynamic>>[]
+        : personalContacts
+            .where((account) => !_excluded(account) && _matches(account, query))
+            .toList();
+    final accounts = isHandleQuery
+        ? _accounts.where((account) => !_excluded(account)).toList()
+        : const <Map<String, dynamic>>[];
     final children = <Widget>[
       if (contacts.isNotEmpty) ...[
         const Padding(
@@ -154,7 +167,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
         for (final account in contacts)
           _tile(account, '@${account['handle'] ?? ''}'),
       ],
-      if (query.length >= 2) ...[
+      if (isHandleQuery) ...[
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
           child: Text('Hasil pencarian username',
@@ -190,7 +203,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
               controller: _search,
               onChanged: _onQueryChanged,
               decoration: const InputDecoration(
-                hintText: 'Cari kontak atau username…',
+                hintText: 'Cari kontak atau @username…',
                 prefixIcon: Icon(Icons.search),
               ),
             ),
@@ -205,7 +218,7 @@ class _AddMemberSheetState extends State<AddMemberSheet> {
                 padding: EdgeInsets.all(24),
                 child: Center(
                   child: Text(
-                    'Belum ada kontak. Ketik username lengkap untuk menambah siapa pun.',
+                    'Ketik nama untuk mencari kontak, atau @username lengkap untuk mencari akun personal.',
                     textAlign: TextAlign.center,
                   ),
                 ),

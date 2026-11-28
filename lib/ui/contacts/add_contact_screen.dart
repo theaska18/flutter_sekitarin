@@ -41,7 +41,15 @@ class _AddContactScreenState extends State<AddContactScreen> {
     // Hide the keyboard first: the result card sits below the search button
     // and was previously hidden behind the keyboard on phones.
     FocusScope.of(context).unfocus();
-    final handle = normalizeUsername(_username.text);
+    final input = _username.text.trim();
+    if (!input.startsWith('@')) {
+      setState(() {
+        _error = 'Tulis username dengan awalan @, misalnya @aska.';
+        _results = [];
+      });
+      return;
+    }
+    final handle = normalizeUsername(input);
     if (!validUsername(handle)) {
       setState(() {
         _error = 'Username tidak valid.';
@@ -68,10 +76,13 @@ class _AddContactScreenState extends State<AddContactScreen> {
       final results = list
           .whereType<Map>()
           .map((item) => Map<String, dynamic>.from(item))
+          .where((item) => item['type_code'] == 'personal')
+          .where((item) => '${item['handle'] ?? ''}'.toLowerCase() == handle)
           .toList();
       setState(() {
         _results = results;
-        if (_results.isEmpty) _error = 'Akun tidak ditemukan.';
+        if (_results.isEmpty)
+          _error = 'Akun personal dengan username itu tidak ditemukan.';
       });
       if (results.isNotEmpty) {
         // Wait for the keyboard to collapse before revealing the result card,
@@ -135,7 +146,8 @@ class _AddContactScreenState extends State<AddContactScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             Text(
-              'Cari akun menggunakan username, misalnya @aska.development.',
+              'Cari akun personal dengan username lengkap berawalan @, '
+              'misalnya @aska.development. Pencarian harus sama persis.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 14),

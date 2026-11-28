@@ -26,6 +26,7 @@ class _NewChatSheetState extends State<NewChatSheet> {
   bool _searching = false;
   bool _calling = false;
   bool _showingSearch = false;
+  String _query = '';
   Timer? _debounce;
 
   @override
@@ -68,54 +69,65 @@ class _NewChatSheetState extends State<NewChatSheet> {
     }
   }
 
+  String? get _handleQuery {
+    final query = _query.trim();
+    if (!query.startsWith('@')) return null;
+    final handle = query.substring(1).toLowerCase();
+    return handle.isEmpty ? null : handle;
+  }
+
   void _onQueryChanged(String value) {
     final query = value.trim();
     _debounce?.cancel();
-    if (query.isEmpty) {
-      setState(() => _showingSearch = false);
-      _runSearch('');
-      return;
-    }
-    if (query.length < 2) return;
-    _debounce = Timer(const Duration(milliseconds: 350), () {
-      _runSearch(query);
-    });
-  }
-
-  Future<void> _runSearch(String query) async {
-    if (query.trim().length < 2) {
+    if (!query.startsWith('@')) {
+      final wasSearching = _showingSearch;
       setState(() {
-        _searching = false;
+        _query = query;
         _showingSearch = false;
+        _searching = false;
       });
-      await _loadContacts();
+      if (wasSearching) {
+        _loadContacts();
+      }
       return;
     }
     setState(() {
-      _searching = true;
+      _query = query;
       _showingSearch = true;
+      _items = [];
     });
+    if (query.length < 2) return;
+    _debounce = Timer(const Duration(milliseconds: 350), _lookupExact);
+  }
+
+  Future<void> _lookupExact() async {
+    final handle = _handleQuery;
+    if (handle == null || handle.length < 3) return;
+    setState(() => _searching = true);
     try {
       final auth = context.read<AuthStore>();
       final data = await auth.api.get(
-        'accounts/search',
-        query: {'q': query.trim()},
+        'accounts/lookup',
+        query: {'handle': handle},
       );
       if (!mounted) return;
+      final raw = data is Map ? data['accounts'] : null;
+      final single = data is Map ? data['account'] : null;
+      final list = raw is List && raw.isNotEmpty
+          ? raw
+          : (single is Map ? <Object>[single] : const <Object>[]);
       final ownIds = auth.accounts
           .map((account) => account['account_id'])
           .whereType<int>()
           .toSet();
       setState(() {
-        // Username search works for any active account, not only contacts,
-        // so a conversation can be started with someone new.
-        _items = data is Map && data['data'] is List
-            ? (data['data'] as List)
-                .whereType<Map>()
-                .map((item) => Map<String, dynamic>.from(item))
-                .where((item) => !ownIds.contains(item['account_id']))
-                .toList()
-            : [];
+        _items = list
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .where((item) => item['type_code'] == 'personal')
+            .where((item) => '${item['handle'] ?? ''}'.toLowerCase() == handle)
+            .where((item) => !ownIds.contains(item['account_id']))
+            .toList();
       });
     } catch (error) {
       if (mounted) showErrorSnack(context, error);
@@ -195,6 +207,20 @@ class _NewChatSheetState extends State<NewChatSheet> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final query = _query.toLowerCase();
+    final visible = _showingSearch
+        ? _items
+        : _items.where((item) {
+            final account = item['account'] is Map
+                ? Map<String, dynamic>.from(item['account'] as Map)
+                : item;
+            if (account['type_code'] != 'personal') return false;
+            if (query.isEmpty) return true;
+            return '${account['display_name'] ?? ''} '
+                    '${account['handle'] ?? ''}'
+                .toLowerCase()
+                .contains(query);
+          }).toList();
     final bottom = media.viewInsets.bottom;
     // Keep the sheet fully on screen when the keyboard is open so the search
     // results are not pushed below it.
@@ -235,26 +261,26 @@ class _NewChatSheetState extends State<NewChatSheet> {
             TextField(
               controller: _search,
               decoration: const InputDecoration(
-                hintText: 'Cari kontak atau akun…',
+                hintText: 'Cari kontak atau @username…',
                 prefixIcon: Icon(Icons.search),
               ),
               onChanged: _onQueryChanged,
               onSubmitted: (value) {
                 FocusScope.of(context).unfocus();
-                _runSearch(value);
+                if (value.trim().startsWith('@')) _lookupExact();
               },
             ),
             const SizedBox(height: 12),
             if (_loading || _searching)
               const Center(child: CircularProgressIndicator())
-            else if (_items.isEmpty)
+            else if (visible.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 40),
                 child: Center(
                   child: Text(
                     _showingSearch
-                        ? 'Username tidak ditemukan.\nCoba tulis username lengkap.'
-                        : 'Belum ada kontak.\nCari username siapa pun lewat kolom di atas.',
+                        ? 'Username tidak ditemukan.\nTulis @username lengkap (akun personal).'
+                        : 'Belum ada kontak personal.\nKetik nama atau @username untuk mencari.',
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -264,9 +290,9 @@ class _NewChatSheetState extends State<NewChatSheet> {
                 child: ListView.builder(
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
-                  itemCount: _items.length,
+                  itemCount: visible.length,
                   itemBuilder: (context, index) {
-                    final item = _items[index];
+                    final item = visible[index];
                     final account = item['account'] is Map
                         ? Map<String, dynamic>.from(item['account'] as Map)
                         : item;
