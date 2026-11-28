@@ -43,6 +43,7 @@ the manifest and downloads/installs the APK.
 
 | Date | Version | Highlights |
 | --- | --- | --- |
+| 2026-11-28 | 0.12.55+71 | Fix media end to end: the data m-line is now part of the BUNDLE group (it was appended after the remote SDP was generated, so libwebrtc negotiated an unbundled DTLS transport JVB never completed and no SCTP/data channel ever opened); render remote video tracks that arrive without an attached MediaStream; keep a camera track on voice calls so the in-call camera button works without renegotiation; ignore the CallKit ACTION_CALL_ENDED emitted while dismissing the incoming screen until the in-app call reports media connected (it ended freshly answered calls after ~1s). |
 | 2026-11-27 | 0.12.54+70 | Use the exact unordered `custom` Colibri auxiliary data channel from ISP-2194 (the browser-only JVB label produced no source-map events in our native client); request bridge + participant sources and upload data-channel state diagnostics. |
 | 2026-11-27 | 0.12.53+69 | Use Jitsi's required `JVB data channel` label and Colibri protocol; explicitly request the bridge video source (`jvb-v0`) while also requesting mapped participant sources. |
 | 2026-11-27 | 0.12.52+68 | Keep receive-only video in the Jingle answer and map it to `senders=initiator`; fix CallKit end-event race that could decline an answered call, dedupe active CallKit IDs, and mark CallKit connected only after media opens. |

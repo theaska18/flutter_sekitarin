@@ -288,11 +288,21 @@ class JitsiSdpHelper {
       debugPrint(
         '[JITSI] Session-initiate sources: audio=${audioParticipantStreams.length} video=${videoParticipantStreams.length} json=${jsonMessage != null}',
       );
+      // The offer always carries the data content in its BUNDLE group. Detect
+      // it from the offer itself: session.sdpApplication is only populated
+      // after this method runs, so relying on it dropped mid 2 from BUNDLE and
+      // forced libwebrtc to negotiate a second, unbundled DTLS transport that
+      // JVB never completes (no SCTP => no data channel, no VideoSourcesMap).
+      final offerHasData = contents.any((e) {
+        final desc = e.findElements('description').firstOrNull;
+        return desc?.getAttribute('media') == 'application' ||
+            e.getAttribute('name') == 'data';
+      });
       if (audioParticipantStreams.isNotEmpty ||
           videoParticipantStreams.isNotEmpty) {
         final dataMid =
             audioParticipantStreams.length + videoParticipantStreams.length;
-        final hasData = session.sdpApplication.trim().isNotEmpty;
+        final hasData = offerHasData;
         session.sdpDataMid = dataMid.toString();
         int mediaIndex = 0;
         for (final _ in audioParticipantStreams.entries) {
@@ -351,7 +361,7 @@ class JitsiSdpHelper {
             mids.add('$mediaIndex');
             mediaIndex++;
           }
-          final hasData = session.sdpApplication.trim().isNotEmpty;
+          final hasData = offerHasData;
           if (hasData) mids.add('$mediaIndex');
           session.sdpDataMid = mediaIndex.toString();
           sdpBuffer.writeln('a=group:BUNDLE ${mids.join(' ')}');

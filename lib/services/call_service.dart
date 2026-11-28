@@ -32,6 +32,7 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
   bool _joining = false;
   final Set<int> _acceptedCalls = {};
   final Set<int> _programmaticCallKitEnds = {};
+  final Set<int> _mediaReadyCalls = {};
   int? _activeMeetCallId;
   Timer? _heartbeat;
   bool _clearedStaleCallkit = false;
@@ -173,6 +174,10 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
         _outgoing = data;
         _active = data;
         _incoming = null;
+        final answeredId = _asInt(data['call_id']);
+        // From this point the CallKit notification teardown must not be
+        // treated as a user hang-up; the in-app media takes over.
+        if (answeredId != null) _acceptedCalls.add(answeredId);
         notifyListeners();
       case 'call.ended':
       case 'call.canceled':
@@ -203,6 +208,7 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
     if (callId != null && _activeMeetCallId == callId) {
       _heartbeat?.cancel();
       _activeMeetCallId = null;
+      _mediaReadyCalls.remove(callId);
       endSignal.value = callId;
     }
     if (data['active_call'] == null) {
@@ -444,13 +450,13 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
     if (callId == null) return;
     if (_programmaticCallKitEnds.remove(callId)) return;
     if (_acceptedCalls.contains(callId)) {
-      final hasActiveCall = _activeMeetCallId == callId ||
-          _asInt(_active?['call_id']) == callId ||
-          _asInt(_outgoing?['call_id']) == callId;
-      // Some CallKit implementations emit ACTION_CALL_ENDED while tearing
-      // down the incoming screen after ACTION_CALL_ACCEPT. That is not a
-      // second user hang-up; only end if the actual in-app call is active.
-      if (!hasActiveCall) return;
+      // Android dismisses the incoming CallKit UI when the call is accepted
+      // and emits ACTION_CALL_ENDED for that dismissal. Before our media is
+      // ready this is always that teardown, never the user hanging up; acting
+      // on it ended freshly answered calls about a second after answering
+      // (the "first video call returns to chat" bug). Only honour ENDED once
+      // the in-app call screen reports media connected.
+      if (!_mediaReadyCalls.contains(callId)) return;
       try {
         await _auth?.api.post('calls/$callId/end');
       } catch (_) {}
@@ -685,6 +691,7 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
       _heartbeat = null;
       if (_activeMeetCallId == callId) _activeMeetCallId = null;
       if (callId != null) {
+        _mediaReadyCalls.remove(callId);
         try {
           await FlutterCallkitIncoming.endCall('call-$callId');
         } catch (_) {}
@@ -753,6 +760,7 @@ class CallService extends ChangeNotifier with WidgetsBindingObserver {
           callId: callId,
           onConnected: () async {
             if (callId == null) return;
+            _mediaReadyCalls.add(callId);
             try {
               await FlutterCallkitIncoming.setCallConnected('call-$callId');
             } catch (_) {}

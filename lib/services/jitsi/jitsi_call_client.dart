@@ -116,23 +116,31 @@ class JitsiCallClient implements JitsiSessionView {
 
   Future<void> _openMedia() async {
     try {
+      // Always capture a camera track so the in-call camera button can turn
+      // video on without a renegotiation; voice calls simply start with the
+      // track disabled.
       final constraints = <String, dynamic>{
         'audio': {
           'echoCancellation': true,
           'noiseSuppression': true,
           'autoGainControl': true,
         },
-        'video': startWithVideo
-            ? {
-                'facingMode': 'user',
-                'width': {'ideal': 1280},
-                'height': {'ideal': 720},
-              }
-            : false,
+        'video': {
+          'facingMode': 'user',
+          'width': {'ideal': 1280},
+          'height': {'ideal': 720},
+        },
       };
       localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (!startWithVideo) {
+        videoMuted = true;
+        for (final track in localStream!.getVideoTracks()) {
+          track.enabled = false;
+        }
+      } else {
+        videoMuted = false;
+      }
       localRenderer.srcObject = localStream;
-      if (startWithVideo) videoMuted = false;
       _notify();
     } catch (e) {
       _fail('Tidak dapat mengakses mikrofon/kamera: $e');
@@ -524,16 +532,25 @@ class JitsiCallClient implements JitsiSessionView {
         remoteAudioTracks++;
         _diag('Track audio diterima');
       }
-      final streams = event.streams;
-      if (streams.isEmpty) return;
-      final media = streams.first;
-      _diag('Track ${event.track.kind}: ${media.id}');
       if (event.track.kind != 'video') return;
-      final key = media.id;
-      if (remoteRenderers.containsKey(key)) return;
+      final streams = event.streams;
+      // JVB delivers a single mixed video track whose msid is often empty on
+      // the answer side; do not drop it just because no MediaStream is
+      // attached to the event.
+      final key = streams.isNotEmpty
+          ? streams.first.id
+          : (event.track.id ?? 'remote-${remoteVideoTracks}');
+      if (key.isEmpty || remoteRenderers.containsKey(key)) return;
       final renderer = RTCVideoRenderer();
       await renderer.initialize();
-      renderer.srcObject = media;
+      if (streams.isNotEmpty) {
+        renderer.srcObject = streams.first;
+      } else {
+        final fallback = await createLocalMediaStream('remote-$key');
+        await fallback.addTrack(event.track);
+        renderer.srcObject = fallback;
+      }
+      _diag('Track video diterima: $key');
       remoteRenderers[key] = renderer;
       remoteRenderer ??= renderer;
       _notify();

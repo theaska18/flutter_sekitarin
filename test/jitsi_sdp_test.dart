@@ -89,4 +89,42 @@ void main() {
     expect(result, contains('ufrag="dataU"'));
     expect(result, contains('pwd="dataPassword"'));
   });
+
+  test('Remote SDP bundles the data content before it is generated', () async {
+    final session = _Session();
+    // Mirrors the real call order: parseRemoteSdpFromJitsiXml runs before
+    // sdpApplication is populated.
+    session.sdpApplication = '';
+    session.participants[0] = JitsiParticipant(
+      jid: 'focus@auth.meet.jitsi/focus',
+      nickName: 'focus',
+      sid: 'sid-1',
+      sessionInitiateData: '''
+<iq><jingle sid="sid-1">
+  <content creator="initiator" name="audio">
+    <description media="audio"><payload-type id="111" name="opus" clockrate="48000" channels="2"/></description>
+    <transport ufrag="u" pwd="p" xmlns="urn:xmpp:jingle:transports:ice-udp:1"><fingerprint xmlns="urn:xmpp:jingle:apps:dtls:0" hash="sha-256">00:11</fingerprint></transport>
+  </content>
+  <content creator="initiator" name="video">
+    <description media="video"><payload-type id="100" name="VP8" clockrate="90000"/></description>
+    <transport ufrag="u" pwd="p" xmlns="urn:xmpp:jingle:transports:ice-udp:1"><fingerprint xmlns="urn:xmpp:jingle:apps:dtls:0" hash="sha-256">00:11</fingerprint></transport>
+  </content>
+  <content creator="initiator" name="data">
+    <description media="application"/>
+    <transport ufrag="u" pwd="p" xmlns="urn:xmpp:jingle:transports:ice-udp:1"><sctpmap number="5000" protocol="webrtc-datachannel" xmlns="urn:xmpp:jingle:transports:dtls-sctp:1" streams="0"/></transport>
+  </content>
+</jingle></iq>
+''',
+    );
+    final helper = JitsiSdpHelper(session);
+    final sdp = await helper.parseRemoteSdpFromJitsiXml(0);
+
+    expect(sdp, isNotNull);
+    expect(sdp!, contains('a=group:BUNDLE 0 1 2'));
+    expect(session.sdpDataMid, '2');
+    // The client answer must keep the data m-line on the bundled transport;
+    // an unbundled data transport never completes DTLS/SCTP with JVB.
+    expect(sdp, contains('m=audio'));
+    expect(sdp, contains('m=video'));
+  });
 }
