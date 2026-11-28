@@ -159,6 +159,68 @@ class _ChatListScreenState extends State<ChatListScreen>
     if (mounted) setState(() {});
   }
 
+  void _sortItems() {
+    int pinned(Map<String, dynamic> item) => item['pinned'] == true ? 1 : 0;
+    DateTime at(Map<String, dynamic> item) =>
+        DateTime.tryParse('${item['last_message_at'] ?? ''}') ??
+        DateTime.fromMillisecondsSinceEpoch(0);
+    _items.sort((a, b) {
+      final byPinned = pinned(b).compareTo(pinned(a));
+      if (byPinned != 0) return byPinned;
+      return at(b).compareTo(at(a));
+    });
+  }
+
+  /// Updates the conversation preview from a WebSocket event instead of
+  /// reloading the whole list, which made the list flash/jump after sending
+  /// a message.
+  bool _applyPreviewEvent(
+    String name,
+    int conversationId,
+    Map<String, dynamic> payload,
+  ) {
+    final index =
+        _items.indexWhere((item) => item['conversation_id'] == conversationId);
+    if (index < 0) return false;
+    final item = _items[index];
+    if (name == 'message.created') {
+      final myId = context.read<AuthStore>().user?['user_id'];
+      final mine = payload['sender_user_id'] == myId;
+      item['last_message'] = payload;
+      item['last_message_at'] = payload['created_at'];
+      if (!mine && ChatPresence.activeConversationId != conversationId) {
+        item['unread_count'] = ((item['unread_count'] as int?) ?? 0) + 1;
+      }
+      _items.removeAt(index);
+      _items.add(item);
+      _sortItems();
+      setState(() {});
+      return true;
+    }
+    final last = item['last_message'];
+    if (last is! Map) return false;
+    if (name == 'messages.delivered') {
+      final ids = payload['message_ids'];
+      if (ids is List && ids.contains(last['message_id'])) {
+        last['delivered_count'] = 1;
+        setState(() {});
+        return true;
+      }
+      return false;
+    }
+    if (name == 'read.updated') {
+      final readId = payload['message_id'];
+      final lastId = last['message_id'];
+      if (readId is int && lastId is int && lastId <= readId) {
+        last['delivered_count'] = 1;
+        last['read_count'] = 1;
+        setState(() {});
+        return true;
+      }
+    }
+    return false;
+  }
+
   void _onWsEvent(Map<String, dynamic> event) {
     final conversationId = event['conversation_id'];
     if (conversationId is! int) return;
@@ -169,8 +231,28 @@ class _ChatListScreenState extends State<ChatListScreen>
       if (ChatPresence.activeConversationId != conversationId) {
         MessageSound.play();
       }
+      final payload = event['payload'];
+      if (payload is Map &&
+          _applyPreviewEvent(
+            name,
+            conversationId,
+            Map<String, dynamic>.from(payload),
+          )) {
+        return;
+      }
       _reloadDebounce?.cancel();
       _reloadDebounce = Timer(const Duration(milliseconds: 350), _load);
+      return;
+    }
+    if (name == 'messages.delivered' || name == 'read.updated') {
+      final payload = event['payload'];
+      if (payload is Map) {
+        _applyPreviewEvent(
+          name,
+          conversationId,
+          Map<String, dynamic>.from(payload),
+        );
+      }
       return;
     }
     if (name == 'conversation.updated') {
@@ -569,6 +651,16 @@ class _ChatListScreenState extends State<ChatListScreen>
                                     ? FontWeight.w800
                                     : FontWeight.w600,
                               );
+                              final myUserId =
+                                  context.read<AuthStore>().user?['user_id'];
+                              final lastMine = lastMessage != null &&
+                                  lastMessage['sender_user_id'] == myUserId;
+                              final lastRead =
+                                  (lastMessage?['read_count'] as int? ?? 0) > 0;
+                              final lastDelivered =
+                                  (lastMessage?['delivered_count'] as int? ??
+                                          0) >
+                                      0;
                               Widget titleWidget;
                               if (isGroup) {
                                 titleWidget =
@@ -704,32 +796,54 @@ class _ChatListScreenState extends State<ChatListScreen>
                                   subtitle: Row(
                                     children: [
                                       Expanded(
-                                        child: Text(
-                                          typingLabel ??
-                                              (isGroup &&
-                                                      CallService.instance.groupCall(
-                                                              item['conversation_id']
-                                                                      as int? ??
-                                                                  -1) !=
-                                                          null
-                                                  ? 'Panggilan grup berlangsung'
-                                                  : '$senderPrefix${messagePreview(lastMessage)}'),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontWeight:
-                                                typingLabel != null || hasUnread
-                                                    ? FontWeight.w600
-                                                    : FontWeight.w400,
-                                            fontStyle: typingLabel != null
-                                                ? FontStyle.italic
-                                                : FontStyle.normal,
-                                            color: typingLabel != null
-                                                ? scheme.primary
-                                                : (hasUnread
-                                                    ? scheme.onSurface
-                                                    : null),
-                                          ),
+                                        child: Row(
+                                          children: [
+                                            if (lastMine && typingLabel == null)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    right: 4),
+                                                child: Icon(
+                                                  lastRead || lastDelivered
+                                                      ? Icons.done_all
+                                                      : Icons.done,
+                                                  size: 13,
+                                                  color: lastRead
+                                                      ? const Color(0xFF38BDF8)
+                                                      : scheme.onSurfaceVariant,
+                                                ),
+                                              ),
+                                            Expanded(
+                                              child: Text(
+                                                typingLabel ??
+                                                    (isGroup &&
+                                                            CallService.instance
+                                                                    .groupCall(
+                                                                        item['conversation_id']
+                                                                                as int? ??
+                                                                            -1) !=
+                                                                null
+                                                        ? 'Panggilan grup berlangsung'
+                                                        : '$senderPrefix${messagePreview(lastMessage)}'),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontWeight:
+                                                      typingLabel != null ||
+                                                              hasUnread
+                                                          ? FontWeight.w600
+                                                          : FontWeight.w400,
+                                                  fontStyle: typingLabel != null
+                                                      ? FontStyle.italic
+                                                      : FontStyle.normal,
+                                                  color: typingLabel != null
+                                                      ? scheme.primary
+                                                      : (hasUnread
+                                                          ? scheme.onSurface
+                                                          : null),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                       const SizedBox(width: 6),
